@@ -1,0 +1,75 @@
+name: Django CI with Docker & GitHub Secrets
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DEBUG: true
+  DJANGO_LOGLEVEL: info
+
+  DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+  DJANGO_ALLOWED_HOSTS: ${{ secrets.DJANGO_ALLOWED_HOSTS }}
+
+  DATABASE_ENGINE: postgresql
+  DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
+  DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+  DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+  DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+  DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ${{ secrets.DATABASE_NAME }}
+          POSTGRES_USER: ${{ secrets.DATABASE_USERNAME }}
+          POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Install Docker Compose
+      run: |
+        sudo apt-get update
+        sudo apt-get install docker-compose -y
+
+    - name: Build and run containers
+      run: |
+        chmod +x wait-for-it.sh
+        docker-compose -f docker-compose.yml up -d --build
+
+    - name: Wait for DB to be ready
+      run: ./wait-for-it.sh localhost:5432 --timeout=60 --strict -- echo "Database is ready"
+
+    - name: Run migrations
+      run: docker-compose exec -T django-web python manage.py migrate
+
+    - name: Run tests
+      run: docker-compose exec -T django-web python manage.py test
+
+    - name: Collect static files
+      run: docker-compose exec -T django-web python manage.py collectstatic --noinput
+
+    - name: Shut down containers
+      if: always()
+      run: docker-compose down
