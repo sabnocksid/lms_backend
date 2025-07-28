@@ -17,3 +17,5 @@ COPY lms_project/ ./lms_project/
 COPY wait-for-it.sh .
 
 RUN chmod +x wait-for-it.sh
+
+
