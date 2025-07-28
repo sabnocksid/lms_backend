@@ -1,11 +1,18 @@
+name: Deploy Django with Docker on push to main
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
   deploy:
-    runs-on: self-hosted 
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
       - name: Run docker-compose locally
         run: |
-          cd /path/to/your/lms-backend
+          cd ~/lms_backend
           docker-compose down
           docker-compose up -d --build
