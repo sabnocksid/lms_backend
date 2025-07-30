@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from .models import Course, Lesson, Video, Enrollment
 from .serializers import CourseSerializer, LessonSerializer, VideoSerializer, EnrollmentSerializer
 from utils.aes_crypto import handle_video_upload
+from django.conf import settings
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -17,24 +18,27 @@ class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-class VideoViewSet(viewsets.ModelViewSet):
-    queryset = Video.objects.all()
-    serializer_class = VideoSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
     def create(self, request, *args, **kwargs):
-        uploaded_file = request.FILES.get('file')
+        uploaded_file = request.FILES.get('video_file')
         if uploaded_file:
-            encrypted_path = handle_video_upload(uploaded_file)
+            filename = uploaded_file.name
+            encrypted_path = handle_video_upload(uploaded_file, filename)
+            relative_path = encrypted_path.replace('media/', '')
 
             data = request.data.copy()
-            data['file'] = encrypted_path.replace('media/', '')  
+            data['video_file'] = relative_path
 
             serializer = self.get_serializer(data=data)
             serializer.is_valid(raise_exception=True)
             self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
+
+            video_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
+
+            response_data = serializer.data
+            response_data['video_url'] = video_url
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
         return Response({"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
 
 class EnrollmentViewSet(viewsets.ModelViewSet):

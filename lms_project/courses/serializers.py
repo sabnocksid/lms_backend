@@ -7,19 +7,14 @@ class VideoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class LessonSerializer(serializers.ModelSerializer):
-    videos = VideoSerializer(many=True, read_only=True)
-
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'order', 'content', 'videos']
+        fields = '__all__'
 
 class CourseSerializer(serializers.ModelSerializer):
-    lessons = LessonSerializer(many=True, read_only=True)
-    instructor = serializers.StringRelatedField()
-
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'instructor', 'created_at', 'lessons']
+        fields = '__all__' 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     student = serializers.StringRelatedField()
