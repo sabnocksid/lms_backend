@@ -6,7 +6,7 @@ router = DefaultRouter()
 router.register(r'courses', CourseViewSet)
 router.register(r'lessons', LessonViewSet)
 router.register(r'videos', VideoViewSet)
-router.register(r'enrollments', EnrollmentViewSet)
+router.register(r'enrollments', EnrollmentViewSet, basename='enrollment')  
 
 urlpatterns = [
     path('', include(router.urls)),

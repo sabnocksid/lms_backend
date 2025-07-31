@@ -1,10 +1,12 @@
 from rest_framework import serializers
 from .models import Course, Lesson, Video, Enrollment
 
+
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = '__all__'
+        fields = ['id', 'title', 'lesson', 'video_file', 'duration', 'description', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
 
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:

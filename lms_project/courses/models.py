@@ -29,7 +29,7 @@ class Lesson(models.Model):
 class Video(models.Model):
     lesson = models.ForeignKey(Lesson, related_name='videos', on_delete=models.CASCADE)
     title = models.CharField(max_length=255, blank=True)
-    video_file = models.FileField(upload_to='lesson_videos/')
+    video_file = models.FileField(upload_to="encrypted_videos/")
     duration = models.PositiveIntegerField(null=True, blank=True, help_text='Duration in seconds')
     description = models.TextField(blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)

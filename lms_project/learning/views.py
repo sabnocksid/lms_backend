@@ -1,7 +1,7 @@
 from django.http import StreamingHttpResponse, Http404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
-from utils.aes_crypto import decrypt_video_file
+from utils.aes_crypto import decrypt_file_for_user
 import os
 
 
@@ -13,7 +13,7 @@ def stream_encrypted_video(request, filename):
     if not os.path.exists(encrypted_path):
         raise Http404("Video not found")
 
-    decrypted_data = decrypt_video_file(encrypted_path)
+    decrypted_data = decrypt_file_for_user(encrypted_path)
 
     response = StreamingHttpResponse(
         iter([decrypted_data]),  
