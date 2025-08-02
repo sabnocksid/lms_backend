@@ -32,6 +32,11 @@ CORS_ALLOW_HEADERS = (
     "x-requested-with",
 )
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://mortgage-extra-featuring-notre.trycloudflare.com",
+    "https://sidharth-backend.duckdns.org",
+]
+
 AUTH_USER_MODEL = 'users.User'
 
 MEDIA_URL = '/media/'

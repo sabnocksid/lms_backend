@@ -3,10 +3,12 @@ from Crypto.Cipher import AES
 import os
 import hashlib
 
-# Dummy key generator (for demo); in production, store per-user keys securely
+# user key based on  user id
 def get_user_key(user):
     return hashlib.sha256(f"secret-key-{user.id}".encode()).digest()
 
+
+#encryption function for a file
 def encrypt_stream_for_user(user, input_stream, output_path):
     key = get_user_key(user)
     iv = os.urandom(16)
@@ -20,6 +22,7 @@ def encrypt_stream_for_user(user, input_stream, output_path):
                 break
             f_out.write(cipher.encrypt(chunk))
 
+#decryption function for a file
 def decrypt_file_for_user(user, input_path, output_path):
     key = get_user_key(user)
 
