@@ -100,6 +100,8 @@ class UserLessonKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lesson_keys')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='user_keys')
     encrypted_key = models.BinaryField() 
+    partial_decryption_key = models.CharField(max_length=255, blank=True, null=True)  # store the partial key from frontend
+    partial_decryption_completed = models.BooleanField(default=False)  # track if partial key is provided
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
