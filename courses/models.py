@@ -93,7 +93,6 @@ class Lesson(models.Model):
         return f"{self.chapter.title} - {self.title}"
 
     def generate_key(self):
-        # 256-bit AES key
         return os.urandom(32)
 
 

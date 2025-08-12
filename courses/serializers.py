@@ -1,5 +1,6 @@
 import base64
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Category, Course, Chapter, Lesson, UserLessonKey
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -19,6 +20,7 @@ class LessonSerializer(serializers.ModelSerializer):
             'partial_decryption_key'
         ]
 
+    @extend_schema_field(serializers.CharField())
     def get_partial_decryption_key(self, obj):
         request = self.context.get('request')
         user = request.user if request else None
