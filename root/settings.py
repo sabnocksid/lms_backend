@@ -12,6 +12,13 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", 'django-insecure-u#g=57fcw9uej(ams%s
 
 AES_SECRET = os.getenv("AES_SECRET")
 
+
+MY_ACCESS_KEY_ID = os.getenv('MY_ACCESS_KEY_ID')
+MY_SECRET_KEY = os.getenv('MY_SECRET_KEY')
+MY_BUCKET_NAME = os.getenv('MY_BUCKET_NAME')
+MY_AWS_REGION = os.getenv('MY_AWS_REGION', 'us-east-1')
+MY_S3_ENDPOINT_URL = os.getenv('MY_S3_ENDPOINT_URL') 
+
 if not AES_SECRET:
     raise ValueError("AES_SECRET must be set in your .env file")
 

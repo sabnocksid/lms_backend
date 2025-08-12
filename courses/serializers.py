@@ -2,6 +2,9 @@ import base64
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 from .models import Category, Course, Chapter, Lesson, UserLessonKey
+import boto3
+from botocore.client import Config
+from django.conf import settings
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,6 +14,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     partial_decryption_key = serializers.SerializerMethodField()
+    video_file = serializers.SerializerMethodField() 
 
     class Meta:
         model = Lesson
@@ -38,6 +42,42 @@ class LessonSerializer(serializers.ModelSerializer):
         part_len = (len(full_key) * 3) // 4
         partial_key = full_key[:part_len]
         return base64.b64encode(partial_key).decode('utf-8')
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_video_file(self, obj):
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or user.is_anonymous:
+            return None
+
+        try:
+            key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
+        except UserLessonKey.DoesNotExist:
+            return None
+
+        if key_obj.partial_decryption_completed:
+            return generate_signed_url(obj.video_file)
+        else:
+            return None
+
+def generate_signed_url(video_file_field):
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.MY_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.MY_SECRET_KEY,
+        region_name=settings.MY_AWS_REGION,
+        endpoint_url=settings.MY_S3_ENDPOINT_URL,
+        config=Config(signature_version='s3v4'),  
+    )
+    bucket_name = settings.MY_BUCKET_NAME
+    object_key = video_file_field.name
+
+    presigned_url = s3_client.generate_presigned_url(
+        'get_object',
+        Params={'Bucket': bucket_name, 'Key': object_key},
+        ExpiresIn=3600,
+    )
+    return presigned_url
     
 class ChapterSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
