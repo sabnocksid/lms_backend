@@ -111,6 +111,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
@@ -132,6 +136,8 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.FormParser",
     ),
 }
+
+
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "LMS API",
