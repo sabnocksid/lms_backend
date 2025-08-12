@@ -78,6 +78,12 @@ def generate_signed_url(video_file_field):
         ExpiresIn=3600,
     )
     return presigned_url
+
+
+class UserLessonKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserLessonKey
+        fields = ['partial_decryption_key', 'partial_decryption_completed']
     
 class ChapterSerializer(serializers.ModelSerializer):
     lessons = LessonSerializer(many=True, read_only=True)
