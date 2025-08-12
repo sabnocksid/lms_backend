@@ -55,10 +55,12 @@ class LessonSerializer(serializers.ModelSerializer):
         except UserLessonKey.DoesNotExist:
             return None
 
-        if key_obj.partial_decryption_completed:
-            return generate_signed_url(obj.video_file)
-        else:
-            return None
+        if key_obj.partial_decryption_completed and obj.video_file:
+            if request:
+                return request.build_absolute_uri(obj.video_file.url)
+            else:
+                return obj.video_file.url
+        return None
 
 def generate_signed_url(video_file_field):
     s3_client = boto3.client(
