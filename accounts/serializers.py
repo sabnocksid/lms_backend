@@ -23,7 +23,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ["id", "email", "full_name", "role", "is_active"]
+        fields = ["id", "email", "full_name", "role","encryption_key" ,"is_active"]
 
 
 class LoginSerializer(serializers.Serializer):
