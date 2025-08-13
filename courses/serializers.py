@@ -46,6 +46,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
 class LessonDetailSerializer(serializers.ModelSerializer):
     partial_decryption_key = serializers.SerializerMethodField()
+    remaining_partial_key = serializers.SerializerMethodField()  # new field
     video_file = serializers.SerializerMethodField()
     document = serializers.SerializerMethodField()  
 
@@ -54,11 +55,11 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'chapter', 'title', 'content_type',
             'video_file', 'document', 'content', 'order',
-            'partial_decryption_key'
+            'partial_decryption_key',
+            'remaining_partial_key', 
         ]
 
     def _validate_partial_key(self, obj):
-
         request = self.context.get('request')
         user = request.user if request else None
         if not user or user.is_anonymous:
@@ -100,7 +101,23 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         part_len = (len(full_key) * 3) // 4
         partial_key = full_key[:part_len]
         return base64.b64encode(partial_key).decode('utf-8')
-    
+
+    def get_remaining_partial_key(self, obj):
+        if not self._validate_partial_key(obj):
+            return None
+
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or user.is_anonymous:
+            return None
+
+        key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
+        full_key = key_obj.get_raw_key()
+
+        part_len = (len(full_key) * 3) // 4
+        remaining_key = full_key[part_len:]
+        return base64.b64encode(remaining_key).decode('utf-8')
+
     def get_video_file(self, obj):
         if self._validate_partial_key(obj) and obj.video_file:
             request = self.context.get('request')
@@ -112,7 +129,6 @@ class LessonDetailSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             return request.build_absolute_uri(obj.document.url) if request else obj.document.url
         return None
-
 
 
 class UserLessonKeySerializer(serializers.ModelSerializer):
