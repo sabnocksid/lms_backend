@@ -61,12 +61,9 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         ]
 
     def generate_key_from_user(self, user, lesson):
-        """
-        Deterministically generate a 32-byte key from the user's slug or username and lesson ID.
-        """
-        user_identifier = getattr(user, 'slug', None) or user.username
+        user_identifier = getattr(user, 'slug', None) or getattr(user, 'email', None) or str(user.pk)
         key_input = f"{user_identifier}-{lesson.id}"
-        return hashlib.sha256(key_input.encode('utf-8')).digest()  # 32-byte key
+        return hashlib.sha256(key_input.encode('utf-8')).digest()
 
     def _validate_partial_key(self, obj):
         request = self.context.get('request')
