@@ -1,6 +1,7 @@
 import os
 from django.db import models
 from django.conf import settings
+import hashlib
 
 User = settings.AUTH_USER_MODEL
 
@@ -99,7 +100,7 @@ class Lesson(models.Model):
 class UserLessonKey(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lesson_keys')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='user_keys')
-    encrypted_key = models.BinaryField() 
+    encrypted_key = models.BinaryField(blank=True, null=True) 
     partial_decryption_key = models.CharField(max_length=255, blank=True, null=True)
     partial_decryption_completed = models.BooleanField(default=False)  
     created_at = models.DateTimeField(auto_now_add=True)
@@ -112,3 +113,14 @@ class UserLessonKey(models.Model):
 
     def get_raw_key(self):
         return self.encrypted_key
+
+    def generate_key_from_user(self):
+        user_identifier = getattr(self.user, 'slug', None) or self.user.username
+        key_input = f"{user_identifier}-{self.lesson.id}"
+        key_bytes = hashlib.sha256(key_input.encode('utf-8')).digest()
+        return key_bytes
+
+    def save(self, *args, **kwargs):
+        if not self.encrypted_key:
+            self.encrypted_key = self.generate_key_from_user()
+        super().save(*args, **kwargs)
