@@ -45,13 +45,14 @@ class LessonDetailView(generics.RetrieveAPIView):
 
 class UserLessonKeyUpdateView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserLessonKeySerializer 
 
     def patch(self, request, lesson_id):
         user = request.user
         lesson = get_object_or_404(Lesson, id=lesson_id)
         key_obj, _ = UserLessonKey.objects.get_or_create(user=user, lesson=lesson)
 
-        serializer = UserLessonKeySerializer(key_obj, data=request.data, partial=True)
+        serializer = self.serializer_class(key_obj, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save(partial_decryption_completed=True)
             return Response({"detail": "Partial key updated and completion marked."})
