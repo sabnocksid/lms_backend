@@ -1,7 +1,7 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, generics, permissions
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Category, Course, Chapter, Lesson, UserLessonKey
-from .serializers import CategorySerializer, CourseSerializer, ChapterSerializer, LessonSerializer, UserLessonKeySerializer
+from .serializers import CategorySerializer, CourseSerializer, ChapterSerializer, LessonSerializer, UserLessonKeySerializer, LessonDetailSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -34,6 +34,12 @@ class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+class LessonDetailView(generics.RetrieveAPIView):
+    queryset = Lesson.objects.all()
+    serializer_class = LessonDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class UserLessonKeyUpdateView(APIView):
