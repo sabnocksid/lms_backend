@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from .models import Category, Course, Chapter, Lesson, UserLessonKey
 import boto3
 from botocore.client import Config
+import hashlib
 from django.conf import settings
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -48,7 +49,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     partial_decryption_key = serializers.SerializerMethodField()
     remaining_partial_key = serializers.SerializerMethodField()  # new field
     video_file = serializers.SerializerMethodField()
-    document = serializers.SerializerMethodField()  
+    document = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
@@ -56,8 +57,16 @@ class LessonDetailSerializer(serializers.ModelSerializer):
             'id', 'chapter', 'title', 'content_type',
             'video_file', 'document', 'content', 'order',
             'partial_decryption_key',
-            'remaining_partial_key', 
+            'remaining_partial_key',
         ]
+
+    def generate_key_from_user(self, user, lesson):
+        """
+        Deterministically generate a 32-byte key from the user's slug or username and lesson ID.
+        """
+        user_identifier = getattr(user, 'slug', None) or user.username
+        key_input = f"{user_identifier}-{lesson.id}"
+        return hashlib.sha256(key_input.encode('utf-8')).digest()  # 32-byte key
 
     def _validate_partial_key(self, obj):
         request = self.context.get('request')
@@ -74,15 +83,15 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         except Exception:
             return False
 
-        try:
-            key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
-        except UserLessonKey.DoesNotExist:
-            return False
-
-        full_key = key_obj.get_raw_key()
+        full_key = self.generate_key_from_user(user, obj)
         expected_partial_key = full_key[: (len(full_key) * 3) // 4]
 
-        return decoded_client_key == expected_partial_key
+        try:
+            expected_partial_key_str = expected_partial_key.decode()
+        except UnicodeDecodeError:
+            return decoded_client_key.encode() == expected_partial_key
+        else:
+            return decoded_client_key == expected_partial_key_str
 
     def get_partial_decryption_key(self, obj):
         request = self.context.get('request')
@@ -90,14 +99,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         if not user or user.is_anonymous:
             return None
 
-        key_obj, created = UserLessonKey.objects.get_or_create(user=user, lesson=obj)
-        if created:
-            full_key = obj.generate_key()
-            key_obj.encrypted_key = full_key
-            key_obj.save()
-        else:
-            full_key = key_obj.get_raw_key()
-
+        full_key = self.generate_key_from_user(user, obj)
         part_len = (len(full_key) * 3) // 4
         partial_key = full_key[:part_len]
         return base64.b64encode(partial_key).decode('utf-8')
@@ -111,9 +113,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         if not user or user.is_anonymous:
             return None
 
-        key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
-        full_key = key_obj.get_raw_key()
-
+        full_key = self.generate_key_from_user(user, obj)
         part_len = (len(full_key) * 3) // 4
         remaining_key = full_key[part_len:]
         return base64.b64encode(remaining_key).decode('utf-8')
