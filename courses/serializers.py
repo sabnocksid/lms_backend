@@ -18,6 +18,7 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = [
+            'id',
             'title',
             'partial_decryption_key',
             'order'
