@@ -99,8 +99,8 @@ class LessonDetailSerializer(serializers.ModelSerializer):
 
         part_len = (len(full_key) * 3) // 4
         partial_key = full_key[:part_len]
-        return base64.b64encode(partial_key.encode()).decode('utf-8')
-
+        return base64.b64encode(partial_key).decode('utf-8')
+    
     def get_video_file(self, obj):
         if self._validate_partial_key(obj) and obj.video_file:
             request = self.context.get('request')
