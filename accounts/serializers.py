@@ -25,7 +25,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ["id", "email", "full_name", "role", "encryption_key", "is_active"]
+        fields = ["id", "email", "full_name", "role", "is_active"]
 
 
 class LoginSerializer(serializers.Serializer):
@@ -88,5 +88,5 @@ class KYCSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'kyc_verified']
+        fields = ['id', 'email', 'full_name', 'role', 'is_active', "encryption_key",  'kyc_verified']
 
