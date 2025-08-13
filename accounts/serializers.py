@@ -21,9 +21,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class UserListSerializer(serializers.ModelSerializer):
+    encryption_key = serializers.CharField(write_only=True)  
+
     class Meta:
         model = CustomUser
-        fields = ["id", "email", "full_name", "role", "encryption_key" ,"is_active"]
+        fields = ["id", "email", "full_name", "role", "encryption_key", "is_active"]
 
 
 class LoginSerializer(serializers.Serializer):
