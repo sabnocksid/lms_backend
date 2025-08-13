@@ -1,5 +1,4 @@
 from rest_framework import viewsets, generics, permissions
-from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from .models import Category, Course, Chapter, Lesson, UserLessonKey
 from .serializers import CategorySerializer, CourseSerializer, ChapterSerializer, LessonSerializer, UserLessonKeySerializer, LessonDetailSerializer
@@ -37,16 +36,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
 
-@extend_schema(
-    parameters=[
-        OpenApiParameter(
-            name='partial_decryption_key',
-            description='Base64 encoded partial decryption key provided by the first request',
-            required=False,
-            type=str
-        )
-    ]
-)
+
 class LessonDetailView(generics.RetrieveAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonDetailSerializer

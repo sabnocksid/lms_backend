@@ -80,6 +80,7 @@ class LessonSerializer(serializers.ModelSerializer):
 class LessonDetailSerializer(serializers.ModelSerializer):
     partial_decryption_key = serializers.SerializerMethodField()
     video_file = serializers.SerializerMethodField()
+    document = serializers.SerializerMethodField()  
 
     class Meta:
         model = Lesson
@@ -89,7 +90,32 @@ class LessonDetailSerializer(serializers.ModelSerializer):
             'partial_decryption_key'
         ]
 
-    @extend_schema_field(serializers.CharField())
+    def _validate_partial_key(self, obj):
+
+        request = self.context.get('request')
+        user = request.user if request else None
+        if not user or user.is_anonymous:
+            return False
+
+        client_partial_key = request.query_params.get("partial_decryption_key")
+        if not client_partial_key:
+            return False
+
+        try:
+            decoded_client_key = base64.b64decode(client_partial_key.encode()).decode()
+        except Exception:
+            return False
+
+        try:
+            key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
+        except UserLessonKey.DoesNotExist:
+            return False
+
+        full_key = key_obj.get_raw_key()
+        expected_partial_key = full_key[: (len(full_key) * 3) // 4]
+
+        return decoded_client_key == expected_partial_key
+
     def get_partial_decryption_key(self, obj):
         request = self.context.get('request')
         user = request.user if request else None
@@ -108,36 +134,16 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         partial_key = full_key[:part_len]
         return base64.b64encode(partial_key.encode()).decode('utf-8')
 
-    @extend_schema_field(serializers.URLField(allow_null=True))
     def get_video_file(self, obj):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if not user or user.is_anonymous:
-            return None
+        if self._validate_partial_key(obj) and obj.video_file:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.video_file.url) if request else obj.video_file.url
+        return None
 
-        client_partial_key = request.query_params.get("partial_decryption_key")
-        if not client_partial_key:
-            return None
-
-        try:
-            decoded_client_key = base64.b64decode(client_partial_key.encode()).decode()
-        except Exception:
-            return None
-
-        try:
-            key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
-        except UserLessonKey.DoesNotExist:
-            return None
-
-        full_key = key_obj.get_raw_key()
-        expected_partial_key = full_key[: (len(full_key) * 3) // 4]
-
-        if decoded_client_key != expected_partial_key:
-            return None
-
-        if obj.video_file:
-            return request.build_absolute_uri(obj.video_file.url)
-
+    def get_document(self, obj):
+        if self._validate_partial_key(obj) and obj.document:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.document.url) if request else obj.document.url
         return None
 
 
