@@ -57,12 +57,11 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'chapter', 'title', 'content_type',
             'video_file', 'document', 'content', 'order',
-            'partial_decryption_key',  # write-only from client
-            'full_decryption_key',     # read-only to client
+            'partial_decryption_key',  
+            'full_decryption_key',     
         ]
 
     def generate_key_from_user(self, user, lesson):
-        # Derive full key from user identifier and lesson id (must match backend logic)
         user_identifier = getattr(user, 'slug', None) or getattr(user, 'email', None) or str(user.pk)
         key_input = f"{user_identifier}-{lesson.id}"
         return hashlib.sha256(key_input.encode('utf-8')).digest()
@@ -84,8 +83,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         if not user or user.is_anonymous:
             return None
 
-        # Get partial key from initial data (write_only field)
-        partial_key_b64 = self.initial_data.get('partial_decryption_key')
+        partial_key_b64 = request.query_params.get('partial_decryption_key') if request else None
         if not partial_key_b64:
             return None
 
@@ -93,7 +91,6 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         if not self.validate_partial_key(partial_key_b64, full_key):
             return None
 
-        # Return full key base64 encoded
         return base64.b64encode(full_key).decode('utf-8')
 
     def get_video_file(self, obj):
