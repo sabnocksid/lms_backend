@@ -14,14 +14,13 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class LessonSerializer(serializers.ModelSerializer):
     partial_decryption_key = serializers.SerializerMethodField()
-    video_file = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
         fields = [
-            'id', 'chapter', 'title', 'content_type',
-            'video_file', 'document', 'content', 'order',
-            'partial_decryption_key'
+            'title',
+            'partial_decryption_key',
+            'order'
         ]
 
     @extend_schema_field(serializers.CharField())
@@ -42,39 +41,6 @@ class LessonSerializer(serializers.ModelSerializer):
         part_len = (len(full_key) * 3) // 4
         partial_key = full_key[:part_len]
         return base64.b64encode(partial_key).decode('utf-8')
-
-    @extend_schema_field(serializers.URLField(allow_null=True))
-    def get_video_file(self, obj):
-        request = self.context.get('request')
-        user = request.user if request else None
-        if not user or user.is_anonymous:
-            return None
-
-        client_partial_key = request.query_params.get("partial_decryption_key")
-        if not client_partial_key:
-            return None
-
-        try:
-            decoded_client_key = base64.b64decode(client_partial_key.encode()).decode()
-        except Exception:
-            return None  
-
-        try:
-            key_obj = UserLessonKey.objects.get(user=user, lesson=obj)
-        except UserLessonKey.DoesNotExist:
-            return None
-
-        full_key = key_obj.get_raw_key()
-        part_len = (len(full_key) * 3) // 4
-        expected_partial_key = full_key[:part_len]
-
-        if decoded_client_key != expected_partial_key:
-            return None  # Mismatch → do not reveal URL
-
-        if obj.video_file:
-            return request.build_absolute_uri(obj.video_file.url) if request else obj.video_file.url
-
-        return None
     
 
 class LessonDetailSerializer(serializers.ModelSerializer):
