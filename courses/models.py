@@ -20,7 +20,7 @@ class Category(models.Model):
 
 class Lesson(models.Model):
     category = models.ForeignKey(
-        Category, related_name="lessons", on_delete=models.CASCADE
+        Category, related_name="lessons", on_delete=models.CASCADE, null=True
     )
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
