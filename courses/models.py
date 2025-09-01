@@ -5,7 +5,7 @@ from django.utils import timezone
 
 class Category(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    slug = models.SlugField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True, default="slug")
     description = models.TextField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True, null=True)  
