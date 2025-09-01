@@ -1,11 +1,11 @@
 from rest_framework import viewsets, permissions
-from .models import Category, Lesson, LessonSection, LessonResource, LessonProgress
+from .models import Category, Lesson, LessonResource, LessonProgress, LessonReview
 from .serializers import (
     CategorySerializer,
     LessonSerializer,
-    LessonSectionSerializer,
     LessonResourceSerializer,
     LessonProgressSerializer,
+    LessonReviewSerializer,
 )
 
 
@@ -21,12 +21,6 @@ class LessonViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 
-class LessonSectionViewSet(viewsets.ModelViewSet):
-    queryset = LessonSection.objects.all()
-    serializer_class = LessonSectionSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-
 class LessonResourceViewSet(viewsets.ModelViewSet):
     queryset = LessonResource.objects.all()
     serializer_class = LessonResourceSerializer
@@ -36,6 +30,15 @@ class LessonResourceViewSet(viewsets.ModelViewSet):
 class LessonProgressViewSet(viewsets.ModelViewSet):
     queryset = LessonProgress.objects.all()
     serializer_class = LessonProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class LessonReviewViewSet(viewsets.ModelViewSet):
+    queryset = LessonReview.objects.all()
+    serializer_class = LessonReviewSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
