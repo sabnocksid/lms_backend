@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings 
+from django.utils import timezone
 
 
 class Category(models.Model):
@@ -36,8 +37,8 @@ class Lesson(models.Model):
     )
     is_published = models.BooleanField(default=False)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True, default=timezone.now)
 
     class Meta:
         ordering = ["-created_at"]
