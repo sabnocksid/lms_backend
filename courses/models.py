@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings 
 
 
 class Category(models.Model):
@@ -29,7 +29,10 @@ class Lesson(models.Model):
     duration_minutes = models.PositiveIntegerField(default=0)
 
     author = models.ForeignKey(
-        User, related_name="lessons", on_delete=models.SET_NULL, null=True
+        settings.AUTH_USER_MODEL, 
+        related_name="lessons",
+        on_delete=models.SET_NULL,
+        null=True
     )
     is_published = models.BooleanField(default=False)
 
@@ -56,7 +59,11 @@ class LessonResource(models.Model):
 
 
 class LessonProgress(models.Model):
-    user = models.ForeignKey(User, related_name="lesson_progress", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,  
+        related_name="lesson_progress",
+        on_delete=models.CASCADE
+    )
     lesson = models.ForeignKey(Lesson, related_name="progress", on_delete=models.CASCADE)
     completed = models.BooleanField(default=False)
     progress_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
@@ -66,11 +73,15 @@ class LessonProgress(models.Model):
         unique_together = ("user", "lesson")
 
     def __str__(self):
-        return f"{self.user.username} - {self.lesson.title} ({self.progress_percent}%)"
+        return f"{self.user} - {self.lesson.title} ({self.progress_percent}%)"
 
 
 class LessonReview(models.Model):
-    user = models.ForeignKey(User, related_name="lesson_reviews", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,  
+        related_name="lesson_reviews",
+        on_delete=models.CASCADE
+    )
     lesson = models.ForeignKey(Lesson, related_name="reviews", on_delete=models.CASCADE)
     rating = models.PositiveSmallIntegerField(default=0)  
     comment = models.TextField(blank=True, null=True)
@@ -82,4 +93,4 @@ class LessonReview(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.user.username} - {self.lesson.title} ({self.rating})"
+        return f"{self.user} - {self.lesson.title} ({self.rating})"
