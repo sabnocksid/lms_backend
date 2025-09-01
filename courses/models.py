@@ -37,8 +37,8 @@ class Lesson(models.Model):
     )
     is_published = models.BooleanField(default=False)
 
-    created_at = models.DateTimeField(auto_now_add=True, default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True, default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)  
+    updated_at = models.DateTimeField(auto_now=True, null=True) 
 
     class Meta:
         ordering = ["-created_at"]
