@@ -52,6 +52,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
+    kyc_verified = serializers.BooleanField(read_only=True)  
 
     def validate(self, data):
         email = data.get("email")
@@ -81,8 +82,10 @@ class LoginSerializer(serializers.Serializer):
         data["refresh"] = str(refresh)
         data["access"] = str(refresh.access_token)
         data["user"] = user
+        data["kyc_verified"] = user.kyc_verified  
 
         return data
+
 
 
 
@@ -108,10 +111,16 @@ class KYCSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        if request and hasattr(request, "user"):
-            validated_data["user"] = request.user
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required to submit KYC.")
+
+        if KYC.objects.filter(user=request.user).exists():
+            raise serializers.ValidationError("You have already submitted KYC.")
 
         file = validated_data.pop("document_file")
+        validated_data["user"] = request.user
         validated_data["document_name"] = file.name
         validated_data["document_data"] = file.read()
         return super().create(validated_data)
+
+

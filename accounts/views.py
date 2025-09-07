@@ -86,12 +86,10 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 class KYCSubmitView(generics.CreateAPIView):
     queryset = KYC.objects.all()
     serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]  # User must be logged in to submit KYC
 
     def perform_create(self, serializer):
-        if KYC.objects.filter(user=self.request.user).exists():
-            raise serializers.ValidationError("You have already submitted KYC.")
-        serializer.save(user=self.request.user)
+        serializer.save()
 
 
 # Admin: View all KYC submissions
