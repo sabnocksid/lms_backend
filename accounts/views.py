@@ -30,11 +30,14 @@ class LoginView(GenericAPIView):
         serializer = self.get_serializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
+
+        kyc_verified = bool(getattr(user, "kyc", None) and user.kyc.approved_at)
+
         return Response({
-            "message": "Login successful",
             "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
+            "kyc_verified": kyc_verified,
             "access": serializer.validated_data["access"],
             "refresh": serializer.validated_data["refresh"]
         }, status=status.HTTP_200_OK)
