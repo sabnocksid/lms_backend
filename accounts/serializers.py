@@ -5,7 +5,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
-
 # Register User
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -18,7 +17,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = CustomUser.objects.create_user(password=password, **validated_data)
         return user
-
 
 # User Serializer for list/retrieve/update/delete
 class UserSerializer(serializers.ModelSerializer):
@@ -45,7 +43,6 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
-
 
 # Login Serializer
 class LoginSerializer(serializers.Serializer):
@@ -78,14 +75,12 @@ class LoginSerializer(serializers.Serializer):
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
 
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         data["refresh"] = str(refresh)
         data["access"] = str(refresh.access_token)
         data["user"] = user
 
         return data
-
 
 # KYC Serializer
 class KYCSerializer(serializers.ModelSerializer):
