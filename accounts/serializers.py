@@ -52,7 +52,13 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     access = serializers.CharField(read_only=True)
     refresh = serializers.CharField(read_only=True)
-    kyc_verified = serializers.BooleanField(read_only=True)  
+    full_name = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
+    kyc_verified = serializers.SerializerMethodField(read_only=True)
+
+    def get_kyc_verified(self, obj):
+        user = obj
+        return hasattr(user, 'kyc') and user.kyc.approved_at is not None
 
     def validate(self, data):
         email = data.get("email")
@@ -62,8 +68,8 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Must include email and password.")
 
         try:
-            user_obj = User.objects.get(email=email)
-        except User.DoesNotExist:
+            user_obj = CustomUser.objects.get(email=email)
+        except CustomUser.DoesNotExist:
             raise serializers.ValidationError("User with this email does not exist.")
 
         user = authenticate(
@@ -81,10 +87,12 @@ class LoginSerializer(serializers.Serializer):
         refresh = RefreshToken.for_user(user)
         data["refresh"] = str(refresh)
         data["access"] = str(refresh.access_token)
+        data["full_name"] = user.full_name
+        data["role"] = user.role
+        data["kyc_verified"] = hasattr(user, 'kyc') and user.kyc.approved_at is not None
         data["user"] = user
-        data["kyc_verified"] = user.kyc_verified  
-
         return data
+
 
 
 
