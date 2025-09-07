@@ -111,7 +111,7 @@ class KYCSerializer(serializers.ModelSerializer):
     document_file = serializers.FileField(write_only=True)
     document_name = serializers.CharField(read_only=True)
     document_url = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField(read_only=True)
+    status = serializers.SerializerMethodField()
     approved_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
@@ -132,17 +132,9 @@ class KYCSerializer(serializers.ModelSerializer):
         return "Approved" if obj.approved_at else "Pending"
 
     def get_document_url(self, obj):
-        # Return the file URL directly if using FileField in model
         if obj.document_file:
-            return obj.document_file.url  # This assumes MEDIA_URL + storage
+            return obj.document_file.url  # direct URL
         return None
-
-    def validate_document_file(self, file):
-        if file.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("File too large. Max 5MB.")
-        if file.content_type not in ["application/pdf", "image/jpeg", "image/png"]:
-            raise serializers.ValidationError("Unsupported file type.")
-        return file
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -155,5 +147,6 @@ class KYCSerializer(serializers.ModelSerializer):
         file = validated_data.pop("document_file")
         validated_data["user"] = request.user
         validated_data["document_name"] = file.name
-        validated_data["document_file"] = file  # save file to storage
+        validated_data["document_file"] = file  
+
         return super().create(validated_data)

@@ -51,10 +51,10 @@ class KYC(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="kyc")
     document_type = models.CharField(max_length=50)
     document_number = models.CharField(max_length=100)
-    
-    document_name = models.CharField(max_length=255)  
-    document_data = models.BinaryField()  
-    
+
+    document_name = models.CharField(max_length=255)
+    document_file = models.FileField(upload_to="kyc_documents/")  
+
     submitted_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 

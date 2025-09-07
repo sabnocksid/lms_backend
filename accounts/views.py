@@ -78,11 +78,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
 
 
-# -------------------
-# KYC Views
-# -------------------
 
-# Submit KYC
 class KYCSubmitView(generics.CreateAPIView):
     queryset = KYC.objects.all()
     serializer_class = KYCSerializer
