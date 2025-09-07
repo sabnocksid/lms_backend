@@ -97,7 +97,13 @@ class LoginSerializer(serializers.Serializer):
 
 
 
+class SimpleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name", "email"]
+
 class KYCSerializer(serializers.ModelSerializer):
+    user = SimpleUserSerializer(read_only=True)  # <-- add nested user
     document_file = serializers.FileField(write_only=True)
     document_name = serializers.CharField(read_only=True)
     status = serializers.SerializerMethodField(read_only=True)
@@ -105,13 +111,22 @@ class KYCSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = KYC
-        fields = ["document_type", "document_number", "document_file", "document_name", "status", "approved_at"]
+        fields = [
+            "id",
+            "user",
+            "document_type",
+            "document_number",
+            "document_file",
+            "document_name",
+            "status",
+            "approved_at"
+        ]
 
     def get_status(self, obj):
         return "Approved" if obj.approved_at else "Pending"
 
     def validate_document_file(self, file):
-        if file.size > 5 * 1024 * 1024: 
+        if file.size > 5 * 1024 * 1024:  # 5MB
             raise serializers.ValidationError("File too large. Max 5MB.")
         if file.content_type not in ["application/pdf", "image/jpeg", "image/png"]:
             raise serializers.ValidationError("Unsupported file type.")
@@ -130,5 +145,3 @@ class KYCSerializer(serializers.ModelSerializer):
         validated_data["document_name"] = file.name
         validated_data["document_data"] = file.read()
         return super().create(validated_data)
-
-
