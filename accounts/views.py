@@ -1,11 +1,19 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from django.db.models import Q
-from .models import CustomUser, KYC
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.generics import GenericAPIView, RetrieveAPIView
+from rest_framework.views import APIView
+from django.db.models import Q
+from django.utils import timezone
+from rest_framework import serializers
+
+from .models import CustomUser, KYC
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, KYCSerializer
-from rest_framework.generics import GenericAPIView
+
+# -------------------
+# Auth / User Views
+# -------------------
 
 # Register
 class RegisterView(generics.CreateAPIView):
@@ -32,15 +40,19 @@ class LoginView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
+# -------------------
+# User Management Views
+# -------------------
+
 class UserPagination(PageNumberPagination):
-    page_size = 10 
-    page_size_query_param = "page_size"  
+    page_size = 10
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
-    pagination_class = UserPagination 
+    pagination_class = UserPagination
 
     def get_queryset(self):
         queryset = CustomUser.objects.all().order_by("-id")
@@ -53,11 +65,8 @@ class UserListView(generics.ListAPIView):
             queryset = queryset.filter(
                 Q(full_name__icontains=search) | Q(email__icontains=search)
             )
-
         return queryset
 
-
-# Retrieve / Update / Delete single user
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
@@ -69,11 +78,52 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
 
 
+# -------------------
 # KYC Views
+# -------------------
+
+# Submit KYC
 class KYCSubmitView(generics.CreateAPIView):
     queryset = KYC.objects.all()
     serializer_class = KYCSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
+        if KYC.objects.filter(user=self.request.user).exists():
+            raise serializers.ValidationError("You have already submitted KYC.")
         serializer.save(user=self.request.user)
+
+# List pending KYC for Admin
+class KYCListView(generics.ListAPIView):
+    serializer_class = KYCSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get_queryset(self):
+        return KYC.objects.filter(approved_at__isnull=True).order_by("-submitted_at")
+
+# Approve KYC (Admin)
+class KYCApproveView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            kyc = KYC.objects.get(pk=pk)
+        except KYC.DoesNotExist:
+            return Response({"error": "KYC not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        kyc.approved_at = timezone.now()
+        kyc.save()
+        
+        user = kyc.user
+        user.kyc_verified = True
+        user.save()
+        
+        return Response({"message": f"KYC for {user.email} approved."}, status=status.HTTP_200_OK)
+
+# Retrieve KYC Status (User)
+class KYCStatusView(RetrieveAPIView):
+    serializer_class = KYCSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return KYC.objects.get(user=self.request.user)

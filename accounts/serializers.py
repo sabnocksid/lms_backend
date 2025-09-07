@@ -6,9 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 User = get_user_model()
 
 
-# Register User
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = CustomUser
@@ -20,9 +19,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-# User Serializer for list/retrieve/update/delete
+
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=False, min_length=6)
 
     class Meta:
         model = CustomUser
@@ -47,7 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
 
-# Login Serializer
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -86,16 +85,32 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-# KYC Serializer
+
 class KYCSerializer(serializers.ModelSerializer):
     document_file = serializers.FileField(write_only=True)
     document_name = serializers.CharField(read_only=True)
+    status = serializers.SerializerMethodField(read_only=True)
+    approved_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = KYC
-        fields = ["document_type", "document_number", "document_file", "document_name"]
+        fields = ["document_type", "document_number", "document_file", "document_name", "status", "approved_at"]
+
+    def get_status(self, obj):
+        return "Approved" if obj.approved_at else "Pending"
+
+    def validate_document_file(self, file):
+        if file.size > 5 * 1024 * 1024:  # 5MB max
+            raise serializers.ValidationError("File too large. Max 5MB.")
+        if file.content_type not in ["application/pdf", "image/jpeg", "image/png"]:
+            raise serializers.ValidationError("Unsupported file type.")
+        return file
 
     def create(self, validated_data):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            validated_data["user"] = request.user
+
         file = validated_data.pop("document_file")
         validated_data["document_name"] = file.name
         validated_data["document_data"] = file.read()
