@@ -1,13 +1,12 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from .models import CustomUser, KYC
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate, get_user_model
 
 User = get_user_model()
 
 
-
+# Register User
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
 
@@ -20,12 +19,35 @@ class RegisterSerializer(serializers.ModelSerializer):
         user = CustomUser.objects.create_user(password=password, **validated_data)
         return user
 
-class UserListSerializer(serializers.ModelSerializer):
+
+# User Serializer for list/retrieve/update/delete
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False)
+
     class Meta:
         model = CustomUser
-        fields = ["id", "email", "full_name", "role", "is_active"]
+        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'kyc_verified', 'password']
+        read_only_fields = ['id', 'kyc_verified']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        user = CustomUser(**validated_data)
+        if password:
+            user.set_password(password)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 
+# Login Serializer
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -65,9 +87,7 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-
-
-
+# KYC Serializer
 class KYCSerializer(serializers.ModelSerializer):
     document_file = serializers.FileField(write_only=True) 
     document_name = serializers.CharField(read_only=True)   
@@ -81,10 +101,3 @@ class KYCSerializer(serializers.ModelSerializer):
         validated_data["document_name"] = file.name
         validated_data["document_data"] = file.read()
         return super().create(validated_data)
-
-
-class UserListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'kyc_verified']
-
