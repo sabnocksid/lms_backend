@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate, get_user_model
 from .models import CustomUser, KYC
 from rest_framework_simplejwt.tokens import RefreshToken
+import base64
+
 
 User = get_user_model()
 
@@ -97,16 +99,17 @@ class LoginSerializer(serializers.Serializer):
 
 
 
-class SimpleUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ["id", "full_name", "email"]
-
+class SimpleUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    email = serializers.EmailField()
+    full_name = serializers.CharField()
+    role = serializers.CharField()
 
 class KYCSerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer(read_only=True)
     document_file = serializers.FileField(write_only=True)
     document_name = serializers.CharField(read_only=True)
+    document_url = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField(read_only=True)
     approved_at = serializers.DateTimeField(read_only=True)
 
@@ -119,12 +122,21 @@ class KYCSerializer(serializers.ModelSerializer):
             "document_number",
             "document_file",
             "document_name",
+            "document_url",
             "status",
             "approved_at"
         ]
 
     def get_status(self, obj):
         return "Approved" if obj.approved_at else "Pending"
+
+    def get_document_url(self, obj):
+        if obj.document_data:
+            ext = obj.document_name.split('.')[-1].lower()
+            mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
+            encoded = base64.b64encode(obj.document_data).decode()
+            return f"data:{mime};base64,{encoded}"
+        return None
 
     def validate_document_file(self, file):
         if file.size > 5 * 1024 * 1024:
