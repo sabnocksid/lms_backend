@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
+
 # Register User
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -17,6 +18,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = CustomUser.objects.create_user(password=password, **validated_data)
         return user
+
 
 # User Serializer for list/retrieve/update/delete
 class UserSerializer(serializers.ModelSerializer):
@@ -43,6 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
 
 # Login Serializer
 class LoginSerializer(serializers.Serializer):
@@ -82,10 +85,11 @@ class LoginSerializer(serializers.Serializer):
 
         return data
 
+
 # KYC Serializer
 class KYCSerializer(serializers.ModelSerializer):
-    document_file = serializers.FileField(write_only=True) 
-    document_name = serializers.CharField(read_only=True)   
+    document_file = serializers.FileField(write_only=True)
+    document_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = KYC

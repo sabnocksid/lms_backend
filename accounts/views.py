@@ -1,17 +1,19 @@
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.response import Response
-from django.contrib.auth import get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, KYCSerializer
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from django.db.models import Q
+from .models import CustomUser, KYC
+from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, KYCSerializer
+from rest_framework.generics import GenericAPIView
 
-User = get_user_model()
-
+# Register
 class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
+    queryset = CustomUser.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
-class LoginView(generics.GenericAPIView):
+# Login
+class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
 
@@ -26,19 +28,44 @@ class LoginView(generics.GenericAPIView):
             "role": user.role,
             "access": serializer.validated_data["access"],
             "refresh": serializer.validated_data["refresh"]
-        })
+        }, status=status.HTTP_200_OK)
 
-class UserListView(generics.ListCreateAPIView):
-    queryset = User.objects.all()
+
+# List users with optional filtering by role or search term
+class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
+    def get_queryset(self):
+        queryset = CustomUser.objects.all()
+        role = self.request.query_params.get("role")
+        search = self.request.query_params.get("search")
+
+        if role:
+            queryset = queryset.filter(role__iexact=role)
+        if search:
+            queryset = queryset.filter(Q(full_name__icontains=search) | Q(email__icontains=search))
+
+        return queryset
+
+
+# Retrieve / Update / Delete single user
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = User.objects.all()
+    queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def destroy(self, request, *args, **kwargs):
-        user = self.get_object()
-        user.delete()
-        return Response({"message": "User deleted successfully"}, status=status.HTTP_200_OK)
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
+
+
+# KYC Views
+class KYCSubmitView(generics.CreateAPIView):
+    queryset = KYC.objects.all()
+    serializer_class = KYCSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
