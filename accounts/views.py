@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.db.models import Q
 from .models import CustomUser, KYC
+from rest_framework.pagination import PageNumberPagination
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, KYCSerializer
 from rest_framework.generics import GenericAPIView
 
@@ -31,20 +32,27 @@ class LoginView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
-# List users with optional filtering by role or search term
+class UserPagination(PageNumberPagination):
+    page_size = 10 
+    page_size_query_param = "page_size"  
+    max_page_size = 100
+
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = UserPagination 
 
     def get_queryset(self):
-        queryset = CustomUser.objects.all()
+        queryset = CustomUser.objects.all().order_by("-id")
         role = self.request.query_params.get("role")
         search = self.request.query_params.get("search")
 
         if role:
             queryset = queryset.filter(role__iexact=role)
         if search:
-            queryset = queryset.filter(Q(full_name__icontains=search) | Q(email__icontains=search))
+            queryset = queryset.filter(
+                Q(full_name__icontains=search) | Q(email__icontains=search)
+            )
 
         return queryset
 
