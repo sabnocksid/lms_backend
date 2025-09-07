@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, get_user_model
 from .models import CustomUser, KYC
 from rest_framework_simplejwt.tokens import RefreshToken
 import base64
+from django.conf import settings
 
 
 User = get_user_model()
@@ -131,11 +132,9 @@ class KYCSerializer(serializers.ModelSerializer):
         return "Approved" if obj.approved_at else "Pending"
 
     def get_document_url(self, obj):
-        if obj.document_data:
-            ext = obj.document_name.split('.')[-1].lower()
-            mime = "application/pdf" if ext == "pdf" else f"image/{ext}"
-            encoded = base64.b64encode(obj.document_data).decode()
-            return f"data:{mime};base64,{encoded}"
+        # Return the file URL directly if using FileField in model
+        if obj.document_file:
+            return obj.document_file.url  # This assumes MEDIA_URL + storage
         return None
 
     def validate_document_file(self, file):
@@ -156,5 +155,5 @@ class KYCSerializer(serializers.ModelSerializer):
         file = validated_data.pop("document_file")
         validated_data["user"] = request.user
         validated_data["document_name"] = file.name
-        validated_data["document_data"] = file.read()
+        validated_data["document_file"] = file  # save file to storage
         return super().create(validated_data)
