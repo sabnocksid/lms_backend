@@ -93,13 +93,32 @@ class KYCSubmitView(generics.CreateAPIView):
             raise serializers.ValidationError("You have already submitted KYC.")
         serializer.save(user=self.request.user)
 
-# List pending KYC for Admin
+
+# Admin: View all KYC submissions
 class KYCListView(generics.ListAPIView):
+    queryset = KYC.objects.all().order_by('-submitted_at')
     serializer_class = KYCSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
-    def get_queryset(self):
-        return KYC.objects.filter(approved_at__isnull=True).order_by("-submitted_at")
+class KYCApproveView(generics.UpdateAPIView):
+    queryset = KYC.objects.all()
+    serializer_class = KYCSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def patch(self, request, *args, **kwargs):
+        kyc = self.get_object()
+        if kyc.approved_at:
+            return Response({"detail": "Already approved"}, status=status.HTTP_400_BAD_REQUEST)
+
+        kyc.approved_at = timezone.now()
+        kyc.save()
+
+        user = kyc.user
+        user.kyc_verified = True
+        user.save()
+
+        return Response({"detail": f"KYC for {user.email} approved successfully"}, status=status.HTTP_200_OK)
+
 
 # Approve KYC (Admin)
 class KYCApproveView(APIView):
