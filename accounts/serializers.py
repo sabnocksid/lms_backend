@@ -111,7 +111,7 @@ class KYCSerializer(serializers.ModelSerializer):
         return "Approved" if obj.approved_at else "Pending"
 
     def validate_document_file(self, file):
-        if file.size > 5 * 1024 * 1024:  # 5MB max
+        if file.size > 5 * 1024 * 1024: 
             raise serializers.ValidationError("File too large. Max 5MB.")
         if file.content_type not in ["application/pdf", "image/jpeg", "image/png"]:
             raise serializers.ValidationError("Unsupported file type.")

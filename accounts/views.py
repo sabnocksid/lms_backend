@@ -43,9 +43,6 @@ class LoginView(GenericAPIView):
         }, status=status.HTTP_200_OK)
 
 
-# -------------------
-# User Management Views
-# -------------------
 
 class UserPagination(PageNumberPagination):
     page_size = 10
@@ -96,10 +93,16 @@ class KYCSubmitView(generics.CreateAPIView):
 
 
 # Admin: View all KYC submissions
+class KYCPageNumberPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size' 
+    max_page_size = 100
+
 class KYCListView(generics.ListAPIView):
     queryset = KYC.objects.all().order_by('-submitted_at')
     serializer_class = KYCSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
+    pagination_class = KYCPageNumberPagination 
 
 class KYCApproveView(generics.UpdateAPIView):
     queryset = KYC.objects.all()
