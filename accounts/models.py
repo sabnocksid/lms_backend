@@ -53,7 +53,7 @@ class KYC(models.Model):
     document_number = models.CharField(max_length=100)
 
     document_name = models.CharField(max_length=255)
-    document_file = models.FileField(upload_to="kyc_documents/")  
+    document_file = models.FileField(upload_to="kyc_documents/", null=True, blank=True)  
 
     submitted_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
