@@ -113,6 +113,7 @@ class KYCSerializer(serializers.ModelSerializer):
     document_url = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     approved_at = serializers.DateTimeField(read_only=True)
+    submitted_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = KYC
@@ -125,7 +126,8 @@ class KYCSerializer(serializers.ModelSerializer):
             "document_name",
             "document_url",
             "status",
-            "approved_at"
+            "approved_at",
+            "submitted_at"
         ]
 
     def get_status(self, obj):
@@ -133,7 +135,7 @@ class KYCSerializer(serializers.ModelSerializer):
 
     def get_document_url(self, obj):
         if obj.document_file:
-            return obj.document_file.url  # direct URL
+            return obj.document_file.url  
         return None
 
     def create(self, validated_data):
