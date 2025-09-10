@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.conf import settings
 
 
 class Category(models.Model):
@@ -28,7 +29,7 @@ class Course(models.Model):
     date_added = models.DateTimeField(default=timezone.now)
 
     instructor = models.ForeignKey(
-        "auth.User",
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -44,7 +45,10 @@ class Course(models.Model):
 
     price = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     is_published = models.BooleanField(default=False)
-    duration = models.DurationField(null=True, blank=True)  # e.g., 10 hours
+    duration = models.DurationField(null=True, blank=True)  
+
+    class Meta:
+        ordering = ['-date_added'] 
 
     def __str__(self):
         return self.name
