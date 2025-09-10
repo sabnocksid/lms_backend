@@ -8,9 +8,6 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class CourseSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), source="category", write_only=True
-    )
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
 
     class Meta:
