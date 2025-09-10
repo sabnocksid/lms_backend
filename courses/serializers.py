@@ -4,7 +4,7 @@ from .models import Course, Category
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "description", "image"]
+        fields = ["id", "name", "slug", "description"]
 
 class CourseSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
