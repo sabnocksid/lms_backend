@@ -4,9 +4,9 @@ from .models import Course, Category
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "description"]
+        fields = ["id", "name", "slug"]
 
-class CourseSerializer(serializers.ModelSerializer):
+class CoursePreviewSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
 
@@ -17,10 +17,10 @@ class CourseSerializer(serializers.ModelSerializer):
             "name",
             "thumbnail",
             "rating",
-            "date_added",
             "instructor_name",
             "category",
         ]
+        read_only_fields = fields
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
