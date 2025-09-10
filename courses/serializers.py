@@ -1,33 +1,27 @@
-from rest_framework import serializers
+from rest_framework import viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Category, Course
+from .serializers import CategorySerializer, CourseSerializer, CourseDetailSerializer
+from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
+from .pagination import CoursePagination
 
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
 
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = "__all__"
+class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all().order_by("-date_added")
+    permission_classes = [IsInstructorOrAdminOrReadOnly]
+    pagination_class = CoursePagination
 
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["category", "is_published", "instructor"]
+    search_fields = ["name", "description"]
+    ordering_fields = ["date_added", "rating", "price"]
+    ordering = ["-date_added"]
 
-class CourseSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(), source="category", write_only=True
-    )
-    instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-
-    class Meta:
-        model = Course
-        fields = [
-            "id",
-            "name",
-            "description",
-            "thumbnail",
-            "rating",
-            "date_added",
-            "instructor_name",
-            "category",
-            "category_id",
-            "price",
-            "is_published",
-            "duration",
-        ]
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return CourseDetailSerializer
+        return CourseSerializer
