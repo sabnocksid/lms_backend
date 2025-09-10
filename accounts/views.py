@@ -11,9 +11,7 @@ from rest_framework import serializers
 from .models import CustomUser, KYC
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, KYCSerializer
 
-# -------------------
-# Auth / User Views
-# -------------------
+
 
 # Register
 class RegisterView(generics.CreateAPIView):
