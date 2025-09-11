@@ -28,9 +28,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(
-        max_digits=3, decimal_places=2, source="average_rating", read_only=True
-    )
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  # no source needed
 
     class Meta:
         model = Course
@@ -45,7 +43,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "price",
             "is_published",
             "duration",
-            "average_rating",
+            "average_rating",  
         ]
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
