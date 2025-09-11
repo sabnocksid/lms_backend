@@ -5,11 +5,11 @@ from .models import Course, Category
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name"]  
+        fields = ["id", "name", "slug", "description"]  
 
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
-    categories = CategorySerializer(many=True, read_only=True)  # changed to plural
+    categories = CategorySerializer(many=True, read_only=True)  
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
 
     class Meta:
