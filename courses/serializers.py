@@ -1,13 +1,15 @@
 from rest_framework import serializers
 from .models import Course, Category
 
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name"]  
 
+
 class CoursePreviewSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)  # changed to plural
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
 
     class Meta:
@@ -18,12 +20,13 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "thumbnail",
             "rating",
             "instructor_name",
-            "category",
+            "categories",
         ]
         read_only_fields = fields 
 
+
 class CourseDetailSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)  
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
 
     class Meta:
@@ -36,7 +39,29 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "rating",
             "date_added",
             "instructor_name",
-            "category",
+            "categories",
+            "price",
+            "is_published",
+            "duration",
+        ]
+
+
+class CourseCreateUpdateSerializer(serializers.ModelSerializer):
+    category_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all(),
+        source="categories"  
+    )
+
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "name",
+            "description",
+            "thumbnail",
+            "rating",
+            "category_ids",   
             "price",
             "is_published",
             "duration",

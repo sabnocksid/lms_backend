@@ -35,20 +35,20 @@ class Course(models.Model):
         blank=True,
         related_name="courses"
     )
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="courses"
+
+    categories = models.ManyToManyField(
+        "Category",
+        related_name="courses",
+        blank=True
     )
 
     price = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     is_published = models.BooleanField(default=False)
-    duration = models.DurationField(null=True, blank=True)  
+    duration = models.DurationField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-date_added'] 
+        ordering = ['-date_added']
 
     def __str__(self):
         return self.name
+
