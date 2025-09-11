@@ -76,4 +76,7 @@ class RatingSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-        return Rating.objects.create(user=user, **validated_data)
+        course = validated_data.get("course")
+        if not course:
+            raise serializers.ValidationError({"course": "Course must be provided"})
+        return Rating.objects.create(user=user, course=course, **validated_data)
