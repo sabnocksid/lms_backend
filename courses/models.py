@@ -45,7 +45,6 @@ class Course(models.Model):
 
     @property
     def average_rating(self):
-        """Compute average rating from user ratings"""
         ratings = self.ratings.all()
         if not ratings.exists():
             return 0
