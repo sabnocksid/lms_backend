@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Category
+from .models import Course, Category, Rating
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -21,6 +21,8 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "rating",
             "instructor_name",
             "categories",
+            "date_added"
+
         ]
         read_only_fields = fields 
 
@@ -58,11 +60,19 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "instructor",
             "description",
             "thumbnail",
-            "rating",
             "category_ids",   
             "price",
             "is_published",
             "duration",
         ]
+
+
+
+class RatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Rating
+        fields = ["id", "points", "course"]  
+        read_only_fields = ["id"]

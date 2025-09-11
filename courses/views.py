@@ -1,11 +1,15 @@
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Course
+from rest_framework import viewsets, permissions, status
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from .models import Category, Course, Rating
 from .serializers import (
     CategorySerializer,
     CoursePreviewSerializer,
     CourseDetailSerializer,
     CourseCreateUpdateSerializer,
+    RatingSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
@@ -36,3 +40,23 @@ class CourseViewSet(viewsets.ModelViewSet):
         return CoursePreviewSerializer
 
 
+
+class CourseRatingViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=["POST"])
+    def rate(self, request, pk=None):
+        course = Course.objects.get(pk=pk)
+        points = request.data.get("points")
+
+        if points is None:
+            return Response({"error": "Rating points required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        rating_obj, created = Rating.objects.update_or_create(
+            user=request.user,
+            course=course,
+            defaults={"points": points},
+        )
+
+        serializer = RatingSerializer(rating_obj)
+        return Response(serializer.data, status=status.HTTP_200_OK if not created else status.HTTP_201_CREATED)

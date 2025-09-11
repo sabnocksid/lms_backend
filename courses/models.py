@@ -1,17 +1,14 @@
-from django.db import models
-from django.utils import timezone
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.conf import settings
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=120, unique=True)
-    description = models.TextField(blank=True, null=True)
-
-    class Meta:
-        verbose_name_plural = "Categories"
-
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    
     def __str__(self):
         return self.name
 
@@ -20,12 +17,6 @@ class Course(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
     thumbnail = models.ImageField(upload_to="courses/thumbnails/")
-    rating = models.DecimalField(
-        max_digits=3,
-        decimal_places=2,
-        validators=[MinValueValidator(0), MaxValueValidator(5)],
-        default=0
-    )
     date_added = models.DateTimeField(default=timezone.now)
 
     instructor = models.ForeignKey(
@@ -37,7 +28,7 @@ class Course(models.Model):
     )
 
     categories = models.ManyToManyField(
-        "Category",
+        Category,
         related_name="courses",
         blank=True
     )
@@ -47,8 +38,28 @@ class Course(models.Model):
     duration = models.DurationField(null=True, blank=True)
 
     class Meta:
-        ordering = ['-date_added']
+        ordering = ["-date_added"]
 
     def __str__(self):
         return self.name
 
+    @property
+    def average_rating(self):
+        """Compute average rating from user ratings"""
+        ratings = self.ratings.all()
+        if not ratings.exists():
+            return 0
+        total_points = sum(r.points for r in ratings)
+        return round(total_points / ratings.count(), 2)
+
+
+class Rating(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    course = models.ForeignKey("Course", on_delete=models.CASCADE, related_name="ratings")
+    points = models.PositiveSmallIntegerField()  
+
+    class Meta:
+        unique_together = ("user", "course")  
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.course.name}: {self.points}"
