@@ -38,7 +38,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "thumbnail",
-            "rating",
             "date_added",
             "instructor_name",
             "categories",
