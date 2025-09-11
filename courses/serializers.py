@@ -68,9 +68,12 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
-
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
-        fields = ["id", "points", "course"]  
+        fields = ["id", "points", "course"]
         read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        return Rating.objects.create(user=user, **validated_data)

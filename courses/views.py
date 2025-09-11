@@ -45,11 +45,21 @@ class CourseRatingViewSet(viewsets.ViewSet):
 
     @action(detail=True, methods=["POST"])
     def rate(self, request, pk=None):
-        course = Course.objects.get(pk=pk)
-        points = request.data.get("points")
+        try:
+            course = Course.objects.get(pk=pk)
+        except Course.DoesNotExist:
+            return Response({"error": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if points is None:
-            return Response({"error": "Rating points required"}, status=status.HTTP_400_BAD_REQUEST)
+        points = request.data.get("points")
+        try:
+            points = int(points)
+            if points < 0 or points > 5:
+                raise ValueError()
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "Points must be an integer between 0 and 5"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         rating_obj, created = Rating.objects.update_or_create(
             user=request.user,
@@ -57,5 +67,13 @@ class CourseRatingViewSet(viewsets.ViewSet):
             defaults={"points": points},
         )
 
-        serializer = RatingSerializer(rating_obj)
-        return Response(serializer.data, status=status.HTTP_200_OK if not created else status.HTTP_201_CREATED)
+        serializer = RatingSerializer(rating_obj, context={"request": request})
+        avg_rating = course.average_rating
+
+        return Response(
+            {
+                "rating": serializer.data,
+                "average_rating": avg_rating
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
