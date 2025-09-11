@@ -9,25 +9,21 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
-    categories = CategorySerializer(many=True, read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)  
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(
-        max_digits=3, decimal_places=2, source="average_rating", read_only=True
-    )
-
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  
     class Meta:
         model = Course
         fields = [
             "id",
             "name",
             "thumbnail",
-            "average_rating",
+            "average_rating", 
             "instructor_name",
             "categories",
             "date_added"
         ]
         read_only_fields = fields
-
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)

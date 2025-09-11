@@ -25,7 +25,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all().order_by("-date_added")
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
-
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["categories", "is_published", "instructor"]  
     search_fields = ["name", "description"]
