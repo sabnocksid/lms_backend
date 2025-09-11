@@ -34,3 +34,5 @@ class CourseViewSet(viewsets.ModelViewSet):
         elif self.action in ["create", "update", "partial_update"]:
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
+
+
