@@ -15,6 +15,14 @@ from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
 
 
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
+
+
 class CourseFilter(FilterSet):
     min_rating = NumberFilter(field_name='avg_rating', lookup_expr='gte', label='Min Rating')
     max_rating = NumberFilter(field_name='avg_rating', lookup_expr='lte', label='Max Rating')
