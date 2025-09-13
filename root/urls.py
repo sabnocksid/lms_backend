@@ -22,6 +22,7 @@ urlpatterns = [
 
     # Courses API
     path("api/courses/", include(("courses.urls"))),
+    path("api/lessons/", include(("lessons.urls"))),
 
 
     # Schema & Documentation
