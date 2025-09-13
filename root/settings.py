@@ -3,20 +3,42 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 
-load_dotenv()  
+# Load .env
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-SECRET_KEY = os.getenv("SECRET_KEY", 'django-insecure-defaultkey')
+# =======================
+# Django Core Settings
+# =======================
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-defaultkey")
 DEBUG = int(os.getenv("DEBUG", 1))
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-
+# =======================
+# AES Encryption Key
+# =======================
 AES_SECRET = os.getenv("AES_SECRET")
 if not AES_SECRET:
     raise ValueError("AES_SECRET must be set in your .env file")
 
+# =======================
+# PostgreSQL Database
+# =======================
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "lms_db"),
+        "USER": os.getenv("POSTGRES_USER", "sidharth"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "sabnocksid"),
+        "HOST": os.getenv("DB_HOST", "db"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
+}
+
+# =======================
+# MinIO / S3 Settings
+# =======================
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_ACCESS_KEY_ID = os.getenv("MY_ACCESS_KEY_ID", "admin")
 AWS_SECRET_ACCESS_KEY = os.getenv("MY_SECRET_KEY", "admin123")
@@ -25,15 +47,19 @@ AWS_S3_ENDPOINT_URL = os.getenv("MY_S3_ENDPOINT_URL", "http://100.72.200.75:9000
 AWS_QUERYSTRING_AUTH = os.getenv("AWS_QUERYSTRING_AUTH", "True") == "True"
 AWS_REGION_NAME = os.getenv("MY_AWS_REGION", "us-east-1")
 
-
+# =======================
+# Static & Media
+# =======================
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
-
+# =======================
+# Installed Apps & Middleware
+# =======================
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -43,7 +69,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
-    "corsheaders",
+    'corsheaders',
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'django_filters',
@@ -93,38 +119,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'root.wsgi.application'
 
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "lms_db"),
-        "USER": os.getenv("POSTGRES_USER", "sidharth"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "sabnocksid"),
-        "HOST": os.getenv("DB_HOST", "db"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-    }
-}
-
-
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
-
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
-
-DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000
-FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
-DATA_UPLOAD_MAX_NUMBER_FIELDS = None
-
-
+# =======================
+# Authentication & DRF
+# =======================
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
@@ -148,7 +145,6 @@ REST_FRAMEWORK = {
     ),
 }
 
-
 SPECTACULAR_SETTINGS = {
     "TITLE": "LMS API",
     "DESCRIPTION": "Learning Management System API",
@@ -168,3 +164,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000
+DATA_UPLOAD_MAX_NUMBER_FIELDS = None
