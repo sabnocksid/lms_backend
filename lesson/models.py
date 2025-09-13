@@ -1,42 +1,24 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from courses.models import Course  
-from django.core.files import File
-from tempfile import NamedTemporaryFile
+from courses.models import Course
 import os
-import base64
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
+from .utils import encrypt_video_file
 
 User = get_user_model()
 
-def generate_user_key(user) -> bytes:
-    secret = "my_global_secret"
-    password = f"{user.id}-{secret}".encode()
-    salt = f"user_salt_{user.id}".encode()
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=100000)
-    key = base64.urlsafe_b64encode(kdf.derive(password))
-    return key
-
-def encrypt_video_for_user(input_path: str, output_path: str, user):
-    key = generate_user_key(user)
-    fernet = Fernet(key)
-    with open(input_path, "rb") as f:
-        data = f.read()
-    encrypted = fernet.encrypt(data)
-    with open(output_path, "wb") as f:
-        f.write(encrypted)
 
 def lesson_video_upload_path(instance, filename):
+    """Dynamic path: videos/course_<id>/lesson_<id>/user_<id>/filename"""
     user_id = instance.created_by.id if instance.created_by else "anonymous"
-    return f"videos/course_{instance.course.id}/lesson_{instance.id}/user_{user_id}/{filename}"
+    lesson_id = instance.id if instance.id else "temp"
+    return f"videos/course_{instance.course.id}/lesson_{lesson_id}/user_{user_id}/{filename}"
+
 
 class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="lessons")
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    video_file = models.FileField(upload_to=lesson_video_upload_path, blank=True, null=True)
+    video_file = models.FileField(upload_to=lesson_video_upload_path, null=True, blank=True)
     order = models.PositiveIntegerField(default=1)
     is_published = models.BooleanField(default=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -51,12 +33,19 @@ class Lesson(models.Model):
         return f"{self.course.name} - {self.title}"
 
     def save(self, *args, **kwargs):
-        if self.video_file and not self.video_file.name.endswith(".enc") and self.created_by:
-            temp_file = NamedTemporaryFile(delete=False)
-            encrypt_video_for_user(self.video_file.path, temp_file.name, self.created_by)
-
-            with open(temp_file.name, "rb") as f:
-                self.video_file.save(f"{self.video_file.name}.enc", File(f), save=False)
-            os.remove(temp_file.name)
-
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        if is_new and self.video_file and "lesson_temp" in self.video_file.name:
+            old_path = self.video_file.path
+            new_dir = os.path.join(
+                os.path.dirname(old_path).replace("lesson_temp", f"lesson_{self.id}")
+            )
+            os.makedirs(new_dir, exist_ok=True)
+            new_path = os.path.join(new_dir, os.path.basename(old_path))
+            os.rename(old_path, new_path)
+            self.video_file.name = os.path.relpath(new_path, start=os.path.dirname(old_path).split("media")[0]+"media")
+            super().save(update_fields=["video_file"])
+
+        if self.video_file and self.created_by:
+            encrypt_video_file(self.video_file.path, self.created_by)
