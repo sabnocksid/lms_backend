@@ -50,7 +50,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
-        source="categories"  
+        source="categories"
     )
 
     class Meta:
@@ -61,11 +61,20 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "instructor",
             "description",
             "thumbnail",
-            "category_ids",   
+            "category_ids",
             "price",
             "is_published",
             "duration",
         ]
+        extra_kwargs = {
+            "thumbnail": {"required": False, "allow_null": True}
+        }
+
+    def update(self, instance, validated_data):
+        if "thumbnail" in validated_data and validated_data["thumbnail"] is None:
+            validated_data.pop("thumbnail")
+        return super().update(instance, validated_data)
+
 
 
 class RatingSerializer(serializers.ModelSerializer):
