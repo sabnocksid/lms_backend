@@ -1,6 +1,6 @@
 from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import viewsets, permissions, status
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Category, Course, Rating
@@ -22,25 +22,38 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 
+# Custom FilterSet to include average_rating
+class CourseFilter(FilterSet):
+    min_rating = NumberFilter(method='filter_min_rating', label='Min Rating')
+    max_rating = NumberFilter(method='filter_max_rating', label='Max Rating')
+
+    class Meta:
+        model = Course
+        fields = {
+            "categories": ["exact", "in"],
+            "is_published": ["exact"],
+            "instructor": ["exact"],
+            "price": ["exact", "gte", "lte"],
+            "date_added": ["exact", "gte", "lte"],
+            "duration": ["exact", "gte", "lte"],
+        }
+
+    def filter_min_rating(self, queryset, name, value):
+        return queryset.annotate(avg_rating=Avg('ratings__points')).filter(avg_rating__gte=value)
+
+    def filter_max_rating(self, queryset, name, value):
+        return queryset.annotate(avg_rating=Avg('ratings__points')).filter(avg_rating__lte=value)
+
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all().order_by("-date_added")
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-
-    # Expanded filter fields
-    filterset_fields = {
-        "categories": ["exact", "in"],       
-        "is_published": ["exact"],           # true/false
-        "instructor": ["exact"],             # filter by instructor id
-        "price": ["exact", "gte", "lte"],    # numeric range filtering
-        "rating": ["exact", "gte", "lte"],   # numeric range filtering
-        "date_added": ["exact", "gte", "lte"],  # date range filtering
-        "duration": ["exact", "gte", "lte"],    # duration range filtering if applicable
-    }
+    filterset_class = CourseFilter
 
     search_fields = ["name", "description"]
-    ordering_fields = ["date_added", "rating", "price"]
+    ordering_fields = ["date_added", "price", "avg_rating"]
     ordering = ["-date_added"]
 
     def get_serializer_class(self):
@@ -50,6 +63,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
+    # Create
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -65,6 +79,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             headers=headers,
         )
 
+    # Update
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -80,6 +95,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    # Delete
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
