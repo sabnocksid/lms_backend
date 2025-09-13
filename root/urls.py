@@ -23,8 +23,6 @@ urlpatterns = [
     # Courses API
     path("api/courses/", include(("courses.urls"))),
 
-    # lesson API
-    path("api/lessons/", include("lesson.urls")),
 
     # Schema & Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
