@@ -4,7 +4,7 @@ from .views import CategoryViewSet, CourseViewSet, CourseRatingViewSet
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet)
-router.register(r'courses', CourseViewSet)
+router.register(r'courses', CourseViewSet, basename='course')
 router.register(r'ratings', CourseRatingViewSet, basename='ratings')
 
 urlpatterns = [

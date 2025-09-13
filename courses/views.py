@@ -15,12 +15,6 @@ from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
 class CourseFilter(FilterSet):
     min_rating = NumberFilter(field_name='avg_rating', lookup_expr='gte', label='Min Rating')
     max_rating = NumberFilter(field_name='avg_rating', lookup_expr='lte', label='Max Rating')
@@ -36,7 +30,9 @@ class CourseFilter(FilterSet):
             "duration": ["exact", "gte", "lte"],
         }
 
+
 class CourseViewSet(viewsets.ModelViewSet):
+    queryset = Course.objects.all()  # Required for DRF router
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -46,6 +42,9 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ["-date_added"]
 
     def get_queryset(self):
+        """
+        Annotate avg_rating so filters and ordering can use it
+        """
         return Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
 
     def get_serializer_class(self):
@@ -55,7 +54,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-
+    # Create
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -71,7 +70,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             headers=headers,
         )
 
-
+    # Update
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -87,7 +86,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-
+    # Delete
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -95,6 +94,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
+
 
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
