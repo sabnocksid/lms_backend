@@ -1,8 +1,8 @@
-from rest_framework import viewsets, filters
-from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from django.db.models import Avg
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
 from .models import Category, Course, Rating
 from .serializers import (
     CategorySerializer,
@@ -21,11 +21,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
 
 
-
-# Custom FilterSet to include average_rating
 class CourseFilter(FilterSet):
-    min_rating = NumberFilter(method='filter_min_rating', label='Min Rating')
-    max_rating = NumberFilter(method='filter_max_rating', label='Max Rating')
+    min_rating = NumberFilter(field_name='avg_rating', lookup_expr='gte', label='Min Rating')
+    max_rating = NumberFilter(field_name='avg_rating', lookup_expr='lte', label='Max Rating')
 
     class Meta:
         model = Course
@@ -38,23 +36,17 @@ class CourseFilter(FilterSet):
             "duration": ["exact", "gte", "lte"],
         }
 
-    def filter_min_rating(self, queryset, name, value):
-        return queryset.annotate(avg_rating=Avg('ratings__points')).filter(avg_rating__gte=value)
-
-    def filter_max_rating(self, queryset, name, value):
-        return queryset.annotate(avg_rating=Avg('ratings__points')).filter(avg_rating__lte=value)
-
-
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.all().order_by("-date_added")
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = CourseFilter
-
     search_fields = ["name", "description"]
     ordering_fields = ["date_added", "price", "avg_rating"]
     ordering = ["-date_added"]
+
+    def get_queryset(self):
+        return Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -63,7 +55,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-    # Create
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -79,7 +71,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             headers=headers,
         )
 
-    # Update
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -95,7 +87,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    # Delete
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -103,8 +95,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
-
-
 
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -134,7 +124,7 @@ class CourseRatingViewSet(viewsets.ViewSet):
         )
 
         serializer = RatingSerializer(rating_obj, context={"request": request})
-        avg_rating = course.average_rating
+        avg_rating = course.ratings.aggregate(avg=Avg('points'))['avg'] or 0
 
         return Response(
             {
