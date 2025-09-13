@@ -9,7 +9,7 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             "course",
             "title",
             "description",
-            "video_file",  
+            "video_file", 
             "order",
             "is_published",
             "created_by",
@@ -21,4 +21,16 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
 class LessonDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = "__all__" 
+        fields = "__all__"
+
+class LessonListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "course",
+            "title",
+            "order",
+            "is_published",
+            "video_file",
+        ]

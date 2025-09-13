@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Lesson
-from .serializers import LessonSerializer, LessonCreateUpdateSerializer
+from .serializers import LessonCreateUpdateSerializer, LessonDetailSerializer, LessonListSerializer
 
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
@@ -11,7 +11,9 @@ class LessonViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ["create", "update", "partial_update"]:
             return LessonCreateUpdateSerializer
-        return LessonSerializer
+        elif self.action == "list":
+            return LessonListSerializer
+        return LessonDetailSerializer
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
