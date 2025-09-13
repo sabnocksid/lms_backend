@@ -40,7 +40,7 @@ class CourseFilter(FilterSet):
 
 
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.all()  # Required for DRF router
+    queryset = Course.objects.all()  
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -50,9 +50,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ["-date_added"]
 
     def get_queryset(self):
-        """
-        Annotate avg_rating so filters and ordering can use it
-        """
         return Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
 
     def get_serializer_class(self):
