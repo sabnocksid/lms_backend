@@ -1,12 +1,24 @@
 from rest_framework import serializers
 from .models import Lesson
 
-class LessonSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Lesson
-        fields = "__all__"
-
 class LessonCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = ["course", "title", "description", "video_url", "order", "is_published"]
+        fields = [
+            "id",
+            "course",
+            "title",
+            "description",
+            "video_file",  
+            "order",
+            "is_published",
+            "created_by",
+            "date_created",
+            "date_updated",
+        ]
+        read_only_fields = ["created_by", "date_created", "date_updated"]
+
+class LessonDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = "__all__" 
