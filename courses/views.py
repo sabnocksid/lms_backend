@@ -27,7 +27,18 @@ class CourseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["categories", "is_published", "instructor"]  
+
+    # Expanded filter fields
+    filterset_fields = {
+        "categories": ["exact", "in"],       
+        "is_published": ["exact"],           # true/false
+        "instructor": ["exact"],             # filter by instructor id
+        "price": ["exact", "gte", "lte"],    # numeric range filtering
+        "rating": ["exact", "gte", "lte"],   # numeric range filtering
+        "date_added": ["exact", "gte", "lte"],  # date range filtering
+        "duration": ["exact", "gte", "lte"],    # duration range filtering if applicable
+    }
+
     search_fields = ["name", "description"]
     ordering_fields = ["date_added", "rating", "price"]
     ordering = ["-date_added"]
@@ -43,21 +54,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {
-                    "success": False,
-                    "message": "Course creation failed",
-                    "errors": serializer.errors,
-                },
+                {"success": False, "message": "Course creation failed", "errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(
-            {
-                "success": True,
-                "message": "Course created successfully",
-                "data": serializer.data,
-            },
+            {"success": True, "message": "Course created successfully", "data": serializer.data},
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
@@ -68,20 +71,12 @@ class CourseViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if not serializer.is_valid():
             return Response(
-                {
-                    "success": False,
-                    "message": "Course update failed",
-                    "errors": serializer.errors,
-                },
+                {"success": False, "message": "Course update failed", "errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         self.perform_update(serializer)
         return Response(
-            {
-                "success": True,
-                "message": "Course updated successfully",
-                "data": serializer.data,
-            },
+            {"success": True, "message": "Course updated successfully", "data": serializer.data},
             status=status.HTTP_200_OK,
         )
 
@@ -89,10 +84,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response(
-            {
-                "success": True,
-                "message": "Course deleted successfully",
-            },
+            {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
 
