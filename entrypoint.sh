@@ -12,11 +12,7 @@ python create_db.py
 
 echo "📦 Making migrations (checking for errors)..."
 if ! python manage.py makemigrations --noinput; then
-  echo "❌ makemigrations failed. You might have added a non-nullable field without a default."
-  echo "👉 Fix your model by either:"
-  echo "   - adding null=True,"
-  echo "   - or setting a default=...,"
-  echo "   - or manually running makemigrations without --noinput to provide one-off defaults."
+  echo "❌ makemigrations failed."
   exit 1
 fi
 
@@ -26,7 +22,11 @@ python manage.py migrate --noinput
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "☁️  Creating MinIO bucket if it does not exist..."
+# -----------------------------
+# MinIO bucket creation
+# -----------------------------
+echo "☁️ Creating MinIO bucket if it does not exist..."
+# Only install mc if not present (optional if already baked in Dockerfile)
 if ! command -v mc >/dev/null 2>&1; then
   echo "📦 Installing MinIO client..."
   curl -O https://dl.min.io/client/mc/release/linux-amd64/mc
@@ -34,20 +34,11 @@ if ! command -v mc >/dev/null 2>&1; then
   mv mc /usr/local/bin/
 fi
 
+# wait a few seconds for MinIO to start
 sleep 5
 
-echo "☁️  Creating MinIO bucket if it does not exist..."
-if ! command -v mc >/dev/null 2>&1; then
-  echo "📦 Installing MinIO client..."
-  curl -O https://dl.min.io/client/mc/release/linux-amd64/mc
-  chmod +x mc
-  mv mc /usr/local/bin/
-fi
-
-sleep 5
-
+# Set alias and create bucket
 mc alias set local-minio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
-
 mc mb local-minio/$AWS_STORAGE_BUCKET_NAME || true
 
 echo "✅ MinIO bucket ready."
