@@ -36,12 +36,21 @@ fi
 
 sleep 5
 
-mc alias set local-minio http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000
+echo "☁️  Creating MinIO bucket if it does not exist..."
+if ! command -v mc >/dev/null 2>&1; then
+  echo "📦 Installing MinIO client..."
+  curl -O https://dl.min.io/client/mc/release/linux-amd64/mc
+  chmod +x mc
+  mv mc /usr/local/bin/
+fi
+
+sleep 5
+
+mc alias set local-minio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
 
 mc mb local-minio/$AWS_STORAGE_BUCKET_NAME || true
 
 echo "✅ MinIO bucket ready."
-
 
 echo "🚀 Starting Gunicorn server..."
 exec gunicorn root.wsgi:application --bind 0.0.0.0:8001
