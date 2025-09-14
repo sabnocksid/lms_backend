@@ -1,5 +1,4 @@
 #!/bin/sh
-
 set -e
 
 echo "🚀 Waiting for PostgreSQL..."
@@ -26,6 +25,23 @@ python manage.py migrate --noinput
 
 echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput
+
+echo "☁️  Creating MinIO bucket if it does not exist..."
+if ! command -v mc >/dev/null 2>&1; then
+  echo "📦 Installing MinIO client..."
+  curl -O https://dl.min.io/client/mc/release/linux-amd64/mc
+  chmod +x mc
+  mv mc /usr/local/bin/
+fi
+
+sleep 5
+
+mc alias set local-minio http://$MINIO_ROOT_USER:$MINIO_ROOT_PASSWORD@minio:9000
+
+mc mb local-minio/$AWS_STORAGE_BUCKET_NAME || true
+
+echo "✅ MinIO bucket ready."
+
 
 echo "🚀 Starting Gunicorn server..."
 exec gunicorn root.wsgi:application --bind 0.0.0.0:8001
