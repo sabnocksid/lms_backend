@@ -2,10 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y libpq-dev gcc postgresql-client && \
+RUN apt-get update && apt-get install -y \
+    libpq-dev gcc postgresql-client wget && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -O https://dl.min.io/client/mc/release/linux-amd64/mc \
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc \
     && chmod +x mc \
     && mv mc /usr/local/bin/
 
