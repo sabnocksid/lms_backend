@@ -2,16 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    libpq-dev gcc postgresql-client && \
+RUN apt-get update && apt-get install -y libpq-dev gcc postgresql-client && \
     rm -rf /var/lib/apt/lists/*
+
+RUN curl -O https://dl.min.io/client/mc/release/linux-amd64/mc \
+    && chmod +x mc \
+    && mv mc /usr/local/bin/
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
