@@ -3,9 +3,7 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 
-# -------------------------------
-# Load environment variables
-# -------------------------------
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,16 +12,12 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-defaultkey")
 DEBUG = int(os.getenv("DEBUG", 1))
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
-# -------------------------------
-# AES Encryption Key
-# -------------------------------
+
 AES_SECRET = os.getenv("AES_SECRET")
 if not AES_SECRET:
     raise ValueError("AES_SECRET must be set in your .env file")
 
-# -------------------------------
-# PostgreSQL Database
-# -------------------------------
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -61,7 +55,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
