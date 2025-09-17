@@ -11,5 +11,5 @@ pillow
 pycryptodome
 cryptography>=42.0.0
 boto3
-django-filter>=23.2
 django-storages[boto3]
+django-filter>=23.2
