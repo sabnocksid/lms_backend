@@ -35,32 +35,25 @@ DATABASES = {
     }
 }
 
-# -------------------------------
-# MinIO / S3 Storage
-# -------------------------------
+
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 AWS_ACCESS_KEY_ID = os.getenv("MY_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("MY_SECRET_KEY")
 AWS_STORAGE_BUCKET_NAME = os.getenv("MY_BUCKET_NAME")
-AWS_S3_ENDPOINT_URL = os.getenv("MY_S3_ENDPOINT_URL")  # e.g., http://minio:9000
+AWS_S3_ENDPOINT_URL = os.getenv("MY_S3_ENDPOINT_URL")  
 AWS_REGION_NAME = os.getenv("MY_AWS_REGION", "us-east-1")
 AWS_QUERYSTRING_AUTH = os.getenv("AWS_QUERYSTRING_AUTH", "False") == "True"
-AWS_DEFAULT_ACL = None  # prevent default public-read
+AWS_DEFAULT_ACL = None 
 
-# Optional: If you want API `.url` to point directly to MinIO
 MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 
-# -------------------------------
-# Static Files (still local)
-# -------------------------------
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
-# -------------------------------
-# Installed Apps
-# -------------------------------
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -79,9 +72,7 @@ INSTALLED_APPS = [
     'lessons',
 ]
 
-# -------------------------------
-# Middleware
-# -------------------------------
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -93,9 +84,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# -------------------------------
-# CORS
-# -------------------------------
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8001",
     "http://localhost:3000",
@@ -103,15 +92,11 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-# -------------------------------
-# Authentication
-# -------------------------------
+
 AUTH_USER_MODEL = 'accounts.CustomUser'
 AUTHENTICATION_BACKENDS = ['django.contrib.auth.backends.ModelBackend']
 
-# -------------------------------
-# URL & Templates
-# -------------------------------
+
 ROOT_URLCONF = 'root.urls'
 
 TEMPLATES = [
@@ -131,9 +116,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'root.wsgi.application'
 
-# -------------------------------
-# DRF & JWT
-# -------------------------------
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
@@ -175,12 +158,9 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-# -------------------------------
-# Misc
-# -------------------------------
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Max upload size ~1GB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1_073_741_824
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1_073_741_824
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None

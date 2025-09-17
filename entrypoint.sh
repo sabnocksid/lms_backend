@@ -1,47 +1,27 @@
 #!/bin/sh
 set -e
 
-echo "🚀 Waiting for PostgreSQL..."
-until pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$POSTGRES_USER"; do
+echo "⏳ Waiting for Postgres..."
+while ! nc -z db 5432; do
   sleep 1
 done
-echo "✅ PostgreSQL is ready."
+echo "✅ Postgres is up"
 
-echo "📦 Creating database if it does not exist..."
-python create_db.py
-
-echo "📦 Making migrations (checking for errors)..."
-if ! python manage.py makemigrations --noinput; then
-  echo "❌ makemigrations failed."
-  exit 1
-fi
-
-echo "📦 Running migrations..."
+echo "📦 Applying Django migrations..."
 python manage.py migrate --noinput
 
-echo "📦 Collecting static files..."
+echo "🗂 Collecting static files..."
 python manage.py collectstatic --noinput
 
-# -----------------------------
-# MinIO bucket creation
-# -----------------------------
-echo "☁️ Creating MinIO bucket if it does not exist..."
-# Only install mc if not present (optional if already baked in Dockerfile)
-if ! command -v mc >/dev/null 2>&1; then
-  echo "📦 Installing MinIO client..."
-  curl -O https://dl.min.io/client/mc/release/linux-amd64/mc
-  chmod +x mc
-  mv mc /usr/local/bin/
-fi
+echo "☁️ Configuring MinIO..."
+mc alias set local $MY_S3_ENDPOINT_URL $MY_ACCESS_KEY_ID $MY_SECRET_KEY
 
-# wait a few seconds for MinIO to start
-sleep 5
+mc mb --ignore-existing local/$MY_BUCKET_NAME
 
-# Set alias and create bucket
-mc alias set local-minio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD
-mc mb local-minio/$AWS_STORAGE_BUCKET_NAME || true
+mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/videos
+mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/materials
 
-echo "✅ MinIO bucket ready."
+echo "✅ MinIO setup complete"
 
-echo "🚀 Starting Gunicorn server..."
-exec gunicorn root.wsgi:application --bind 0.0.0.0:8001
+echo "🚀 Starting Django server..."
+python manage.py runserver 0.0.0.0:8001
