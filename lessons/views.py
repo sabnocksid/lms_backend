@@ -3,7 +3,7 @@ from rest_framework import generics
 from .models import Lesson
 from .serializers import LessonSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
-from .utils.minio_upload import upload_file_to_minio
+from .utils.upload_minio import upload_file_to_minio
 
 class LessonListCreateView(generics.ListCreateAPIView):
     queryset = Lesson.objects.all().order_by('-created_at')
