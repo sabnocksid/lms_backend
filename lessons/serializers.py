@@ -11,7 +11,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'description', 'video', 'material', 'videos', 'materials', 'created_at']
+        fields = ['id', 'title', 'description',  'videos', 'materials', 'created_at']
         read_only_fields = ['id', 'created_at']
 
     def create(self, validated_data):
