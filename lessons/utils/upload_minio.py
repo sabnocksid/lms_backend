@@ -3,6 +3,7 @@ from django.conf import settings
 from botocore.exceptions import NoCredentialsError, ClientError
 
 def upload_file_to_minio(file_obj, file_name, bucket=None):
+
     bucket = bucket or settings.AWS_STORAGE_BUCKET_NAME
     s3_client = boto3.client(
         "s3",
