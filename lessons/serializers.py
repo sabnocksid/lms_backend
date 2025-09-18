@@ -18,10 +18,9 @@ class LessonSerializer(serializers.ModelSerializer):
         videos = validated_data.pop('videos', [])
         materials = validated_data.pop('materials', [])
         lesson = Lesson.objects.create(**validated_data)
-
         if videos:
             lesson.video.save(videos[0].name, videos[0])
         if materials:
             lesson.material.save(materials[0].name, materials[0])
-
         return lesson
+
