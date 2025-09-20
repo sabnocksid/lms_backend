@@ -4,8 +4,9 @@ from .utils.upload_minio import upload_file_to_minio
 from django.conf import settings
 
 def get_public_url(file_key):
-    base_url = getattr(settings, "AWS_S3_PUBLIC_URL", settings.AWS_S3_ENDPOINT_URL)
+    base_url = settings.AWS_S3_PUBLIC_URL
     bucket = settings.AWS_STORAGE_BUCKET_NAME
+    file_key = file_key.lstrip('/')
     return f"{base_url}/{bucket}/{file_key}"
 
 class LessonSerializer(serializers.ModelSerializer):
