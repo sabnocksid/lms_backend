@@ -38,7 +38,7 @@ AWS_S3_ENDPOINT_URL = os.environ.get("MY_S3_ENDPOINT_URL", "http://minio:9000")
 AWS_QUERYSTRING_AUTH = os.environ.get("AWS_QUERYSTRING_AUTH", "False") == "True"
 AWS_DEFAULT_ACL = None
 
-MEDIA_URL = f"{AWS_STORAGE_BUCKET_NAME}/"
+MEDIA_URL = f"/{AWS_STORAGE_BUCKET_NAME}/"
 
 
 STATIC_URL = "/static/"
