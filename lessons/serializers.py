@@ -1,17 +1,10 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter
-from .utils.upload_minio import upload_file_to_minio
-from django.conf import settings
-
-def get_public_url(file_key):
-    base_url = settings.AWS_S3_PUBLIC_URL
-    bucket = settings.AWS_STORAGE_BUCKET_NAME
-    file_key = file_key.lstrip('/')
-    return f"{base_url}/{bucket}/{file_key}"
+from .utils.upload_minio import upload_file_to_minio, get_public_url
 
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
-    thumbnail = serializers.SerializerMethodField(read_only=True)  
+    thumbnail = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Lesson
@@ -26,12 +19,10 @@ class LessonSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         file_obj = validated_data.pop('thumbnail_file', None)
         lesson = Lesson.objects.create(**validated_data)
-
         if file_obj:
-            uri = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
-            lesson.thumbnail = uri
+            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            lesson.thumbnail = key
             lesson.save()
-
         return lesson
 
     def update(self, instance, validated_data):
@@ -39,8 +30,8 @@ class LessonSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if file_obj:
-            uri = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
-            instance.thumbnail = uri
+            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            instance.thumbnail = key
         instance.save()
         return instance
 
@@ -69,13 +60,14 @@ class ChapterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         video_file = validated_data.pop('video_file', None)
         material_file = validated_data.pop('material_file', None)
-
         chapter = Chapter.objects.create(**validated_data)
 
         if video_file:
-            chapter.video = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+            key = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+            chapter.video = key
         if material_file:
-            chapter.material = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+            key = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+            chapter.material = key
 
         chapter.save()
         return chapter
@@ -88,9 +80,11 @@ class ChapterSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
 
         if video_file:
-            instance.video = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+            key = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+            instance.video = key
         if material_file:
-            instance.material = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+            key = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+            instance.material = key
 
         instance.save()
         return instance
