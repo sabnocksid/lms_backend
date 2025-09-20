@@ -1,18 +1,77 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter
-
-
-class ChapterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Chapter
-        fields = ['id', 'title', 'video', 'material', 'created_at']
-        read_only_fields = ['id', 'created_at']
+from .utils.upload_minio import upload_file_to_minio
 
 
 class LessonSerializer(serializers.ModelSerializer):
-    chapters = ChapterSerializer(many=True, read_only=True)
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.URLField(read_only=True)
 
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'description', 'thumbnail', 'chapters', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'title', 'description', 'thumbnail', 'thumbnail_file', 'created_at']
+        read_only_fields = ['id', 'thumbnail', 'created_at']
+
+    def create(self, validated_data):
+        file_obj = validated_data.pop('thumbnail_file', None)
+        lesson = Lesson.objects.create(**validated_data)
+
+        if file_obj:
+            uri = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            lesson.thumbnail = uri
+            lesson.save()
+
+        return lesson
+
+    def update(self, instance, validated_data):
+        file_obj = validated_data.pop('thumbnail_file', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if file_obj:
+            uri = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            instance.thumbnail = uri
+        instance.save()
+        return instance
+
+class ChapterSerializer(serializers.ModelSerializer):
+    video_file = serializers.FileField(write_only=True, required=False)
+    material_file = serializers.FileField(write_only=True, required=False)
+    video = serializers.URLField(read_only=True)
+    material = serializers.URLField(read_only=True)
+
+    class Meta:
+        model = Chapter
+        fields = [
+            'id', 'lesson', 'title',
+            'video', 'material', 'video_file', 'material_file', 'created_at'
+        ]
+        read_only_fields = ['id', 'video', 'material', 'created_at']
+
+    def create(self, validated_data):
+        video_file = validated_data.pop('video_file', None)
+        material_file = validated_data.pop('material_file', None)
+
+        chapter = Chapter.objects.create(**validated_data)
+
+        if video_file:
+            chapter.video = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+        if material_file:
+            chapter.material = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+
+        chapter.save()
+        return chapter
+
+    def update(self, instance, validated_data):
+        video_file = validated_data.pop('video_file', None)
+        material_file = validated_data.pop('material_file', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if video_file:
+            instance.video = upload_file_to_minio(video_file, f"chapters/videos/{video_file.name}")
+        if material_file:
+            instance.material = upload_file_to_minio(material_file, f"chapters/materials/{material_file.name}")
+
+        instance.save()
+        return instance
