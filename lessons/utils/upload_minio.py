@@ -18,16 +18,6 @@ def upload_file_to_minio(file_obj, file_name, bucket=None):
         return None
 
 
-def get_presigned_url(file_key, expires_in=3600):
-    s3_client = boto3.client(
-        "s3",
-        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
-    url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': settings.AWS_STORAGE_BUCKET_NAME, 'Key': file_key},
-        ExpiresIn=expires_in
-    )
-    return url.replace("minio:9000", "100.72.200.75:9000")
+def get_public_url(file_key):
+
+    return f"http://100.72.200.75:9000/{settings.AWS_STORAGE_BUCKET_NAME}/{file_key}"

@@ -1,6 +1,12 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter
-from .utils.upload_minio import upload_file_to_minio, get_presigned_url  
+from .utils.upload_minio import upload_file_to_minio
+from django.conf import settings
+
+def get_public_url(file_key):
+    base_url = getattr(settings, "AWS_S3_PUBLIC_URL", settings.AWS_S3_ENDPOINT_URL)
+    bucket = settings.AWS_STORAGE_BUCKET_NAME
+    return f"{base_url}/{bucket}/{file_key}"
 
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
@@ -13,7 +19,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
-            return get_presigned_url(obj.thumbnail)
+            return get_public_url(obj.thumbnail)
         return None
 
     def create(self, validated_data):
@@ -51,12 +57,12 @@ class ChapterSerializer(serializers.ModelSerializer):
 
     def get_video(self, obj):
         if obj.video:
-            return get_presigned_url(obj.video)
+            return get_public_url(obj.video)
         return None
 
     def get_material(self, obj):
         if obj.material:
-            return get_presigned_url(obj.material)
+            return get_public_url(obj.material)
         return None
 
     def create(self, validated_data):
