@@ -20,6 +20,8 @@ def upload_file_to_minio(file_obj, file_name, bucket=None):
 
 
 def get_public_url(file_key):
-
-    file_key = file_key.lstrip('/')  
-    return f"{settings.MEDIA_URL}{file_key}"
+    file_key = file_key.lstrip('/')
+    bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
+    if file_key.startswith(bucket_prefix):
+        file_key = file_key[len(bucket_prefix):]
+    return f"{settings.AWS_S3_PUBLIC_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{file_key}"
