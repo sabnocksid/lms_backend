@@ -1,16 +1,20 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter
-from .utils.upload_minio import upload_file_to_minio
-
+from .utils.upload_minio import upload_file_to_minio, get_presigned_url  
 
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
-    thumbnail = serializers.URLField(read_only=True)
+    thumbnail = serializers.SerializerMethodField(read_only=True)  
 
     class Meta:
         model = Lesson
         fields = ['id', 'title', 'description', 'thumbnail', 'thumbnail_file', 'created_at']
         read_only_fields = ['id', 'thumbnail', 'created_at']
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            return get_presigned_url(obj.thumbnail)
+        return None
 
     def create(self, validated_data):
         file_obj = validated_data.pop('thumbnail_file', None)
@@ -33,19 +37,27 @@ class LessonSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class ChapterSerializer(serializers.ModelSerializer):
     video_file = serializers.FileField(write_only=True, required=False)
     material_file = serializers.FileField(write_only=True, required=False)
-    video = serializers.URLField(read_only=True)
-    material = serializers.URLField(read_only=True)
+    video = serializers.SerializerMethodField(read_only=True)
+    material = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Chapter
-        fields = [
-            'id', 'lesson', 'title',
-            'video', 'material', 'video_file', 'material_file', 'created_at'
-        ]
+        fields = ['id', 'lesson', 'title', 'video', 'material', 'video_file', 'material_file', 'created_at']
         read_only_fields = ['id', 'video', 'material', 'created_at']
+
+    def get_video(self, obj):
+        if obj.video:
+            return get_presigned_url(obj.video)
+        return None
+
+    def get_material(self, obj):
+        if obj.material:
+            return get_presigned_url(obj.material)
+        return None
 
     def create(self, validated_data):
         video_file = validated_data.pop('video_file', None)
