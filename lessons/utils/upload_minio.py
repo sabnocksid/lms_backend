@@ -47,16 +47,11 @@ def get_presigned_url(file_key, expires_in=3600):
         return None
 
 
-def get_public_url(file_key, expires_in=3600):
-    s3_client = boto3.client(
-        "s3",
-        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
-    return s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": file_key},
-        ExpiresIn=expires_in,
-    )
+def get_public_url(file_key):
 
+    file_key = file_key.lstrip("/")
+    bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
+    if file_key.startswith(bucket_prefix):
+        file_key = file_key[len(bucket_prefix):]
+
+    return f"{settings.AWS_S3_PUBLIC_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{file_key}"
