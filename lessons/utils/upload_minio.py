@@ -24,5 +24,5 @@ def get_public_url(file_key):
     bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
     if file_key.startswith(bucket_prefix):
         file_key = file_key[len(bucket_prefix):]
-    return f"{settings.AWS_S3_ENDPOINT_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{file_key}"
+    return f"{settings.AWS_S3_PUBLIC_URL}/{settings.AWS_STORAGE_BUCKET_NAME}/{file_key}"
 
