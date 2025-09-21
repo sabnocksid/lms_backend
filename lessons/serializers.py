@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter
-from .utils.upload_minio import upload_file_to_minio, get_public_url
+from .utils.upload_minio import (
+    upload_file_to_minio,
+    get_public_url,
+    get_presigned_url,
+)
+
 
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
@@ -8,8 +13,8 @@ class LessonSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'description', 'thumbnail', 'thumbnail_file', 'created_at']
-        read_only_fields = ['id', 'thumbnail', 'created_at']
+        fields = ["id", "title", "description", "thumbnail", "thumbnail_file", "created_at"]
+        read_only_fields = ["id", "thumbnail", "created_at"]
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
@@ -17,7 +22,7 @@ class LessonSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        file_obj = validated_data.pop('thumbnail_file', None)
+        file_obj = validated_data.pop("thumbnail_file", None)
         lesson = Lesson.objects.create(**validated_data)
         if file_obj:
             key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
@@ -26,7 +31,7 @@ class LessonSerializer(serializers.ModelSerializer):
         return lesson
 
     def update(self, instance, validated_data):
-        file_obj = validated_data.pop('thumbnail_file', None)
+        file_obj = validated_data.pop("thumbnail_file", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if file_obj:
@@ -44,22 +49,35 @@ class ChapterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Chapter
-        fields = ['id', 'lesson', 'title', 'video', 'material', 'video_file', 'material_file', 'created_at']
-        read_only_fields = ['id', 'video', 'material', 'created_at']
+        fields = [
+            "id",
+            "lesson",
+            "title",
+            "video",
+            "material",
+            "video_file",
+            "material_file",
+            "created_at",
+        ]
+        read_only_fields = ["id", "video", "material", "created_at"]
 
     def get_video(self, obj):
         if obj.video:
-            return get_public_url(obj.video)
+            request = self.context.get("request")
+            if request and request.user.is_authenticated:
+                return get_presigned_url(obj.video)  
         return None
 
     def get_material(self, obj):
         if obj.material:
-            return get_public_url(obj.material)
+            request = self.context.get("request")
+            if request and request.user.is_authenticated:
+                return get_presigned_url(obj.material)  
         return None
 
     def create(self, validated_data):
-        video_file = validated_data.pop('video_file', None)
-        material_file = validated_data.pop('material_file', None)
+        video_file = validated_data.pop("video_file", None)
+        material_file = validated_data.pop("material_file", None)
         chapter = Chapter.objects.create(**validated_data)
 
         if video_file:
@@ -73,8 +91,8 @@ class ChapterSerializer(serializers.ModelSerializer):
         return chapter
 
     def update(self, instance, validated_data):
-        video_file = validated_data.pop('video_file', None)
-        material_file = validated_data.pop('material_file', None)
+        video_file = validated_data.pop("video_file", None)
+        material_file = validated_data.pop("material_file", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

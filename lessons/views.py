@@ -1,26 +1,25 @@
-from rest_framework import generics
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import viewsets, permissions
 from .models import Lesson, Chapter
 from .serializers import LessonSerializer, ChapterSerializer
 
 
-class LessonListCreateView(generics.ListCreateAPIView):
-    queryset = Lesson.objects.all().order_by('-created_at')
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all().order_by("-created_at")
     serializer_class = LessonSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-class LessonRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Lesson.objects.all()
-    serializer_class = LessonSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
 
-class ChapterListCreateView(generics.ListCreateAPIView):
-    queryset = Chapter.objects.all().order_by('-created_at')
+class ChapterViewSet(viewsets.ModelViewSet):
+    queryset = Chapter.objects.all().order_by("-created_at")
     serializer_class = ChapterSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-class ChapterRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Chapter.objects.all()
-    serializer_class = ChapterSerializer
-    parser_classes = [MultiPartParser, FormParser]
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
