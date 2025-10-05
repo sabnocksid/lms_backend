@@ -34,7 +34,7 @@ DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 AWS_ACCESS_KEY_ID = os.environ["MY_ACCESS_KEY_ID"]
 AWS_SECRET_ACCESS_KEY = os.environ["MY_SECRET_KEY"]
 AWS_STORAGE_BUCKET_NAME = os.environ["MY_BUCKET_NAME"]
-AWS_S3_ENDPOINT_URL = os.getenv("MY_S3_ENDPOINT_URL", "http://minio:9000")
+AWS_S3_ENDPOINT_URL = os.getenv("MY_S3_ENDPOINT_URL", "http://100.72.200.75:9000")
 AWS_S3_PUBLIC_URL   = os.getenv("AWS_S3_PUBLIC_URL", "http://100.72.200.75:9000")
 AWS_QUERYSTRING_AUTH = os.environ.get("AWS_QUERYSTRING_AUTH", "False") == "True"
 AWS_DEFAULT_ACL = None
