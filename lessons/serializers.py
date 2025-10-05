@@ -18,7 +18,7 @@ class LessonSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
-            return get_public_url(obj.thumbnail)
+            return get_presigned_url(obj.thumbnail)
         return None
 
     def create(self, validated_data):
