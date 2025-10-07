@@ -26,8 +26,8 @@ def upload_file_to_minio(file_obj, file_name, bucket=None):
         return None
 
 
-def get_presigned_url(file_key, expires_in=3600):
 
+def get_presigned_url(file_key, expires_in=3600):
     file_key = file_key.lstrip("/")
     bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
     if file_key.startswith(bucket_prefix):
@@ -41,11 +41,15 @@ def get_presigned_url(file_key, expires_in=3600):
             Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": file_key},
             ExpiresIn=expires_in,
         )
-        return url
+
+        public_url = url.replace(
+            settings.AWS_S3_ENDPOINT_URL,
+            settings.AWS_S3_PUBLIC_URL
+        )
+        return public_url
     except Exception as e:
         print("Presigned URL Error:", e)
         return None
-
 
 def get_public_url(file_key):
 
