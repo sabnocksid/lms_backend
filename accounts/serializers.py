@@ -59,9 +59,8 @@ class LoginSerializer(serializers.Serializer):
     role = serializers.CharField(read_only=True)
     kyc_verified = serializers.SerializerMethodField(read_only=True)
 
-    def get_kyc_verified(self, obj):
-        user = obj
-        return hasattr(user, 'kyc') and user.kyc.approved_at is not None
+    def get_kyc_verified(self, user):
+        return hasattr(user, "kyc") and user.kyc.approved_at is not None
 
     def validate(self, data):
         email = data.get("email")
@@ -70,11 +69,6 @@ class LoginSerializer(serializers.Serializer):
         if not email or not password:
             raise serializers.ValidationError("Must include email and password.")
 
-        try:
-            user_obj = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("User with this email does not exist.")
-
         user = authenticate(
             request=self.context.get("request"),
             username=email,
@@ -82,7 +76,7 @@ class LoginSerializer(serializers.Serializer):
         )
 
         if not user:
-            raise serializers.ValidationError("Incorrect password.")
+            raise serializers.ValidationError("Invalid credentials.")
 
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
@@ -92,12 +86,10 @@ class LoginSerializer(serializers.Serializer):
         data["access"] = str(refresh.access_token)
         data["full_name"] = user.full_name
         data["role"] = user.role
-        data["kyc_verified"] = hasattr(user, 'kyc') and user.kyc.approved_at is not None
+        data["kyc_verified"] = self.get_kyc_verified(user)
         data["user"] = user
+
         return data
-
-
-
 
 
 class SimpleUserSerializer(serializers.Serializer):

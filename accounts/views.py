@@ -80,7 +80,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 class KYCSubmitView(generics.CreateAPIView):
     queryset = KYC.objects.all()
     serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated]  # User must be logged in to submit KYC
+    permission_classes = [IsAuthenticated]  
 
     def perform_create(self, serializer):
         serializer.save()
