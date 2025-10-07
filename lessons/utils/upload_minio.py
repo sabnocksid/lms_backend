@@ -38,7 +38,12 @@ def get_presigned_url(file_key, expires_in=3600):
     try:
         url = s3_client.generate_presigned_url(
             "get_object",
-            Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": file_key},
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": file_key,
+                "ResponseContentDisposition": "inline",
+                "ResponseContentType": "image/jpeg",
+            },
             ExpiresIn=expires_in,
         )
 
@@ -50,6 +55,7 @@ def get_presigned_url(file_key, expires_in=3600):
     except Exception as e:
         print("Presigned URL Error:", e)
         return None
+
 
 def get_public_url(file_key):
 
