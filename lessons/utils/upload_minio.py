@@ -42,7 +42,7 @@ def get_presigned_url(file_key, expires_in=3600):
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": file_key,
                 "ResponseContentDisposition": "inline",
-                "ResponseContentType": "image/jpeg",
+                # "ResponseContentType": "image/jpeg",
             },
             ExpiresIn=expires_in,
         )
