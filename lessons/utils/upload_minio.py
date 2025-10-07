@@ -1,6 +1,8 @@
 import boto3
 from django.conf import settings
 from botocore.exceptions import NoCredentialsError, ClientError
+import mimetypes
+
 
 
 def get_s3_client():
@@ -27,6 +29,7 @@ def upload_file_to_minio(file_obj, file_name, bucket=None):
 
 
 
+
 def get_presigned_url(file_key, expires_in=3600):
     file_key = file_key.lstrip("/")
     bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
@@ -35,14 +38,18 @@ def get_presigned_url(file_key, expires_in=3600):
 
     s3_client = get_s3_client()
 
+    content_type, _ = mimetypes.guess_type(file_key)
+    if not content_type:
+        content_type = "application/octet-stream"  
+
     try:
         url = s3_client.generate_presigned_url(
             "get_object",
             Params={
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": file_key,
-                "ResponseContentDisposition": "inline",
-                # "ResponseContentType": "image/jpeg",
+                "ResponseContentDisposition": "inline", 
+                "ResponseContentType": content_type,   
             },
             ExpiresIn=expires_in,
         )
@@ -51,10 +58,13 @@ def get_presigned_url(file_key, expires_in=3600):
             settings.AWS_S3_ENDPOINT_URL,
             settings.AWS_S3_PUBLIC_URL
         )
+
         return public_url
+
     except Exception as e:
         print("Presigned URL Error:", e)
         return None
+
 
 
 def get_public_url(file_key):
