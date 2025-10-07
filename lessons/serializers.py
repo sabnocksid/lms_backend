@@ -48,6 +48,7 @@ class ChapterSerializer(serializers.ModelSerializer):
     material_file = serializers.FileField(write_only=True, required=False)
     video = serializers.SerializerMethodField(read_only=True)
     material = serializers.SerializerMethodField(read_only=True)
+    progress = serializers.SerializerMethodField(read_only=True)  # new field
 
     class Meta:
         model = Chapter
@@ -57,11 +58,12 @@ class ChapterSerializer(serializers.ModelSerializer):
             "title",
             "video",
             "material",
+            "progress",  # include progress here
             "video_file",
             "material_file",
             "created_at",
         ]
-        read_only_fields = ["id", "video", "material", "created_at"]
+        read_only_fields = ["id", "video", "material", "progress", "created_at"]
 
     def get_video(self, obj):
         if obj.video:
@@ -74,6 +76,19 @@ class ChapterSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             return get_presigned_url(obj.material, request=request)
         return None
+
+    def get_progress(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            progress, _ = ChapterProgress.objects.get_or_create(
+                user=request.user,
+                chapter=obj,
+            )
+            return {
+                "completed": progress.completed,
+                "completed_at": progress.completed_at
+            }
+        return {"completed": False, "completed_at": None}
 
     def create(self, validated_data):
         video_file = validated_data.pop("video_file", None)
@@ -106,7 +121,7 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
+    
 class ChapterProgressSerializer(serializers.ModelSerializer):
     chapter_title = serializers.CharField(source="chapter.title", read_only=True)
 
