@@ -58,7 +58,7 @@ class ChapterSerializer(serializers.ModelSerializer):
             "title",
             "video",
             "material",
-            "progress",  # include progress here
+            "progress",  
             "video_file",
             "material_file",
             "created_at",
@@ -80,10 +80,7 @@ class ChapterSerializer(serializers.ModelSerializer):
     def get_progress(self, obj):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            progress, _ = ChapterProgress.objects.get_or_create(
-                user=request.user,
-                chapter=obj,
-            )
+            progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=obj)
             return {
                 "completed": progress.completed,
                 "completed_at": progress.completed_at
@@ -129,3 +126,22 @@ class ChapterProgressSerializer(serializers.ModelSerializer):
         model = ChapterProgress
         fields = ["id", "chapter", "chapter_title", "completed", "completed_at"]
         read_only_fields = ["completed_at"]
+
+
+class ChapterProgressSerializer(serializers.ModelSerializer):
+    chapter_title = serializers.CharField(source="chapter.title", read_only=True)
+    lesson_id = serializers.IntegerField(source="chapter.lesson.id", read_only=True)
+    lesson_title = serializers.CharField(source="chapter.lesson.title", read_only=True)
+
+    class Meta:
+        model = ChapterProgress
+        fields = [
+            "id",
+            "chapter",
+            "chapter_title",
+            "lesson_id",
+            "lesson_title",
+            "completed",
+            "completed_at",
+        ]
+        read_only_fields = ["completed_at", "chapter_title", "lesson_id", "lesson_title"]
