@@ -26,6 +26,7 @@ class Chapter(models.Model):
         return f"{self.lesson.title} - {self.title}"
 
 
+
 class ChapterProgress(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chapter_progress"
@@ -38,7 +39,6 @@ class ChapterProgress(models.Model):
 
     class Meta:
         unique_together = ("user", "chapter")
-        ordering = ["chapter"]
 
     def __str__(self):
         return f"{self.user.email} - {self.chapter.title} ({'Done' if self.completed else 'In Progress'})"
