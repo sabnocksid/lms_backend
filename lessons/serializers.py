@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Lesson, Chapter
+from .models import Lesson, Chapter,  ChapterProgress
+
 from .utils.upload_minio import (
     upload_file_to_minio,
     get_public_url,
@@ -105,3 +106,11 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+class ChapterProgressSerializer(serializers.ModelSerializer):
+    chapter_title = serializers.CharField(source="chapter.title", read_only=True)
+
+    class Meta:
+        model = ChapterProgress
+        fields = ["id", "chapter", "chapter_title", "completed", "completed_at"]
+        read_only_fields = ["completed_at"]

@@ -1,6 +1,8 @@
 from rest_framework import viewsets, permissions
-from .models import Lesson, Chapter
-from .serializers import LessonSerializer, ChapterSerializer
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from .models import Lesson, Chapter, ChapterProgress
+from .serializers import LessonSerializer, ChapterSerializer, ChapterProgressSerializer
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -23,3 +25,18 @@ class ChapterViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context["request"] = self.request
         return context
+
+
+class ChapterProgressViewSet(viewsets.ModelViewSet):
+    serializer_class = ChapterProgressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ChapterProgress.objects.filter(user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        chapter = Chapter.objects.get(pk=pk)
+        progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
+        progress.mark_completed()
+        return Response({"status": "completed"})

@@ -1,4 +1,7 @@
 from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
 
 class Lesson(models.Model):
     title = models.CharField(max_length=255)
@@ -21,3 +24,26 @@ class Chapter(models.Model):
 
     def __str__(self):
         return f"{self.lesson.title} - {self.title}"
+
+
+class ChapterProgress(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chapter_progress"
+    )
+    chapter = models.ForeignKey(
+        "Chapter", on_delete=models.CASCADE, related_name="user_progress"
+    )
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("user", "chapter")
+        ordering = ["chapter"]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.chapter.title} ({'Done' if self.completed else 'In Progress'})"
+
+    def mark_completed(self):
+        self.completed = True
+        self.completed_at = timezone.now()
+        self.save()
