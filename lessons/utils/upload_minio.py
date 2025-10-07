@@ -2,6 +2,7 @@ import boto3
 from django.conf import settings
 from botocore.exceptions import NoCredentialsError, ClientError
 import mimetypes
+from urllib.parse import urlencode
 
 
 
@@ -30,7 +31,8 @@ def upload_file_to_minio(file_obj, file_name, bucket=None):
 
 
 
-def get_presigned_url(file_key, expires_in=3600):
+
+def get_presigned_url(file_key, request=None, expires_in=3600):
     file_key = file_key.lstrip("/")
     bucket_prefix = f"{settings.AWS_STORAGE_BUCKET_NAME}/"
     if file_key.startswith(bucket_prefix):
@@ -40,7 +42,7 @@ def get_presigned_url(file_key, expires_in=3600):
 
     content_type, _ = mimetypes.guess_type(file_key)
     if not content_type:
-        content_type = "application/octet-stream"  
+        content_type = "application/octet-stream"
 
     try:
         url = s3_client.generate_presigned_url(
@@ -48,8 +50,8 @@ def get_presigned_url(file_key, expires_in=3600):
             Params={
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
                 "Key": file_key,
-                "ResponseContentDisposition": "inline", 
-                "ResponseContentType": content_type,   
+                "ResponseContentDisposition": "inline",
+                "ResponseContentType": content_type,
             },
             ExpiresIn=expires_in,
         )
@@ -59,13 +61,16 @@ def get_presigned_url(file_key, expires_in=3600):
             settings.AWS_S3_PUBLIC_URL
         )
 
+        if request and hasattr(request, "user") and request.user.is_authenticated:
+            user_key = request.user.encryption_key
+            separator = "&" if "?" in public_url else "?"
+            public_url = f"{public_url}{separator}{urlencode({'key': user_key})}"
+
         return public_url
 
     except Exception as e:
         print("Presigned URL Error:", e)
         return None
-
-
 
 def get_public_url(file_key):
 

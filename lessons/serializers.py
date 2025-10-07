@@ -18,7 +18,8 @@ class LessonSerializer(serializers.ModelSerializer):
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
-            return get_presigned_url(obj.thumbnail)
+            request = self.context.get("request")
+            return get_presigned_url(obj.thumbnail, request=request)
         return None
 
     def create(self, validated_data):
@@ -64,15 +65,13 @@ class ChapterSerializer(serializers.ModelSerializer):
     def get_video(self, obj):
         if obj.video:
             request = self.context.get("request")
-            if request and request.user.is_authenticated:
-                return get_presigned_url(obj.video)  
+            return get_presigned_url(obj.video, request=request)
         return None
 
     def get_material(self, obj):
         if obj.material:
             request = self.context.get("request")
-            if request and request.user.is_authenticated:
-                return get_presigned_url(obj.material)  
+            return get_presigned_url(obj.material, request=request)
         return None
 
     def create(self, validated_data):
