@@ -1,10 +1,15 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import Sum
+from django.conf import settings
 
 
 class LearnerProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="learner_profile")
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,  
+        on_delete=models.CASCADE,
+        related_name="learner_profile"
+    )
     full_name = models.CharField(max_length=150)
     profile_image = models.ImageField(upload_to='learners/profile_images/', blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
