@@ -61,7 +61,7 @@ class LearnerProfile(models.Model):
 
 class Task(models.Model):
     course = models.ForeignKey(
-        "Course",
+        "Courses.Course",
         on_delete=models.CASCADE,
         related_name="tasks"
     )
