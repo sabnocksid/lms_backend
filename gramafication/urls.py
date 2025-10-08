@@ -1,16 +1,21 @@
 from django.urls import path
 from .views import (
-    LearnerProfileListView,
-    LearnerProfileDetailView,
-    LeaderboardView,
-    LearnerRankView,
-    AddPointsView,
+    LearnerProfileListView, LearnerProfileDetailView,
+    TaskListView, TaskCompletionView, TaskCreateView,
+    LeaderboardView, LearnerRankView
 )
 
 urlpatterns = [
+    # Learner Profiles
     path("learners/", LearnerProfileListView.as_view(), name="learner-list"),
     path("learners/<int:pk>/", LearnerProfileDetailView.as_view(), name="learner-detail"),
+
+    # Tasks
+    path("tasks/", TaskListView.as_view(), name="task-list"),
+    path("tasks/add/", TaskCreateView.as_view(), name="task-add"),
+    path("learners/<int:learner_id>/tasks/<int:task_id>/complete/", TaskCompletionView.as_view(),),
+
+    # Leaderboard
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("learners/<int:learner_id>/rank/", LearnerRankView.as_view(), name="learner-rank"),
-    path("learners/<int:learner_id>/add-points/", AddPointsView.as_view(), name="add-points"),
 ]

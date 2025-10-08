@@ -1,11 +1,14 @@
 from rest_framework import serializers
-from .models import LearnerProfile, Badge, PointTransaction, LearnerBadge
+from .models import (
+    LearnerProfile, Badge, PointTransaction, LearnerBadge,
+    Task, TaskCompletion
+)
 
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Badge
-        fields = "__all__"
+        fields = ["id", "name", "description", "icon", "points_required"]
 
 
 class LearnerBadgeSerializer(serializers.ModelSerializer):
@@ -19,12 +22,27 @@ class LearnerBadgeSerializer(serializers.ModelSerializer):
 class PointTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PointTransaction
-        fields = ["points", "reason", "created_at"]
+        fields = ["id", "points", "reason", "created_at"]
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ["id", "course", "name", "description", "points", "active", "created_at"]
+
+
+class TaskCompletionSerializer(serializers.ModelSerializer):
+    task = TaskSerializer(read_only=True)
+
+    class Meta:
+        model = TaskCompletion
+        fields = ["id", "task", "completed_at", "processed"]
 
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
     earned_badges = LearnerBadgeSerializer(many=True, read_only=True)
     transactions = PointTransactionSerializer(many=True, read_only=True)
+    completed_tasks = TaskCompletionSerializer(many=True, read_only=True)
     rank_position = serializers.SerializerMethodField()
 
     class Meta:
@@ -32,7 +50,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
         fields = [
             "id", "user", "full_name", "profile_image", "date_of_birth",
             "joined_date", "points", "level", "xp", "rank",
-            "earned_badges", "transactions", "rank_position"
+            "earned_badges", "transactions", "completed_tasks", "rank_position"
         ]
 
     def get_rank_position(self, obj):
