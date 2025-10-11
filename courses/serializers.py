@@ -31,7 +31,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get("request")
-            return get_presigned_url(obj.thumbnail, request=request)
+            return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
 
@@ -60,7 +60,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get("request")
-            return get_presigned_url(obj.thumbnail, request=request)
+            return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
 
@@ -72,6 +72,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.CharField(read_only=True)  # always string key
 
     class Meta:
         model = Course
@@ -80,27 +81,23 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "name",
             "instructor",
             "description",
-            "thumbnail",       # string key in DB
-            "thumbnail_file",  # actual file upload
+            "thumbnail",     
+            "thumbnail_file",  
             "category_ids",
             "price",
             "is_published",
             "duration",
         ]
-        extra_kwargs = {"thumbnail": {"required": False, "allow_null": True}}
 
     def create(self, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
         categories = validated_data.pop("categories", [])
 
-        # Create course without thumbnail first
         course = Course.objects.create(**validated_data)
 
-        # Assign categories
         if categories:
             course.categories.set(categories)
 
-        # Upload thumbnail to MinIO if provided
         if file_obj:
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
             course.thumbnail = key
@@ -112,15 +109,12 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         file_obj = validated_data.pop("thumbnail_file", None)
         categories = validated_data.pop("categories", None)
 
-        # Update fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Update categories if provided
         if categories is not None:
             instance.categories.set(categories)
 
-        # Upload new thumbnail if file provided
         if file_obj:
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
             instance.thumbnail = key
