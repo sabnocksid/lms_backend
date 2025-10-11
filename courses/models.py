@@ -1,14 +1,14 @@
 from django.conf import settings
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
-    
+
     def __str__(self):
         return self.name
 
@@ -16,7 +16,7 @@ class Category(models.Model):
 class Course(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
-    thumbnail = models.ImageField(upload_to="courses/thumbnails/")
+    thumbnail = models.CharField(max_length=255, blank=True, null=True)
     date_added = models.DateTimeField(default=timezone.now)
 
     instructor = models.ForeignKey(
@@ -55,10 +55,12 @@ class Course(models.Model):
 class Rating(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     course = models.ForeignKey("Course", on_delete=models.CASCADE, related_name="ratings")
-    points = models.PositiveSmallIntegerField()  
+    points = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
 
     class Meta:
-        unique_together = ("user", "course")  
+        unique_together = ("user", "course")
 
     def __str__(self):
         return f"{self.user.username} -> {self.course.name}: {self.points}"
