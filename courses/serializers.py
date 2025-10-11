@@ -74,21 +74,13 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
-    thumbnail = serializers.SerializerMethodField(read_only=True)  # always returns URL if exists
+    thumbnail = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Course
         fields = [
-            "id",
-            "name",
-            "instructor",
-            "description",
-            "thumbnail",     
-            "thumbnail_file",  
-            "category_ids",
-            "price",
-            "is_published",
-            "duration",
+            "id", "name", "instructor", "description", "thumbnail",
+            "thumbnail_file", "category_ids", "price", "is_published", "duration"
         ]
 
     def get_thumbnail(self, obj):
@@ -133,6 +125,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
 
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
