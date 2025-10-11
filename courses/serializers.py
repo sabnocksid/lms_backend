@@ -108,9 +108,10 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
 
         if file_obj:
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
-            if key:
-                course.thumbnail = key
-                course.save()
+            if not key:
+                raise serializers.ValidationError({"thumbnail_file": "Upload failed!"})
+            course.thumbnail = key
+            course.save()
 
         return course
 
@@ -126,12 +127,12 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
 
         if file_obj:
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
-            if key:
-                instance.thumbnail = key
+            if not key:
+                raise serializers.ValidationError({"thumbnail_file": "Upload failed!"})
+            instance.thumbnail = key
 
         instance.save()
         return instance
-
 
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
