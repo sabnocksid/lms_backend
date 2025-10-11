@@ -9,7 +9,6 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "description"]
 
 
-
 class CoursePreviewSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
@@ -30,7 +29,6 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_thumbnail(self, obj):
-        """Return presigned MinIO URL if thumbnail key exists."""
         if obj.thumbnail:
             request = self.context.get("request")
             return get_presigned_url(obj.thumbnail, request=request)
@@ -66,12 +64,12 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         return None
 
 
-
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
-        source="categories"
+        source="categories",
+        required=False,
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
 
@@ -82,8 +80,8 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "name",
             "instructor",
             "description",
-            "thumbnail",
-            "thumbnail_file",
+            "thumbnail",       # string key in DB
+            "thumbnail_file",  # actual file upload
             "category_ids",
             "price",
             "is_published",
@@ -91,25 +89,44 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {"thumbnail": {"required": False, "allow_null": True}}
 
+    def create(self, validated_data):
+        file_obj = validated_data.pop("thumbnail_file", None)
+        categories = validated_data.pop("categories", [])
+
+        # Create course without thumbnail first
+        course = Course.objects.create(**validated_data)
+
+        # Assign categories
+        if categories:
+            course.categories.set(categories)
+
+        # Upload thumbnail to MinIO if provided
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
+            course.thumbnail = key
+            course.save()
+
+        return course
+
     def update(self, instance, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
         categories = validated_data.pop("categories", None)
 
+        # Update fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
+        # Update categories if provided
         if categories is not None:
             instance.categories.set(categories)
 
+        # Upload new thumbnail if file provided
         if file_obj:
-            from lessons.utils.upload_minio import upload_file_to_minio
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
             instance.thumbnail = key
 
         instance.save()
         return instance
-
-
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -119,17 +136,8 @@ class RatingSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
-
         user = self.context["request"].user
         course = validated_data.get("course")
-
         if not course:
             raise serializers.ValidationError({"course": "Course must be provided"})
-
-        # Update existing rating or create new one
-        rating, created = Rating.objects.update_or_create(
-            user=user,
-            course=course,
-            defaults={"points": validated_data["points"]},
-        )
-        return rating
+        return Rating.objects.create(user=user, course=course, **validated_data)
