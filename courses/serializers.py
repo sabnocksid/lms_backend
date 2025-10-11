@@ -13,7 +13,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
-    thumbnail = serializers.SerializerMethodField(read_only=True)
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -26,13 +26,11 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "categories",
             "date_added",
         ]
-        read_only_fields = fields
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get("request")
-            url = get_presigned_url(str(obj.thumbnail), request=request)
-            return url
+            return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
 
@@ -40,7 +38,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
-    thumbnail = serializers.SerializerMethodField(read_only=True)
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -61,8 +59,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get("request")
-            url = get_presigned_url(str(obj.thumbnail), request=request)
-            return url
+            return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
 
@@ -74,13 +71,21 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
-    thumbnail = serializers.SerializerMethodField(read_only=True)
+    thumbnail = serializers.SerializerMethodField(read_only=True)  # output only
 
     class Meta:
         model = Course
         fields = [
-            "id", "name", "instructor", "description", "thumbnail",
-            "thumbnail_file", "category_ids", "price", "is_published", "duration"
+            "id",
+            "name",
+            "instructor",
+            "description",
+            "thumbnail",
+            "thumbnail_file",
+            "category_ids",
+            "price",
+            "is_published",
+            "duration",
         ]
 
     def get_thumbnail(self, obj):

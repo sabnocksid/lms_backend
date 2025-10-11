@@ -16,30 +16,18 @@ def get_s3_client():
     )
 
 
-# def upload_file_to_minio(file_obj, file_name, bucket=None):
-
-#     bucket = bucket or settings.AWS_STORAGE_BUCKET_NAME
-#     s3_client = get_s3_client()
-
-#     try:
-#         s3_client.upload_fileobj(file_obj, bucket, file_name)
-#         return file_name
-#     except (NoCredentialsError, ClientError) as e:
-#         print("MinIO Upload Error:", e)
-#         return None
-    
 def upload_file_to_minio(file_obj, file_name, bucket=None):
+
     bucket = bucket or settings.AWS_STORAGE_BUCKET_NAME
     s3_client = get_s3_client()
+
     try:
         s3_client.upload_fileobj(file_obj, bucket, file_name)
-        print(f"[MinIO] Uploaded successfully: {file_name}")
         return file_name
-    except Exception as e:
-        import traceback
-        print(f"[MinIO] Upload failed: {file_name}")
-        traceback.print_exc()
+    except (NoCredentialsError, ClientError) as e:
+        print("MinIO Upload Error:", e)
         return None
+    
 
 
 
