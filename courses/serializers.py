@@ -70,8 +70,8 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         source="categories",
         required=False,
     )
-    thumbnail_file = serializers.FileField(write_only=True, required=False) 
-    thumbnail = serializers.SerializerMethodField(read_only=True) 
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.SerializerMethodField() 
 
     class Meta:
         model = Course
