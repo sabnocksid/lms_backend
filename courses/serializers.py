@@ -69,7 +69,9 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Category.objects.all(), source="categories"
+        many=True,
+        queryset=Category.objects.all(),
+        source="categories"
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
 
@@ -89,21 +91,6 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {"thumbnail": {"required": False, "allow_null": True}}
 
-    def create(self, validated_data):
-        file_obj = validated_data.pop("thumbnail_file", None)
-        categories = validated_data.pop("categories", [])
-        course = Course.objects.create(**validated_data)
-
-        if categories:
-            course.categories.set(categories)
-
-        if file_obj:
-            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
-            course.thumbnail = key
-            course.save()
-
-        return course
-
     def update(self, instance, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
         categories = validated_data.pop("categories", None)
@@ -115,11 +102,13 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             instance.categories.set(categories)
 
         if file_obj:
+            from lessons.utils.upload_minio import upload_file_to_minio
             key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
             instance.thumbnail = key
 
         instance.save()
         return instance
+
 
 
 
