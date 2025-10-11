@@ -9,6 +9,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "description"]
 
 
+
 class CoursePreviewSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
@@ -65,11 +66,10 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         return None
 
 
+
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
-        many=True,
-        queryset=Category.objects.all(),
-        source="categories"
+        many=True, queryset=Category.objects.all(), source="categories"
     )
     thumbnail_file = serializers.FileField(write_only=True, required=False)
 
@@ -122,6 +122,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
@@ -129,8 +130,17 @@ class RatingSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
+
         user = self.context["request"].user
         course = validated_data.get("course")
+
         if not course:
             raise serializers.ValidationError({"course": "Course must be provided"})
-        return Rating.objects.create(user=user, course=course, **validated_data)
+
+        # Update existing rating or create new one
+        rating, created = Rating.objects.update_or_create(
+            user=user,
+            course=course,
+            defaults={"points": validated_data["points"]},
+        )
+        return rating
