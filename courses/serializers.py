@@ -1,34 +1,46 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
+from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "description"]  
+        fields = ["id", "name", "slug", "description"]
 
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
-    categories = CategorySerializer(many=True, read_only=True)  
+    categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+    thumbnail = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Course
         fields = [
             "id",
             "name",
             "thumbnail",
-            "average_rating", 
+            "average_rating",
             "instructor_name",
             "categories",
-            "date_added"
+            "date_added",
         ]
         read_only_fields = fields
+
+    def get_thumbnail(self, obj):
+        """Return presigned MinIO URL if thumbnail key exists."""
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(obj.thumbnail, request=request)
+        return None
+
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+    thumbnail = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Course
@@ -43,8 +55,15 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "price",
             "is_published",
             "duration",
-            "average_rating",  
+            "average_rating",
         ]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(obj.thumbnail, request=request)
+        return None
+
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
@@ -52,6 +71,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
         queryset=Category.objects.all(),
         source="categories"
     )
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
 
     class Meta:
         model = Course
@@ -61,20 +81,45 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "instructor",
             "description",
             "thumbnail",
+            "thumbnail_file",
             "category_ids",
             "price",
             "is_published",
             "duration",
         ]
-        extra_kwargs = {
-            "thumbnail": {"required": False, "allow_null": True}
-        }
+        extra_kwargs = {"thumbnail": {"required": False, "allow_null": True}}
+
+    def create(self, validated_data):
+        file_obj = validated_data.pop("thumbnail_file", None)
+        categories = validated_data.pop("categories", [])
+        course = Course.objects.create(**validated_data)
+
+        if categories:
+            course.categories.set(categories)
+
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
+            course.thumbnail = key
+            course.save()
+
+        return course
 
     def update(self, instance, validated_data):
-        if "thumbnail" in validated_data and validated_data["thumbnail"] is None:
-            validated_data.pop("thumbnail")
-        return super().update(instance, validated_data)
+        file_obj = validated_data.pop("thumbnail_file", None)
+        categories = validated_data.pop("categories", None)
 
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if categories is not None:
+            instance.categories.set(categories)
+
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
+            instance.thumbnail = key
+
+        instance.save()
+        return instance
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -84,7 +129,7 @@ class RatingSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
-        user = self.context['request'].user
+        user = self.context["request"].user
         course = validated_data.get("course")
         if not course:
             raise serializers.ValidationError({"course": "Course must be provided"})
