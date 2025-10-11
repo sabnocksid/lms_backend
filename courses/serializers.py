@@ -87,6 +87,7 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "is_published",
             "duration",
         ]
+        read_only_fields = ["thumbnail"]
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
