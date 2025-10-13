@@ -26,6 +26,8 @@ cryptography>=42.0.0
 # Celery & Redis
 celery>=5.5.0
 redis>=5.0.0
+django-celery-beat
 
 # Optional (for email templates)
 jinja2>=3.1.2
+
