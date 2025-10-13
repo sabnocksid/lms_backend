@@ -11,9 +11,40 @@ services:
     depends_on:
       - db
       - minio
+      - redis
     volumes:
       - .:/app
     entrypoint: ["/entrypoint.sh"]
+
+  celery:
+    build: .
+    container_name: lms_celery
+    command: celery -A project_name worker -l info
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+    volumes:
+      - .:/app
+
+  celery_beat:
+    build: .
+    container_name: lms_celery_beat
+    command: celery -A project_name beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    depends_on:
+      - web
+      - redis
+    volumes:
+      - .:/app
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
 
   db:
     image: postgres:15
@@ -31,8 +62,8 @@ services:
     image: minio/minio
     container_name: minio
     ports:
-      - "9000:9000" 
-      - "9001:9001"  
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}

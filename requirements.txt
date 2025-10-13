@@ -1,15 +1,31 @@
+# Django core
 Django>=5.0,<6.0
 djangorestframework
 djangorestframework-simplejwt
 drf-spectacular
 drf_spectacular_sidecar
+django-filter>=23.2
+
+# Database
 psycopg2-binary
+
+# Deployment
 gunicorn
 python-dotenv
 django-cors-headers
+
+# Media & Storage
 pillow
-pycryptodome
-cryptography>=42.0.0
 django-storages[boto3]
 boto3
-django-filter>=23.2
+
+# Security / Encryption
+pycryptodome
+cryptography>=42.0.0
+
+# Celery & Redis
+celery>=5.5.0
+redis>=5.0.0
+
+# Optional (for email templates)
+jinja2>=3.1.2
