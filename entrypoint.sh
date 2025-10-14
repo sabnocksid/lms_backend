@@ -8,7 +8,7 @@ while ! nc -z db 5432; do
 done
 echo "✅ Postgres is up"
 
-# Only run migrations & collectstatic if running Django web
+# Only run migrations & collectstatic for Django web
 if [ "$1" = "runserver" ] || [ "$1" = "gunicorn" ]; then
   echo "📦 Applying Django migrations..."
   python manage.py migrate --noinput
@@ -16,15 +16,16 @@ if [ "$1" = "runserver" ] || [ "$1" = "gunicorn" ]; then
   echo "🗂 Collecting static files..."
   python manage.py collectstatic --noinput
 
-  echo "☁️ Configuring MinIO..."
-  mc alias set local $MY_S3_ENDPOINT_URL $MY_ACCESS_KEY_ID $MY_SECRET_KEY
-  mc mb --ignore-existing local/$MY_BUCKET_NAME
-  mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/videos
-  mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/materials
-
-  echo "✅ MinIO setup complete"
+  if [ -n "$MY_S3_ENDPOINT_URL" ] && [ -n "$MY_ACCESS_KEY_ID" ] && [ -n "$MY_SECRET_KEY" ] && [ -n "$MY_BUCKET_NAME" ]; then
+    echo "☁️ Configuring MinIO..."
+    mc alias set local "$MY_S3_ENDPOINT_URL" "$MY_ACCESS_KEY_ID" "$MY_SECRET_KEY"
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"/lessons/videos
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"/lessons/materials
+    echo "✅ MinIO setup complete"
+  fi
 fi
 
-# Execute the passed command (web server, celery, celery beat)
+# If Celery worker or beat, no migrations / static needed, just start
 echo "🚀 Starting: $@"
 exec "$@"
