@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import CustomUser
+from django.core.signing import TimestampSigner
+from .tasks import send_verification_email
 
 # Register Serializer
 class RegisterSerializer(serializers.ModelSerializer):
@@ -14,6 +16,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         password = validated_data.pop('password')
         user = CustomUser.objects.create_user(password=password, **validated_data)
+        user.is_active = True  
+        user.is_email_verified = False
+        user.save()
+
+        signer = TimestampSigner()
+        token = signer.sign(user.pk)
+        verify_url = f"http://localhost:3000/verify-email?token={token}"  
+
+        send_verification_email.delay(user.email, verify_url)
+
         return user
 
 # User Serializer
