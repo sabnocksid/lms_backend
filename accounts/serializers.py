@@ -58,19 +58,14 @@ class LoginSerializer(serializers.Serializer):
         if not email or not password:
             raise serializers.ValidationError("Must include email and password.")
 
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("User with this email does not exist.")
-
         user = authenticate(
             request=self.context.get("request"),
-            username=email,
+            email=email,    
             password=password
         )
 
         if not user:
-            raise serializers.ValidationError("Incorrect password.")
+            raise serializers.ValidationError("Incorrect email or password.")
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
 
