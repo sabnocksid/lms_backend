@@ -22,13 +22,9 @@ class CustomUserManager(BaseUserManager):
         if not user.encryption_key:
             user.encryption_key = uuid.uuid4().hex
 
-        # Mark inactive until email verification
         user.is_active = False
         user.save(using=self._db)
 
-        # Send async verification email via Celery
-        from .tasks import send_verification_email
-        send_verification_email.delay(user.email)
 
         return user
 
