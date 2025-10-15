@@ -82,26 +82,9 @@ class LearnerRankView(APIView):
         })
 
 
-class UpdateLearnerProfileView(APIView):
-    permission_classes = [IsAuthenticated]
+class LearnerProfileUpdateView(generics.UpdateAPIView):
+    serializer_class = LearnerProfileUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def patch(self, request):
-        try:
-            profile = request.user.learner_profile
-        except LearnerProfile.DoesNotExist:
-            return Response({"error": "Learner profile not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        data = request.data.copy()
-
-        if 'profile_image_file' in request.FILES:
-            file_obj = request.FILES['profile_image_file']
-            file_name = f"learners/profile_images/{file_obj.name}"
-            key = upload_file_to_minio(file_obj, file_name)
-            if key:
-                data['profile_image'] = key
-
-        serializer = LearnerProfileUpdateSerializer(profile, data=data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_object(self):
+        return self.request.user.learnerprofile
