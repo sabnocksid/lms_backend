@@ -85,7 +85,7 @@ class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
         return None
 
     def update(self, instance, validated_data):
-        file_obj = validated_data.pop("profile_image_file", None)
+        file_obj = validated_data.pop("profile_image_file", None)  # must match field name
 
         if file_obj:
             key = upload_file_to_minio(file_obj, f"learners/profile_images/{file_obj.name}")
