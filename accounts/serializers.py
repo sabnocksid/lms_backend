@@ -13,19 +13,17 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['email', 'full_name', 'password', 'role']
 
-def create(self, validated_data):
-    password = validated_data.pop('password')
-    user = CustomUser.objects.create_user(password=password, **validated_data)
-    user.is_email_verified = False
-    user.save()
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = CustomUser.objects.create_user(password=password, **validated_data)
 
-    signer = TimestampSigner()
-    token = signer.sign(user.pk)
-    verify_url = f"http://localhost:3000/verify-email?token={token}"
+        signer = TimestampSigner()
+        token = signer.sign(user.pk)
+        verify_url = f"http://localhost:3000/verify-email?token={token}"
 
-    send_verification_email.delay(user.email, verify_url)
+        send_verification_email.delay(user.email, verify_url)
 
-    return user
+        return user
 
 # User Serializer
 class UserSerializer(serializers.ModelSerializer):
@@ -79,8 +77,8 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Incorrect email or password.")
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
-        if not user.is_email_verified:
-            raise serializers.ValidationError("Email is not verified.")
+        # if not user.is_email_verified:
+        #     raise serializers.ValidationError("Email is not verified.")
 
         refresh = RefreshToken.for_user(user)
         data["refresh"] = str(refresh)
