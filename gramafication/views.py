@@ -13,6 +13,8 @@ from .serializers import (
 from courses.permissions import IsInstructorOrAdminOrReadOnly
 from rest_framework.permissions import IsAuthenticated
 from lessons.utils.upload_minio import upload_file_to_minio
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 
 # Learner Profiles
@@ -85,11 +87,16 @@ class LearnerRankView(APIView):
 class LearnerProfileUpdateView(generics.UpdateAPIView):
     serializer_class = LearnerProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]  
 
     def get_object(self):
-        user = self.request.user
         profile, _ = LearnerProfile.objects.get_or_create(
-            user=user,
-            defaults={'full_name': user.full_name}
+            user=self.request.user,
+            defaults={"full_name": self.request.user.full_name}
         )
         return profile
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context

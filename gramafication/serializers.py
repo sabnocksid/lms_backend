@@ -72,22 +72,24 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
 class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
     profile_image_file = serializers.FileField(write_only=True, required=False)
-    
+    profile_image = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = LearnerProfile
         fields = ["date_of_birth", "profile_image", "profile_image_file"]
-        extra_kwargs = {
-            "profile_image": {"read_only": True},  
-        }
+
+    def get_profile_image(self, obj):
+        if obj.profile_image:
+            request = self.context.get("request")
+            return obj.profile_image
+        return None
 
     def update(self, instance, validated_data):
         file_obj = validated_data.pop("profile_image_file", None)
 
         if file_obj:
-            key = upload_file_to_minio(
-                file_obj, f"learners/profile_images/{file_obj.name}"
-            )
-            instance.profile_image = key  
+            key = upload_file_to_minio(file_obj, f"learners/profile_images/{file_obj.name}")
+            instance.profile_image = key
 
         if "date_of_birth" in validated_data:
             instance.date_of_birth = validated_data["date_of_birth"]
