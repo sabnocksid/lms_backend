@@ -1,7 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, GenericAPIView
+from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
 from .models import CustomUser
@@ -66,3 +68,22 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class VerifyEmailView(APIView):
+    def get(self, request):
+        token = request.query_params.get('token')
+        signer = TimestampSigner()
+
+        try:
+            user_id = signer.unsign(token, max_age=60 * 60 * 24)  
+            user = CustomUser.objects.get(pk=user_id)
+            user.is_active = True
+            user.save()
+            return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
+
+        except SignatureExpired:
+            return Response({"error": "Verification link expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        except (BadSignature, CustomUser.DoesNotExist):
+            return Response({"error": "Invalid verification token."}, status=status.HTTP_400_BAD_REQUEST)
