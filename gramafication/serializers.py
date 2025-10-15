@@ -45,7 +45,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
     transactions = PointTransactionSerializer(many=True, read_only=True)
     completed_tasks = TaskCompletionSerializer(many=True, read_only=True)
     rank_position = serializers.SerializerMethodField()
-    profile_image = serializers.SerializerMethodField(read_only=True)  # override field
+    profile_image = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = LearnerProfile
@@ -59,11 +59,19 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
         return obj.get_rank_position()
 
     def get_profile_image(self, obj):
-
         if obj.profile_image:
             request = self.context.get("request")
             return get_presigned_url(obj.profile_image, request=request)
         return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if hasattr(instance.user, "role") and instance.user.role != "student":
+            return {
+                "full_name": data.get("full_name"),
+                "role": instance.user.role
+            }
+        return data
 
 
 class LeaderboardSerializer(serializers.ModelSerializer):
