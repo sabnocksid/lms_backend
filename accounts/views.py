@@ -71,16 +71,20 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class VerifyEmailView(APIView):
+    permission_classes = [AllowAny] 
+
     def get(self, request):
         token = request.query_params.get('token')
-        signer = TimestampSigner()
+        if not token:
+            return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        signer = TimestampSigner()
         try:
-            user_id = signer.unsign(token, max_age=60 * 60 * 24)  
+            user_id = signer.unsign(token, max_age=60*60*24)  
             user = CustomUser.objects.get(pk=user_id)
             user.is_active = True
             user.save()
-            return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
+            return Response({"message": "✅ Email verified successfully!"}, status=status.HTTP_200_OK)
 
         except SignatureExpired:
             return Response({"error": "Verification link expired."}, status=status.HTTP_400_BAD_REQUEST)
