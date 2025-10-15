@@ -4,7 +4,7 @@ from .models import (
     Task, TaskCompletion
 )
 
-from lessons.utils.upload_minio import upload_file_to_minio
+from lessons.utils.upload_minio import (upload_file_to_minio, get_presigned_url)
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -45,6 +45,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
     transactions = PointTransactionSerializer(many=True, read_only=True)
     completed_tasks = TaskCompletionSerializer(many=True, read_only=True)
     rank_position = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField(read_only=True)  # override field
 
     class Meta:
         model = LearnerProfile
@@ -56,6 +57,13 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
 
     def get_rank_position(self, obj):
         return obj.get_rank_position()
+
+    def get_profile_image(self, obj):
+
+        if obj.profile_image:
+            request = self.context.get("request")
+            return get_presigned_url(obj.profile_image, request=request)
+        return None
 
 
 class LeaderboardSerializer(serializers.ModelSerializer):
@@ -85,7 +93,7 @@ class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
         return None
 
     def update(self, instance, validated_data):
-        file_obj = validated_data.pop("profile_image_file", None)  # must match field name
+        file_obj = validated_data.pop("profile_image_file", None)  
 
         if file_obj:
             key = upload_file_to_minio(file_obj, f"learners/profile_images/{file_obj.name}")

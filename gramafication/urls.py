@@ -8,7 +8,7 @@ from .views import (
 urlpatterns = [
     # Learner Profiles
     path("learners/", LearnerProfileListView.as_view(), name="learner-list"),
-    path("learners/<int:pk>/", LearnerProfileDetailView.as_view(), name="learner-detail"),
+    path("learners/me/", LearnerProfileDetailView.as_view(), name="learner-detail"),
 
     # Tasks
     path("tasks/", TaskListView.as_view(), name="task-list"),

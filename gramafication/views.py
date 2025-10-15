@@ -24,8 +24,15 @@ class LearnerProfileListView(generics.ListAPIView):
 
 
 class LearnerProfileDetailView(generics.RetrieveAPIView):
-    queryset = LearnerProfile.objects.all()
     serializer_class = LearnerProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        profile, _ = LearnerProfile.objects.get_or_create(
+            user=self.request.user,
+            defaults={"full_name": self.request.user.full_name}
+        )
+        return profile
 
 
 # Tasks
