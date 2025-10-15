@@ -12,7 +12,7 @@ from .serializers import (
 )
 from courses.permissions import IsInstructorOrAdminOrReadOnly
 from rest_framework.permissions import IsAuthenticated
-from lessons.utils import upload_file_to_minio 
+from lessons.utils.upload_minio import upload_file_to_minio
 
 
 # Learner Profiles
