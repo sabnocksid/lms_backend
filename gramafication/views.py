@@ -87,4 +87,9 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return self.request.user.learnerprofile
+        user = self.request.user
+        profile, _ = LearnerProfile.objects.get_or_create(
+            user=user,
+            defaults={'full_name': user.full_name}
+        )
+        return profile
