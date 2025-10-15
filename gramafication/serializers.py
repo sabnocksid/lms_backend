@@ -66,3 +66,14 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
     def get_rank_position(self, obj):
         return obj.get_rank_position()
+
+
+
+class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LearnerProfile
+        fields = ['date_of_birth', 'profile_image']  
+        extra_kwargs = {
+            'profile_image': {'required': False},
+            'date_of_birth': {'required': False},
+        }

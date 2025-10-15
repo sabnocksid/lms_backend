@@ -9,7 +9,7 @@ class LearnerProfile(models.Model):
         related_name="learner_profile"
     )
     full_name = models.CharField(max_length=150)
-    profile_image = models.ImageField(upload_to='learners/profile_images/', blank=True, null=True)
+    profile_image = models.CharField( max_length=255, blank=True,null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     joined_date = models.DateField(auto_now_add=True)
 

@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     LearnerProfileListView, LearnerProfileDetailView,
     TaskListView, TaskCompletionView, TaskCreateView,
-    LeaderboardView, LearnerRankView
+    LeaderboardView, LearnerRankView, UpdateLearnerProfileView
 )
 
 urlpatterns = [
@@ -18,4 +18,8 @@ urlpatterns = [
     # Leaderboard
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("learners/<int:learner_id>/rank/", LearnerRankView.as_view(), name="learner-rank"),
+
+    #update learner profile
+    path('learner/profile/update/', UpdateLearnerProfileView.as_view(), name='update-learner-profile'),
+
 ]
