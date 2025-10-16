@@ -19,6 +19,7 @@ urlpatterns = [
     # Accounts API
     path("api/accounts/", include("accounts.urls")),
     path("api/gramafication/", include("gramafication.urls")),
+    path("api/quizes/", include("quizes.urls")),
 
 
     # Courses API
