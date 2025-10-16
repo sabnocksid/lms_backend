@@ -1,15 +1,52 @@
-from rest_framework import generics
-from .models import Quiz, QuizAttempt
-from .serializers import QuizSerializer, QuizAttemptSerializer
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Quiz, Question
+from .serializers import (
+    MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
+    QuizSerializer, QuizAttemptSerializer
+)
 
-class QuizListView(generics.ListAPIView):
-    queryset = Quiz.objects.all()
-    serializer_class = QuizSerializer
+# Create questions by type
+class CreateMCQQuestion(generics.CreateAPIView):
+    serializer_class = MCQQuestionSerializer
+    permission_classes = [IsAuthenticated]
 
-class QuizDetailView(generics.RetrieveAPIView):
-    queryset = Quiz.objects.all()
-    serializer_class = QuizSerializer
+class CreateTextQuestion(generics.CreateAPIView):
+    serializer_class = TextQuestionSerializer
+    permission_classes = [IsAuthenticated]
 
-class QuizAttemptCreateView(generics.CreateAPIView):
-    queryset = QuizAttempt.objects.all()
+class CreateTFQuestion(generics.CreateAPIView):
+    serializer_class = TFQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+# GET questions with filter
+class QuizQuestionsList(generics.ListAPIView):
+    serializer_class = MCQQuestionSerializer  # default
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        q_type = self.request.query_params.get('type')
+        if q_type == 'MCQ':
+            return MCQQuestionSerializer
+        elif q_type == 'TEXT':
+            return TextQuestionSerializer
+        elif q_type == 'TF':
+            return TFQuestionSerializer
+        return MCQQuestionSerializer  
+
+    def get_queryset(self):
+        quiz_id = self.kwargs['quiz_id']
+        q_type = self.request.query_params.get('type')
+        qs = Question.objects.filter(quiz_id=quiz_id)
+        if q_type:
+            qs = qs.filter(question_type=q_type)
+        return qs
+
+# Submit quiz attempt
+class SubmitQuizAttempt(generics.CreateAPIView):
     serializer_class = QuizAttemptSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

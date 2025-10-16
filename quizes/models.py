@@ -3,7 +3,6 @@ from courses.models import Course
 from django.conf import settings
 
 
-
 class Quiz(models.Model):
     course = models.ForeignKey(Course, related_name='quizzes', on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
