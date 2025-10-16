@@ -1,8 +1,15 @@
-from django.urls import path
-from . import views
+from rest_framework import generics
+from .models import Quiz, QuizAttempt
+from .serializers import QuizSerializer, QuizAttemptSerializer
 
-urlpatterns = [
-    path('quizzes/', views.QuizListView.as_view(), name='quiz-list'),
-    path('quizzes/<int:pk>/', views.QuizDetailView.as_view(), name='quiz-detail'),
-    path('attempt/', views.QuizAttemptCreateView.as_view(), name='quiz-attempt'),
-]
+class QuizListView(generics.ListAPIView):
+    queryset = Quiz.objects.all()
+    serializer_class = QuizSerializer
+
+class QuizDetailView(generics.RetrieveAPIView):
+    queryset = Quiz.objects.all()
+    serializer_class = QuizSerializer
+
+class QuizAttemptCreateView(generics.CreateAPIView):
+    queryset = QuizAttempt.objects.all()
+    serializer_class = QuizAttemptSerializer
