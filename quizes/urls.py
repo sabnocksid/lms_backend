@@ -6,3 +6,4 @@ urlpatterns = [
     path('quizzes/<int:pk>/', QuizDetailView.as_view(), name='quiz-detail'),
     path('attempt/', QuizAttemptCreateView.as_view(), name='quiz-attempt'),
 ]
+ 

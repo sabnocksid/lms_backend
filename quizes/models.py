@@ -1,6 +1,8 @@
 from django.db import models
-from django.contrib.auth.models import User
-from courses.models import Course  
+from courses.models import Course 
+from django.conf import settings
+
+
 
 class Quiz(models.Model):
     course = models.ForeignKey(Course, related_name='quizzes', on_delete=models.CASCADE)
@@ -38,13 +40,13 @@ class Choice(models.Model):
 
 
 class QuizAttempt(models.Model):
-    user = models.ForeignKey(User, related_name='quiz_attempts', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='quiz_attempts', on_delete=models.CASCADE)
     quiz = models.ForeignKey(Quiz, related_name='attempts', on_delete=models.CASCADE)
     score = models.FloatField(default=0)
     completed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.quiz.title}"
+        return f"{self.user.full_name} - {self.quiz.title}"
 
 
 class Answer(models.Model):
@@ -54,4 +56,4 @@ class Answer(models.Model):
     text_answer = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.attempt.user.username} - {self.question.text[:30]}"
+        return f"{self.attempt.user.full_name} - {self.question.text[:30]}"
