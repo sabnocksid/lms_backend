@@ -59,11 +59,15 @@ class QuizQuestionsList(generics.ListAPIView):
         return qs
 
     def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        quiz = Quiz.objects.get(id=self.kwargs['quiz_id'])
+        quiz_id = self.kwargs['quiz_id']
+        quiz = Quiz.objects.get(id=quiz_id)
+        serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response({
+            "quiz_id": quiz.id,
+            "title": quiz.title,
+            "description": quiz.description,
             "time_limit": quiz.time_limit,
-            "questions": response.data
+            "questions": serializer.data
         })
 
 # Submit quiz attempt
