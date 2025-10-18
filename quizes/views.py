@@ -38,7 +38,6 @@ class CreateTFQuestion(generics.CreateAPIView):
 
 # GET questions with filter
 class QuizQuestionsList(generics.ListAPIView):
-    serializer_class = MCQQuestionSerializer 
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -49,7 +48,7 @@ class QuizQuestionsList(generics.ListAPIView):
             return TextQuestionSerializer
         elif q_type == 'TF':
             return TFQuestionSerializer
-        return MCQQuestionSerializer  
+        return MCQQuestionSerializer
 
     def get_queryset(self):
         quiz_id = self.kwargs['quiz_id']
@@ -58,6 +57,14 @@ class QuizQuestionsList(generics.ListAPIView):
         if q_type:
             qs = qs.filter(question_type=q_type)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        quiz = Quiz.objects.get(id=self.kwargs['quiz_id'])
+        return Response({
+            "time_limit": quiz.time_limit,
+            "questions": response.data
+        })
 
 # Submit quiz attempt
 class SubmitQuizAttempt(generics.CreateAPIView):
