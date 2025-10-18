@@ -88,7 +88,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuizAttempt
-        fields = ['id', 'quiz', 'completed_at', 'answers']  
+        fields = ['id',  'completed_at', 'answers']  
         read_only_fields = ['id', 'completed_at']  
 
     def create(self, validated_data):
