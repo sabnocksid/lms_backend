@@ -38,7 +38,7 @@ class CreateTFQuestion(generics.CreateAPIView):
 
 # GET questions with filter
 class QuizQuestionsList(generics.ListAPIView):
-    serializer_class = MCQQuestionSerializer  # default
+    serializer_class = MCQQuestionSerializer 
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):

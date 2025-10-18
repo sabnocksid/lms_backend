@@ -2,18 +2,21 @@ from rest_framework import serializers
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
 
 
+
 class QuizCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz
         fields = ['course', 'title', 'description', 'time_limit']
 
-# Choice serializer
+
+
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct']
 
-# Question serializers per type
+
+
 class MCQQuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True)
 
@@ -24,21 +27,42 @@ class MCQQuestionSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         choices_data = validated_data.pop('choices')
         question = Question.objects.create(**validated_data)
-        for choice in choices_data:
-            Choice.objects.create(question=question, **choice)
+        for choice_data in choices_data:
+            Choice.objects.create(question=question, **choice_data)
         return question
+
 
 class TextQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ['id', 'quiz', 'text', 'question_type', 'marks']
 
+
 class TFQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ['id', 'quiz', 'text', 'question_type', 'marks']
 
-# Quiz serializer (nested read-only)
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'choices']
+
+    def to_representation(self, instance):
+        if instance.question_type == 'MCQ':
+            return MCQQuestionSerializer(instance).data
+        elif instance.question_type == 'TEXT':
+            return TextQuestionSerializer(instance).data
+        elif instance.question_type == 'TF':
+            return TFQuestionSerializer(instance).data
+        return super().to_representation(instance)
+
+
+
 class QuizSerializer(serializers.ModelSerializer):
     questions = serializers.SerializerMethodField()
 
@@ -50,11 +74,14 @@ class QuizSerializer(serializers.ModelSerializer):
         qs = obj.questions.all()
         return QuestionSerializer(qs, many=True).data
 
-# Adaptive Answer serializer
+
+
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
         fields = ['question', 'selected_choice', 'text_answer']
+
+
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
     answers = AnswerSerializer(many=True)
@@ -67,6 +94,8 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         answers_data = validated_data.pop('answers')
         attempt = QuizAttempt.objects.create(user=user, **validated_data)
+
         for answer_data in answers_data:
             Answer.objects.create(attempt=attempt, **answer_data)
+
         return attempt
