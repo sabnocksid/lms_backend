@@ -102,6 +102,4 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             Answer.objects.create(attempt=attempt, **answer_data)
 
         return attempt
-    
-
 
