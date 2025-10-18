@@ -88,18 +88,21 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuizAttempt
-        fields = ['id',  'completed_at', 'answers']  
-        read_only_fields = ['id', 'completed_at']  
+        fields = ['id', 'completed_at', 'answers']
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        validated_data.pop('user', None) 
         answers_data = validated_data.pop('answers')
-
-        attempt = QuizAttempt.objects.create(user=user, **validated_data)
+        attempt = validated_data.pop('attempt', None) or QuizAttempt.objects.create(**validated_data)
 
         for answer_data in answers_data:
-            Answer.objects.create(attempt=attempt, **answer_data)
-
+            Answer.objects.update_or_create(
+                attempt=attempt,
+                question=answer_data['question'],
+                defaults={
+                    'selected_choice': answer_data.get('selected_choice'),
+                    'text_answer': answer_data.get('text_answer')
+                }
+            )
         return attempt
+
 
