@@ -4,8 +4,24 @@ from rest_framework.response import Response
 from .models import Quiz, Question
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
-    QuizSerializer, QuizAttemptSerializer
+    QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer, QuizSerializer
 )
+
+
+class CreateQuizView(generics.CreateAPIView):
+    serializer_class = QuizCreateSerializer
+    permission_classes = [IsAuthenticated]
+
+class ListQuizView(generics.ListAPIView):
+    serializer_class = QuizSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        q_type = self.request.query_params.get('type')
+        qs = Quiz.objects.all()
+        if q_type:
+            qs = qs.filter(questions__question_type=q_type).distinct()
+        return qs
 
 # Create questions by type
 class CreateMCQQuestion(generics.CreateAPIView):

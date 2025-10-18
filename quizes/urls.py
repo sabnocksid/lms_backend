@@ -1,10 +1,13 @@
 from django.urls import path
 from .views import (
     CreateMCQQuestion, CreateTextQuestion, CreateTFQuestion,
-    QuizQuestionsList, SubmitQuizAttempt
+    QuizQuestionsList, SubmitQuizAttempt, CreateQuizView, ListQuizView
 )
 
 urlpatterns = [
+    path('quizzes/', ListQuizView.as_view(), name='list-quizzes'),       
+    path('quizzes/create/', CreateQuizView.as_view(), name='create-quiz'), 
+
     # Create questions
     path('questions/mcq/', CreateMCQQuestion.as_view(), name='create-mcq'),
     path('questions/text/', CreateTextQuestion.as_view(), name='create-text'),
