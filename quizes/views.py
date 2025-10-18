@@ -65,6 +65,4 @@ class SubmitQuizAttempt(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        quiz_id = self.kwargs.get("pk") or self.kwargs.get("id")
-        quiz = Quiz.objects.get(id=quiz_id)
-        serializer.save(user=self.request.user, quiz=quiz)
+        serializer.save(user=self.request.user)
