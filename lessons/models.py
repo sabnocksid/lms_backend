@@ -4,6 +4,7 @@ from django.utils import timezone
 
 
 class Lesson(models.Model):
+    course = models.ForeignKey(Course, related_name="lessons", on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     thumbnail = models.URLField(max_length=500, blank=True, null=True)
