@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter,  ChapterProgress
+from courses.models import Course
 
 from .utils.upload_minio import (
     upload_file_to_minio,
@@ -11,10 +12,13 @@ from .utils.upload_minio import (
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
     thumbnail = serializers.SerializerMethodField(read_only=True)
+    course = serializers.PrimaryKeyRelatedField(
+        queryset=Course.objects.all()
+    )  # add course field
 
     class Meta:
         model = Lesson
-        fields = ["id", "title", "description", "thumbnail", "thumbnail_file", "created_at"]
+        fields = ["id", "course", "title", "description", "thumbnail", "thumbnail_file", "created_at"]
         read_only_fields = ["id", "thumbnail", "created_at"]
 
     def get_thumbnail(self, obj):
