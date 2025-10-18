@@ -32,9 +32,9 @@ class MCQQuestionSerializer(serializers.ModelSerializer):
             'question_type',
             'marks',
             'choices',
-            'time_limit',
-            'quiz_title',
-            'quiz_description'
+            # 'time_limit',
+            # 'quiz_title',
+            # 'quiz_description'
         ]
 
     def get_time_limit(self, obj):
