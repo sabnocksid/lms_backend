@@ -88,12 +88,15 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuizAttempt
-        fields = ['id', 'completed_at', 'answers']
+        fields = ['id', 'completed_at', 'answers']  
 
     def create(self, validated_data):
         answers_data = validated_data.pop('answers')
         attempt = QuizAttempt.objects.create(**validated_data)
+        
         for answer_data in answers_data:
             Answer.objects.create(attempt=attempt, **answer_data)
+        
         return attempt
+
 
