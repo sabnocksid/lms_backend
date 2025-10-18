@@ -19,6 +19,7 @@ class ChoiceSerializer(serializers.ModelSerializer):
 
 class MCQQuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True)
+    time_limit = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
