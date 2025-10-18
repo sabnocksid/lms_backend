@@ -20,13 +20,31 @@ class ChoiceSerializer(serializers.ModelSerializer):
 class MCQQuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True)
     time_limit = serializers.SerializerMethodField()
+    quiz_title = serializers.SerializerMethodField()
+    quiz_description = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
-        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'choices', 'time_limit']
+        fields = [
+            'id',
+            'quiz',
+            'text',
+            'question_type',
+            'marks',
+            'choices',
+            'time_limit',
+            'quiz_title',
+            'quiz_description'
+        ]
 
     def get_time_limit(self, obj):
-        return obj.quiz.time_limit 
+        return obj.quiz.time_limit
+
+    def get_quiz_title(self, obj):
+        return obj.quiz.title
+
+    def get_quiz_description(self, obj):
+        return obj.quiz.description
 
     def create(self, validated_data):
         choices_data = validated_data.pop('choices')
@@ -34,6 +52,7 @@ class MCQQuestionSerializer(serializers.ModelSerializer):
         for choice_data in choices_data:
             Choice.objects.create(question=question, **choice_data)
         return question
+
 
 
 class TextQuestionSerializer(serializers.ModelSerializer):
