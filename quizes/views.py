@@ -1,7 +1,7 @@
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Quiz, Question
+from .models import Quiz, Question, QuizAttempt
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
     QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer, QuizSerializer
@@ -71,5 +71,4 @@ class SubmitQuizAttempt(generics.CreateAPIView):
 
         attempt, created = QuizAttempt.objects.get_or_create(user=user, quiz=quiz)
 
-        # create/update answers
         serializer.save(attempt=attempt)

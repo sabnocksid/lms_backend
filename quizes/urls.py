@@ -17,5 +17,5 @@ urlpatterns = [
     path('quiz/<int:quiz_id>/questions/', QuizQuestionsList.as_view(), name='quiz-questions'),
 
     # Submit attempt
-    path('quiz/<int:quiz_id>/attempt/', SubmitQuizAttempt.as_view(), name='submit-quiz'),
+    path('quiz/<int:pk>/attempt/', SubmitQuizAttempt.as_view(), name='quiz-attempt')
 ]
