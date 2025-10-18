@@ -14,6 +14,8 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
+    quizzes_count = serializers.SerializerMethodField()  
+    lessons_count = serializers.SerializerMethodField()  =
 
     class Meta:
         model = Course
@@ -25,6 +27,8 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "instructor_name",
             "categories",
             "date_added",
+            "quizzes_count",
+            "lessons_count",
         ]
 
     def get_thumbnail(self, obj):
@@ -32,6 +36,13 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
+
+    def get_quizzes_count(self, obj):
+        return obj.quizzes.count() 
+
+    def get_lessons_count(self, obj):
+        return obj.lessons.count()  
+
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
