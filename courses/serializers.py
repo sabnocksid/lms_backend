@@ -15,7 +15,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     quizzes_count = serializers.SerializerMethodField()  
-    lessons_count = serializers.SerializerMethodField()  =
+    lessons_count = serializers.SerializerMethodField()  
 
     class Meta:
         model = Course
