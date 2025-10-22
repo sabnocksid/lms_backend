@@ -104,6 +104,7 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
 
 
+
 class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
     profile_image_file = serializers.FileField(write_only=True, required=False)
     profile_image = serializers.SerializerMethodField(read_only=True)
