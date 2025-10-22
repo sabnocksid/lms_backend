@@ -82,7 +82,18 @@ class LeaderboardSerializer(serializers.ModelSerializer):
         fields = ["id", "full_name", "points", "rank", "rank_position"]
 
     def get_rank_position(self, obj):
-        return obj.get_rank_position()
+        all_learners = LearnerProfile.objects.order_by("-points", "full_name")
+        current_rank = 0
+        last_points = None
+        rank_map = {}
+
+        for index, learner in enumerate(all_learners, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
+
+        return rank_map.get(obj.id, None)
 
 
 

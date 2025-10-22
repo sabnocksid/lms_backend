@@ -72,11 +72,46 @@ class TaskCompletionView(APIView):
 
 # Leaderboard
 class LeaderboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         top_learners = LearnerProfile.get_leaderboard()
-        serializer = LeaderboardSerializer(top_learners, many=True)
-        return Response(serializer.data)
 
+        learners = LearnerProfile.objects.order_by("-points", "full_name")
+
+        current_rank = 0
+        last_points = None
+        rank_map = {}
+
+        for index, learner in enumerate(learners, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
+
+        serializer = LeaderboardSerializer(top_learners, many=True)
+
+        try:
+            current_user = request.user.learner_profile
+            user_rank = rank_map.get(current_user.id)
+            user_points = current_user.points
+            user_rank_name = current_user.rank
+        except LearnerProfile.DoesNotExist:
+            current_user = None
+            user_rank = None
+            user_points = None
+            user_rank_name = None
+
+        return Response({
+            "leaderboard": serializer.data,
+            "current_user": {
+                "id": current_user.id if current_user else None,
+                "full_name": current_user.full_name if current_user else None,
+                "points": user_points,
+                "rank": user_rank_name,
+                "rank_position": user_rank
+            }
+        })
 
 # Individual learner rank + leaderboard
 class LearnerRankView(APIView):
