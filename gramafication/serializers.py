@@ -79,7 +79,7 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LearnerProfile
-        fields = ["id", "full_name", "points", "rank", "rank_position"]
+        fields = ["id", "full_name", "profile_image", "points", "rank", "rank_position"]
 
     def get_rank_position(self, obj):
         all_learners = LearnerProfile.objects.order_by("-points", "full_name")
