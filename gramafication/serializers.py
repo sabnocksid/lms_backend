@@ -76,6 +76,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank_position = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = LearnerProfile
@@ -94,6 +95,12 @@ class LeaderboardSerializer(serializers.ModelSerializer):
             last_points = learner.points
 
         return rank_map.get(obj.id, None)
+
+    def get_profile_image(self, obj):
+        if obj.profile_image:
+            request = self.context.get("request")
+            return get_presigned_url(obj.profile_image, request=request)
+        return None
 
 
 
