@@ -11,11 +11,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
-    instructor_name = serializers.CharField(source="instructor.username", read_only=True)
+    instructor = serializers.SerializerMethodField()
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
-    quizzes_count = serializers.SerializerMethodField()  
-    lessons_count = serializers.SerializerMethodField()  
+    quizzes_count = serializers.SerializerMethodField()
+    lessons_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -24,7 +24,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "name",
             "thumbnail",
             "average_rating",
-            "instructor_name",
+            "instructor",
             "categories",
             "date_added",
             "quizzes_count",
@@ -37,11 +37,33 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
+    def get_instructor(self, obj):
+        instructor = obj.instructor
+        if not instructor:
+            return None
+
+        instructor_data = {
+            "id": instructor.id,
+            "name": instructor.username,
+        }
+
+        profile = getattr(instructor, "learner_profile", None)
+        if profile and getattr(profile, "profile_image", None):
+            request = self.context.get("request")
+            instructor_data["profile_image"] = get_presigned_url(
+                str(profile.profile_image), request=request
+            )
+        else:
+            instructor_data["profile_image"] = None
+
+        return instructor_data
+
     def get_quizzes_count(self, obj):
-        return obj.quizzes.count() 
+        return obj.quizzes.count()
 
     def get_lessons_count(self, obj):
-        return obj.lessons.count()  
+        return obj.lessons.count()
+ 
 
 
 

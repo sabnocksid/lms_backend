@@ -19,7 +19,6 @@ class CustomUserManager(BaseUserManager):
         if not user.encryption_key:
             user.encryption_key = uuid.uuid4().hex
 
-        # Mark inactive until manually activated
         user.is_active = False
         user.save(using=self._db)
         return user
@@ -28,7 +27,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('role', 'admin')
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)  # Superuser always active
+        extra_fields.setdefault('is_active', True)  
         return self.create_user(email, password, **extra_fields)
 
 
@@ -36,7 +35,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     full_name = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=False)  # Only flag for activation
+    is_active = models.BooleanField(default=False) 
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     encryption_key = models.CharField(max_length=64, editable=False)
