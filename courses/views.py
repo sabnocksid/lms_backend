@@ -23,9 +23,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 
-class CourseFilter(FilterSet):
-    min_rating = NumberFilter(field_name='avg_rating', lookup_expr='gte', label='Min Rating')
-    max_rating = NumberFilter(field_name='avg_rating', lookup_expr='lte', label='Max Rating')
+class CourseFilter(filters.FilterSet):
+    RATING_CHOICES = [
+        ("1-2", "1 to 2"),
+        ("2-3", "2 to 3"),
+        ("3-4", "3 to 4"),
+        ("4-5", "4 to 5"),
+    ]
+
+    rating_range = filters.ChoiceFilter(
+        method="filter_by_rating_range",
+        choices=RATING_CHOICES,
+        label="Rating Range"
+    )
 
     class Meta:
         model = Course
@@ -38,9 +48,18 @@ class CourseFilter(FilterSet):
             "duration": ["exact", "gte", "lte"],
         }
 
+    def filter_by_rating_range(self, queryset, name, value):
+        try:
+            min_val, max_val = map(float, value.split("-"))
+            return queryset.annotate(avg_rating=Avg('ratings__points')).filter(
+                avg_rating__gte=min_val,
+                avg_rating__lt=max_val
+            )
+        except:
+            return queryset
 
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.all()  
+    queryset = Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -49,9 +68,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering_fields = ["date_added", "price", "avg_rating"]
     ordering = ["-date_added"]
 
-    def get_queryset(self):
-        return Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
-
     def get_serializer_class(self):
         if self.action == "retrieve":
             return CourseDetailSerializer
@@ -59,46 +75,24 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-    # Create
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"success": False, "message": "Course creation failed", "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            {"success": True, "message": "Course created successfully", "data": serializer.data},
-            status=status.HTTP_201_CREATED,
-            headers=headers,
-        )
+        return Response({"success": True, "message": "Course created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
 
-    # Update
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if not serializer.is_valid():
-            return Response(
-                {"success": False, "message": "Course update failed", "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response(
-            {"success": True, "message": "Course updated successfully", "data": serializer.data},
-            status=status.HTTP_200_OK,
-        )
+        return Response({"success": True, "message": "Course updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
 
-    # Delete
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
-        return Response(
-            {"success": True, "message": "Course deleted successfully"},
-            status=status.HTTP_204_NO_CONTENT,
-        )
+        return Response({"success": True, "message": "Course deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
 class CourseRatingViewSet(viewsets.ViewSet):
