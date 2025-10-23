@@ -12,14 +12,16 @@ from .utils.upload_minio import (
 class LessonSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
     thumbnail = serializers.SerializerMethodField(read_only=True)
-    course = serializers.PrimaryKeyRelatedField(
-        queryset=Course.objects.all()
-    )  # add course field
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    chapters = ChapterSerializer(many=True, read_only=True)  # ← include chapters
 
     class Meta:
         model = Lesson
-        fields = ["id", "course", "title", "description", "thumbnail", "thumbnail_file", "created_at"]
-        read_only_fields = ["id", "thumbnail", "created_at"]
+        fields = [
+            "id", "course", "title", "description", "thumbnail",
+            "thumbnail_file", "created_at", "chapters"
+        ]
+        read_only_fields = ["id", "thumbnail", "created_at", "chapters"]
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
@@ -52,7 +54,7 @@ class ChapterSerializer(serializers.ModelSerializer):
     material_file = serializers.FileField(write_only=True, required=False)
     video = serializers.SerializerMethodField(read_only=True)
     material = serializers.SerializerMethodField(read_only=True)
-    progress = serializers.SerializerMethodField(read_only=True)  # new field
+    progress = serializers.SerializerMethodField(read_only=True)  
 
     class Meta:
         model = Chapter
