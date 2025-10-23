@@ -2,13 +2,13 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import Lesson, Chapter, ChapterProgress
-from .serializers import LessonSerializer, ChapterSerializer, ChapterProgressSerializer
+from .serializers import LessonDetailSerializer, ChapterSerializer, ChapterProgressSerializer
 from django.utils import timezone
 
 
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all().order_by("-created_at")
-    serializer_class = LessonSerializer
+    serializer_class = LessonDetailSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_serializer_context(self):

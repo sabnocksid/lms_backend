@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
-from lessons.serializers import LessonSerializer, LessonWithChapterCountSerializer
+from lessons.serializers import  LessonWithChapterCountSerializer
 from quizes.serializers import QuizSerializer
 
 
