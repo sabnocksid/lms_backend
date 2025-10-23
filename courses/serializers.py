@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
+from lessons.serializers import LessonSerializer
+from quizes.serializers import QuizSerializer
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -80,6 +82,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
+    lessons = LessonSerializer(many=True, read_only=True)  
+    quizzes = QuizSerializer(many=True, read_only=True)    
 
     class Meta:
         model = Course
@@ -95,6 +99,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "is_published",
             "duration",
             "average_rating",
+            "lessons",
+            "quizzes",
         ]
 
     def get_thumbnail(self, obj):

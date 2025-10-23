@@ -15,7 +15,6 @@ from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
 
 
-# ----------------- Filters -----------------
 class CourseFilter(FilterSet):
     RATING_CHOICES = [
         ('1', '1-2'),
@@ -55,7 +54,6 @@ class CourseFilter(FilterSet):
         return queryset
 
 
-# ----------------- ViewSets -----------------
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
