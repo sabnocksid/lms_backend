@@ -8,47 +8,6 @@ from .utils.upload_minio import (
     get_presigned_url,
 )
 
-
-class LessonSerializer(serializers.ModelSerializer):
-    thumbnail_file = serializers.FileField(write_only=True, required=False)
-    thumbnail = serializers.SerializerMethodField(read_only=True)
-    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    chapters = ChapterSerializer(many=True, read_only=True)  # ← include chapters
-
-    class Meta:
-        model = Lesson
-        fields = [
-            "id", "course", "title", "description", "thumbnail",
-            "thumbnail_file", "created_at", "chapters"
-        ]
-        read_only_fields = ["id", "thumbnail", "created_at", "chapters"]
-
-    def get_thumbnail(self, obj):
-        if obj.thumbnail:
-            request = self.context.get("request")
-            return get_presigned_url(obj.thumbnail, request=request)
-        return None
-
-    def create(self, validated_data):
-        file_obj = validated_data.pop("thumbnail_file", None)
-        lesson = Lesson.objects.create(**validated_data)
-        if file_obj:
-            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
-            lesson.thumbnail = key
-            lesson.save()
-        return lesson
-
-    def update(self, instance, validated_data):
-        file_obj = validated_data.pop("thumbnail_file", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        if file_obj:
-            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
-            instance.thumbnail = key
-        instance.save()
-        return instance
-
-
 class ChapterSerializer(serializers.ModelSerializer):
     video_file = serializers.FileField(write_only=True, required=False)
     material_file = serializers.FileField(write_only=True, required=False)
@@ -124,6 +83,49 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class LessonSerializer(serializers.ModelSerializer):
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.SerializerMethodField(read_only=True)
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    chapters = ChapterSerializer(many=True, read_only=True) 
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id", "course", "title", "description", "thumbnail",
+            "thumbnail_file", "created_at", "chapters"
+        ]
+        read_only_fields = ["id", "thumbnail", "created_at", "chapters"]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(obj.thumbnail, request=request)
+        return None
+
+    def create(self, validated_data):
+        file_obj = validated_data.pop("thumbnail_file", None)
+        lesson = Lesson.objects.create(**validated_data)
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            lesson.thumbnail = key
+            lesson.save()
+        return lesson
+
+    def update(self, instance, validated_data):
+        file_obj = validated_data.pop("thumbnail_file", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"lessons/thumbnails/{file_obj.name}")
+            instance.thumbnail = key
+        instance.save()
+        return instance
+
+
+
     
 class ChapterProgressSerializer(serializers.ModelSerializer):
     chapter_title = serializers.CharField(source="chapter.title", read_only=True)
