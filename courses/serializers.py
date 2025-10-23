@@ -42,9 +42,16 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         if not instructor:
             return None
 
+        name = (
+            getattr(instructor, "full_name", None)
+            or getattr(instructor, "first_name", None)
+            or getattr(instructor, "email", None)
+            or "Unknown Instructor"
+        )
+
         instructor_data = {
             "id": instructor.id,
-            "name": instructor.username,
+            "name": name,
         }
 
         profile = getattr(instructor, "learner_profile", None)
@@ -63,6 +70,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
+
  
 
 
