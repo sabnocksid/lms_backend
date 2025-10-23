@@ -83,18 +83,41 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
 
-
-class LessonSerializer(serializers.ModelSerializer):
-    thumbnail_file = serializers.FileField(write_only=True, required=False)
+class LessonWithChapterCountSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField(read_only=True)
-    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    chapters = ChapterSerializer(many=True, read_only=True) 
+    chapter_count = serializers.SerializerMethodField()  
 
     class Meta:
         model = Lesson
         fields = [
-            "id", "course", "title", "description", "thumbnail",
+            "id", "course", "title", "description", "thumbnail", 
+            "created_at", "chapter_count"
+        ]
+        read_only_fields = ["id", "created_at", "chapter_count"]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(obj.thumbnail, request=request)
+        return None
+
+    def get_chapter_count(self, obj):
+        return obj.chapters.count()  
+
+
+
+class LessonDetailSerializer(serializers.ModelSerializer):
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.SerializerMethodField(read_only=True)
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
+    chapters = ChapterSerializer(many=True, read_only=True)  # Include chapters
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id", "course", "title", "description", "thumbnail", 
             "thumbnail_file", "created_at", "chapters"
         ]
         read_only_fields = ["id", "thumbnail", "created_at", "chapters"]
@@ -123,6 +146,7 @@ class LessonSerializer(serializers.ModelSerializer):
             instance.thumbnail = key
         instance.save()
         return instance
+
 
 
 
