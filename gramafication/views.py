@@ -82,13 +82,14 @@ class LeaderboardView(APIView):
         last_points = None
         rank_map = {}
 
+        # Calculate ranks
         for index, learner in enumerate(learners, start=1):
             if learner.points != last_points:
                 current_rank = index
             rank_map[learner.id] = current_rank
             last_points = learner.points
 
-        serializer = LeaderboardSerializer(top_learners, many=True)
+        serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
 
         try:
             current_user = request.user.learner_profile
@@ -96,13 +97,9 @@ class LeaderboardView(APIView):
             user_points = current_user.points
             user_rank_name = current_user.rank
 
-            profile_image = current_user.profile_image
-            # Handle both absolute and relative URLs
-            if profile_image:
-                if str(profile_image).startswith("http"):
-                    user_profile_image = profile_image
-                else:
-                    user_profile_image = request.build_absolute_uri(profile_image)
+            if current_user.profile_image:
+                from lessons.utils.upload_minio import get_presigned_url  
+                user_profile_image = get_presigned_url(current_user.profile_image, request=request)
             else:
                 user_profile_image = None
 
