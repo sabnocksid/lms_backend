@@ -96,22 +96,30 @@ class LeaderboardView(APIView):
             user_rank = rank_map.get(current_user.id)
             user_points = current_user.points
             user_rank_name = current_user.rank
+            user_profile_image = (
+                request.build_absolute_uri(current_user.profile_image.url)
+                if current_user.profile_image
+                else None
+            )
         except LearnerProfile.DoesNotExist:
             current_user = None
             user_rank = None
             user_points = None
             user_rank_name = None
+            user_profile_image = None
 
         return Response({
             "leaderboard": serializer.data,
             "current_user": {
                 "id": current_user.id if current_user else None,
                 "full_name": current_user.full_name if current_user else None,
+                "profile_image": user_profile_image,
                 "points": user_points,
                 "rank": user_rank_name,
-                "rank_position": user_rank
-            }
+                "rank_position": user_rank,
+            },
         })
+
 
 # Individual learner rank + leaderboard
 class LearnerRankView(APIView):
