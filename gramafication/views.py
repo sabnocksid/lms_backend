@@ -76,7 +76,6 @@ class LeaderboardView(APIView):
 
     def get(self, request):
         top_learners = LearnerProfile.get_leaderboard()
-
         learners = LearnerProfile.objects.order_by("-points", "full_name")
 
         current_rank = 0
@@ -96,11 +95,17 @@ class LeaderboardView(APIView):
             user_rank = rank_map.get(current_user.id)
             user_points = current_user.points
             user_rank_name = current_user.rank
-            user_profile_image = (
-                request.build_absolute_uri(current_user.profile_image.url)
-                if current_user.profile_image
-                else None
-            )
+
+            profile_image = current_user.profile_image
+            # Handle both absolute and relative URLs
+            if profile_image:
+                if str(profile_image).startswith("http"):
+                    user_profile_image = profile_image
+                else:
+                    user_profile_image = request.build_absolute_uri(profile_image)
+            else:
+                user_profile_image = None
+
         except LearnerProfile.DoesNotExist:
             current_user = None
             user_rank = None
