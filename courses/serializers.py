@@ -3,6 +3,7 @@ from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer
 from quizes.serializers import QuizSerializer
+from lessons.models import ChapterProgress
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -86,20 +87,20 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         return total_chapters
 
     def get_completion_percentage(self, obj):
-        total_lessons = obj.lessons.count()
-        if total_lessons == 0:
+        total_chapters = self.get_chapters_count(obj)  
+        if total_chapters == 0:
             return 0
 
-        total_completion_rate = 0
+        total_completed_chapters = 0
 
         for lesson in obj.lessons.all():
-            lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
-            lesson_completion_rate = lesson_serializer.data.get('lesson_completion_rate', 0)
+            for chapter in lesson.chapters.all():
+                progress, _ = ChapterProgress.objects.get_or_create(user=self.context.get('request').user, chapter=chapter)
+                if progress.completed:
+                    total_completed_chapters += 1
 
-            total_completion_rate += lesson_completion_rate
+        return (total_completed_chapters / total_chapters) * 100 if total_chapters > 0 else 0
 
-        average_completion_rate = total_completion_rate / total_lessons
-        return average_completion_rate if total_lessons > 0 else 0
 
 
 
