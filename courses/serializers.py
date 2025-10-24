@@ -80,7 +80,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         return obj.lessons.count()
     
     def get_chapters_count(self, obj):
-        return obj.chapters.count()
+        return obj.lessons.chapters.count()
 
     def get_completion_percentage(self, obj):
         total_lessons = obj.lessons.count()
