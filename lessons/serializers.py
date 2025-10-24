@@ -105,6 +105,28 @@ class LessonWithChapterCountSerializer(serializers.ModelSerializer):
 
     def get_chapter_count(self, obj):
         return obj.chapters.count()  
+    
+
+class LessonCompletionPercentageSerializer(serializers.ModelSerializer):
+    completion_percentage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = ['completion_percentage']
+        read_only_fields = ['completion_percentage']
+
+    def get_completion_percentage(self, obj):
+        user = self.context.get("user") 
+        if not user:
+            return 0 
+
+        total_chapters = obj.chapters.count()
+        if total_chapters == 0:
+            return 0 
+
+        completed_chapters = obj.chapters.filter(progress__user=user, progress__completed=True).count()
+        
+        return (completed_chapters / total_chapters) * 100
 
 
 
@@ -112,7 +134,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
     thumbnail = serializers.SerializerMethodField(read_only=True)
     course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    chapters = ChapterSerializer(many=True, read_only=True)  # Include chapters
+    chapters = ChapterSerializer(many=True, read_only=True)  
 
     class Meta:
         model = Lesson
