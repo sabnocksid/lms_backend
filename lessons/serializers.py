@@ -220,7 +220,7 @@ class LessonWithProgressSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "lesson_completion_rate"]
 
-    def get_course_completion_rate(self, obj):
+    def get_lesson_completion_rate(self, obj):
 
         request = self.context.get("request")
         if request and request.user.is_authenticated:
