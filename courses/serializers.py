@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
-from lessons.serializers import  LessonWithChapterCountSerializer, CourseCompletionPercentageSerializer
+from lessons.serializers import  LessonWithChapterCountSerializer
 from quizes.serializers import QuizSerializer
 
 
@@ -10,29 +10,6 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ["id", "name", "slug", "description"]
 
-# class CourseCompletionPercentageSerializer(serializers.Serializer):
-#     completion_percentage = serializers.SerializerMethodField()
-
-#     class Meta:
-#         fields = ['completion_percentage']
-
-#     def get_completion_percentage(self, obj):
-#         user = self.context.get("user")  
-#         if not user:
-#             return 0  
-
-#         total_chapters = 0
-#         completed_chapters = 0
-
-#         for lesson in obj.lessons.all():
-#             total_chapters += lesson.chapters.count() 
-#             completed_chapters += lesson.chapters.filter(progress__user=user, progress__completed=True).count() 
-
-#         if total_chapters == 0:
-#             return 0  
-
-#         completion_percentage = (completed_chapters / total_chapters) * 100
-#         return completion_percentage
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
@@ -99,11 +76,26 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         return obj.lessons.count()
 
     def get_completion_percentage(self, obj):
-        user = self.context.get("user")
-        completion_percentage_serializer = CourseCompletionPercentageSerializer(
-            instance=obj, context={"user": user}
-        )
-        return completion_percentage_serializer.data["completion_percentage"]
+  
+        user = self.context.get("user") 
+        if not user:
+            return 0  
+
+        total_lessons = obj.lessons.count()  
+        completed_lessons = 0
+
+        for lesson in obj.lessons.all():
+            total_chapters = lesson.chapters.count()
+            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()
+
+            if total_chapters > 0 and completed_chapters == total_chapters:
+                completed_lessons += 1
+
+        if total_lessons == 0:  
+            return 0
+
+        return (completed_lessons / total_lessons) * 100
+
 
 
 

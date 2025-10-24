@@ -104,7 +104,32 @@ class LessonWithChapterCountSerializer(serializers.ModelSerializer):
         return None
 
     def get_chapter_count(self, obj):
-        return obj.chapters.count()  
+        return obj.chapters.count()
+
+class LessonWithProgressSerializer(serializers.ModelSerializer):
+    chapters = ChapterSerializer(many=True, read_only=True)  
+    lesson_progress = serializers.SerializerMethodField() 
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id", "course", "title", "description", "thumbnail", 
+            "created_at", "chapters", "lesson_progress"
+        ]
+
+    def get_lesson_progress(self, obj):
+        user = self.context.get("user") 
+        if not user:
+            return 0
+
+        total_chapters = obj.chapters.count()
+        completed_chapters = obj.chapters.filter(progress__user=user, progress__completed=True).count()
+
+        if total_chapters == 0:
+            return 0
+
+        return (completed_chapters / total_chapters) * 100
+  
     
 class CourseCompletionPercentageSerializer(serializers.ModelSerializer):
     completion_percentage = serializers.SerializerMethodField()
@@ -137,6 +162,33 @@ class CourseCompletionPercentageSerializer(serializers.ModelSerializer):
         completion_percentage = (completed_chapters / total_chapters) * 100
         return completion_percentage
     
+class CourseDetailWithProgressSerializer(serializers.ModelSerializer):
+    lessons = LessonWithProgressSerializer(many=True, read_only=True)  
+    course_progress = serializers.SerializerMethodField() 
+
+    class Meta:
+        model = Course
+        fields = [
+            "id", "name", "description", "thumbnail", "date_added", "lessons", "course_progress"
+        ]
+
+    def get_course_progress(self, obj):
+        user = self.context.get("user")
+        if not user:
+            return 0
+
+        total_lessons = obj.lessons.count()
+        completed_lessons = 0
+
+        for lesson in obj.lessons.all():
+            if lesson.chapters.filter(progress__user=user, progress__completed=True).count() == lesson.chapters.count():
+                completed_lessons += 1
+
+        if total_lessons == 0:
+            return 0
+
+        return (completed_lessons / total_lessons) * 100
+
 
 class LessonCompletionPercentageSerializer(serializers.ModelSerializer):
     progress_percentage = serializers.SerializerMethodField()
