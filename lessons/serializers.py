@@ -147,17 +147,43 @@ class LessonCompletionPercentageSerializer(serializers.ModelSerializer):
         read_only_fields = ['progress_percentage']
 
     def get_progress_percentage(self, obj):
-        user = self.context.get("user")  
+        user = self.context.get("user") 
         if not user:
             return 0  
 
-        total_chapters = obj.chapters.count()  
+        total_chapters = obj.chapters.count() 
         if total_chapters == 0:
-            return 0  
+            return 0 
 
-        completed_chapters = obj.chapters.filter(progress__user=user, progress__completed=True).count()
+        completed_chapters = obj.chapters.filter(progress__user=user, progress__completed=True).count() 
 
         return (completed_chapters / total_chapters) * 100
+    
+
+class CourseCompletionPercentageSerializer(serializers.ModelSerializer):
+    completion_percentage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Course
+        fields = ['id', 'name', 'completion_percentage']
+        read_only_fields = ['completion_percentage']
+
+    def get_completion_percentage(self, obj):
+        user = self.context.get("user")  
+        if not user:
+            return 0
+
+        total_chapters = 0
+        completed_chapters = 0
+
+        for lesson in obj.lessons.all():
+            total_chapters += lesson.chapters.count() 
+            completed_chapters += lesson.chapters.filter(progress__user=user, progress__completed=True).count()  
+
+        if total_chapters == 0:  
+            return 0
+
+        return (completed_chapters / total_chapters) * 100 
 
 
 
