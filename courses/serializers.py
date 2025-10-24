@@ -85,11 +85,12 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         total_completion_rate = 0
 
         for lesson in obj.lessons.all():
-            lesson_completion_rate = lesson.lesson_completion_rate  
-            total_completion_rate += lesson_completion_rate
+            lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
+            total_completion_rate += lesson_serializer.data.get('lesson_completion_rate', 0)
 
         average_completion_rate = total_completion_rate / total_lessons
         return average_completion_rate
+
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
