@@ -245,6 +245,43 @@ class LessonWithProgressSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             return get_presigned_url(str(obj.thumbnail), request=request)  
         return None
+    
+
+class LessonOverviewSerializer(serializers.ModelSerializer):
+    lesson_completion_rate = serializers.SerializerMethodField(read_only=True)
+    chapter_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id",
+            "title",
+            "lesson_completion_rate",
+            "chapter_count"
+        ]
+        read_only_fields = ["id", "lesson_completion_rate", "chapter_count"]
+
+    def get_lesson_completion_rate(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            chapters = obj.chapters.all()
+            total_chapters = chapters.count()
+            completed_chapters = 0
+
+            for chapter in chapters:
+                progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
+                if progress.completed:
+                    completed_chapters += 1
+
+            if total_chapters == 0:
+                return 0
+            return (completed_chapters / total_chapters) * 100
+        
+        return 0
+
+    def get_chapter_count(self, obj):
+        return obj.chapters.count()
+
 
 
 

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
-from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer
+from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer, LessonOverviewSerializer
 from quizes.serializers import QuizSerializer
 from lessons.models import ChapterProgress
 
@@ -109,7 +109,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
-    lessons = LessonWithProgressSerializer(many=True, read_only=True)
+    lessons = LessonOverviewSerializer(many=True, read_only=True)
     quizzes = QuizSerializer(many=True, read_only=True)
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
