@@ -98,17 +98,12 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         return (completed_lessons / total_lessons) * 100
 
 
-
- 
-
-
-
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
-    lessons = LessonWithChapterCountSerializer(many=True, read_only=True)  
+    lessons = LessonWithProgressSerializer(many=True, read_only=True)  
     quizzes = QuizSerializer(many=True, read_only=True)    
 
     class Meta:
