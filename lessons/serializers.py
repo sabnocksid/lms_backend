@@ -218,7 +218,7 @@ class LessonWithProgressSerializer(serializers.ModelSerializer):
             "title",
             "chapters",
             "lesson_completion_rate",
-            "thumbnail",  # Add thumbnail field
+            "thumbnail", 
         ]
         read_only_fields = ["id", "lesson_completion_rate", "thumbnail"]
 

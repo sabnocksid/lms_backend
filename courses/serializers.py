@@ -109,8 +109,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     instructor_name = serializers.CharField(source="instructor.username", read_only=True)
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
-    lessons = LessonWithProgressSerializer(many=True, read_only=True)  
-    quizzes = QuizSerializer(many=True, read_only=True)    
+    lessons = LessonWithProgressSerializer(many=True, read_only=True)
+    quizzes = QuizSerializer(many=True, read_only=True)
+    lesson_count = serializers.SerializerMethodField()
+    lesson_completion_rate = serializers.SerializerMethodField()
+    chapter_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -128,6 +131,9 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "average_rating",
             "lessons",
             "quizzes",
+            "lesson_count",
+            "lesson_completion_rate",
+            "chapter_count",
         ]
 
     def get_thumbnail(self, obj):
@@ -135,6 +141,28 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
+
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
+
+    def get_lesson_completion_rate(self, obj):
+        total_lessons = obj.lessons.count()
+        if total_lessons == 0:
+            return 0
+
+        total_completion_rate = 0
+        for lesson in obj.lessons.all():
+            lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
+            total_completion_rate += lesson_serializer.data.get('lesson_completion_rate', 0)
+
+        return total_completion_rate / total_lessons if total_lessons > 0 else 0
+
+    def get_chapter_count(self, obj):
+        total_chapters = 0
+        for lesson in obj.lessons.all():
+            total_chapters += lesson.chapters.count()
+        return total_chapters
+
 
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
