@@ -78,24 +78,18 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         return obj.lessons.count()
 
     def get_completion_percentage(self, obj):
-        user = self.context.get("user")
-        if not user:
-            return 0
-
         total_lessons = obj.lessons.count()
-        completed_lessons = 0
-
-        for lesson in obj.lessons.all():
-            total_chapters = lesson.chapters.count()
-            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()
-
-            if total_chapters > 0 and completed_chapters == total_chapters:
-                completed_lessons += 1
-
         if total_lessons == 0:
             return 0
 
-        return (completed_lessons / total_lessons) * 100
+        total_completion_rate = 0
+
+        for lesson in obj.lessons.all():
+            lesson_completion_rate = lesson.lesson_completion_rate  
+            total_completion_rate += lesson_completion_rate
+
+        average_completion_rate = total_completion_rate / total_lessons
+        return average_completion_rate
 
 
 class CourseDetailSerializer(serializers.ModelSerializer):
