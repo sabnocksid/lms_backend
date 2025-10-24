@@ -18,7 +18,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
     quizzes_count = serializers.SerializerMethodField()
     lessons_count = serializers.SerializerMethodField()
-    chapter_count = serializers.SerializerMethodField()
+    chapters_count = serializers.SerializerMethodField()
     completion_percentage = serializers.SerializerMethodField()
     lessons = LessonWithProgressSerializer(many=True, read_only=True)  
 
