@@ -13,7 +13,8 @@ class ChapterSerializer(serializers.ModelSerializer):
     material_file = serializers.FileField(write_only=True, required=False)
     video = serializers.SerializerMethodField(read_only=True)
     material = serializers.SerializerMethodField(read_only=True)
-    progress = serializers.SerializerMethodField(read_only=True)  
+    progress = serializers.SerializerMethodField(read_only=True)
+    course_completion_rate = serializers.SerializerMethodField(read_only=True) 
 
     class Meta:
         model = Chapter
@@ -23,12 +24,13 @@ class ChapterSerializer(serializers.ModelSerializer):
             "title",
             "video",
             "material",
-            "progress",  
+            "progress",
+            "course_completion_rate",  
             "video_file",
             "material_file",
             "created_at",
         ]
-        read_only_fields = ["id", "video", "material", "progress", "created_at"]
+        read_only_fields = ["id", "video", "material", "progress", "created_at", "course_completion_rate"]
 
     def get_video(self, obj):
         if obj.video:
@@ -51,6 +53,25 @@ class ChapterSerializer(serializers.ModelSerializer):
                 "completed_at": progress.completed_at
             }
         return {"completed": False, "completed_at": None}
+
+    def get_course_completion_rate(self, obj):
+
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            chapters = obj.lesson.course.chapters.all()  
+            total_chapters = chapters.count()
+            completed_chapters = 0
+
+            for chapter in chapters:
+                progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
+                if progress.completed:
+                    completed_chapters += 1
+
+            if total_chapters == 0:
+                return 0  
+            return (completed_chapters / total_chapters) * 100
+        
+        return 0  
 
     def create(self, validated_data):
         video_file = validated_data.pop("video_file", None)
@@ -83,6 +104,7 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
     
 
 class LessonWithChapterCountSerializer(serializers.ModelSerializer):
