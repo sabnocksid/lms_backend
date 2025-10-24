@@ -309,27 +309,22 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     def get_course_completion_percentage(self, obj):
         user = self.context.get("user")  
         if not user:
-            return 0 
-
-        total_lessons = obj.course.lessons.count()  
-        completed_lessons = 0 
-
-        for lesson in obj.course.lessons.all():
-            total_chapters = lesson.chapters.count()
-            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()
-
-            print(f"Lesson: {lesson.title}, Total Chapters: {total_chapters}, Completed Chapters: {completed_chapters}")  
-            
-            if total_chapters > 0 and completed_chapters == total_chapters:
-                completed_lessons += 1
-
-        if total_lessons == 0:
             return 0  
 
-        completion_percentage = (completed_lessons / total_lessons) * 100
-        print(f"Course Completion Percentage: {completion_percentage}")  
+        total_lessons = obj.course.lessons.count()  
+        completed_lessons = 0  
 
-        return completion_percentage
+        for lesson in obj.course.lessons.all():
+            total_chapters = lesson.chapters.count() 
+            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()  
+
+            if total_chapters > 0 and completed_chapters == total_chapters:
+                completed_lessons += 1  
+
+        if total_lessons == 0:
+            return 0 
+
+        return (completed_lessons / total_lessons) * 100
 
     def create(self, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
