@@ -311,20 +311,23 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         if not user:
             return 0  
 
-        total_lessons = obj.course.lessons.count()  
+        total_lessons = obj.lessons.count()  
         completed_lessons = 0  
 
-        for lesson in obj.course.lessons.all():
-            total_chapters = lesson.chapters.count() 
-            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()  
+        completed_chapters = 0
+        total_chapters = 0
 
-            if total_chapters > 0 and completed_chapters == total_chapters:
-                completed_lessons += 1  
+        for lesson in obj.lessons.all():
+            for chapter in lesson.chapters.all():
+                total_chapters += 1
+                if chapter.user_progress.filter(user=user, completed=True).exists():
+                    completed_chapters += 1
 
-        if total_lessons == 0:
+        if total_chapters == 0:
             return 0 
 
-        return (completed_lessons / total_lessons) * 100
+        return (completed_chapters / total_chapters) * 100  
+
 
     def create(self, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
