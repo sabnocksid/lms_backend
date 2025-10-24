@@ -9,7 +9,7 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "slug", "description"]
-        
+
 class CourseCompletionPercentageSerializer(serializers.Serializer):
     completion_percentage = serializers.SerializerMethodField()
 
@@ -41,7 +41,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
     quizzes_count = serializers.SerializerMethodField()
     lessons_count = serializers.SerializerMethodField()
-    completion_percentage = CourseCompletionPercentageSerializer()
+    completion_percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -55,7 +55,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "date_added",
             "quizzes_count",
             "lessons_count",
-            "completion_percentage"
+            "completion_percentage",
         ]
 
     def get_thumbnail(self, obj):
@@ -97,6 +97,14 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
+
+    def get_completion_percentage(self, obj):
+        user = self.context.get("user")
+        completion_percentage_serializer = CourseCompletionPercentageSerializer(
+            instance=obj, context={"user": user}
+        )
+        return completion_percentage_serializer.data["completion_percentage"]
+
 
 
  
