@@ -21,7 +21,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     lessons_count = serializers.SerializerMethodField()
     chapters_count = serializers.SerializerMethodField()
     completion_percentage = serializers.SerializerMethodField()
-    lessons = LessonWithProgressSerializer(many=True, read_only=True)  
+    # lessons = LessonWithProgressSerializer(many=True, read_only=True)  
 
     class Meta:
         model = Course
@@ -37,7 +37,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "lessons_count",
             "chapters_count",
             "completion_percentage",
-            "lessons",  
+            # "lessons",  
         ]
 
     def get_thumbnail(self, obj):
