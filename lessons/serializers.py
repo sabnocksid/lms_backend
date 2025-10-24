@@ -85,7 +85,7 @@ class ChapterSerializer(serializers.ModelSerializer):
         return instance
     
 
-class LessonWithProgressAndChapterCountSerializer(serializers.ModelSerializer):
+class LessonWithChapterCountSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField(read_only=True)
     chapter_count = serializers.SerializerMethodField()
     lesson_progress = serializers.SerializerMethodField()
