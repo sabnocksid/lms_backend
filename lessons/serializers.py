@@ -250,6 +250,7 @@ class LessonWithProgressSerializer(serializers.ModelSerializer):
 class LessonOverviewSerializer(serializers.ModelSerializer):
     lesson_completion_rate = serializers.SerializerMethodField(read_only=True)
     chapter_count = serializers.SerializerMethodField(read_only=True)
+    thumbnail = serializers.SerializerMethodField(read_only=True)
    
 
 
