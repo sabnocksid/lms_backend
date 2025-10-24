@@ -85,17 +85,18 @@ class ChapterSerializer(serializers.ModelSerializer):
         return instance
     
 
-class LessonWithChapterCountSerializer(serializers.ModelSerializer):
+class LessonWithProgressAndChapterCountSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField(read_only=True)
-    chapter_count = serializers.SerializerMethodField()  
+    chapter_count = serializers.SerializerMethodField()
+    lesson_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Lesson
         fields = [
             "id", "course", "title", "description", "thumbnail", 
-            "created_at", "chapter_count"
+            "created_at", "chapter_count", "lesson_progress"
         ]
-        read_only_fields = ["id", "created_at", "chapter_count"]
+        read_only_fields = ["id", "created_at", "chapter_count", "lesson_progress"]
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
@@ -105,6 +106,20 @@ class LessonWithChapterCountSerializer(serializers.ModelSerializer):
 
     def get_chapter_count(self, obj):
         return obj.chapters.count()
+
+    def get_lesson_progress(self, obj):
+        user = self.context.get("user") 
+        if not user:
+            return 0
+
+        total_chapters = obj.chapters.count()
+        completed_chapters = obj.chapters.filter(progress__user=user, progress__completed=True).count()
+
+        if total_chapters == 0:
+            return 0
+
+        return (completed_chapters / total_chapters) * 100
+
 
 class LessonWithProgressSerializer(serializers.ModelSerializer):
     chapters = ChapterSerializer(many=True, read_only=True)  
