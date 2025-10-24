@@ -58,7 +58,7 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            chapters = obj.course.lesson.chapters.all()  
+            chapters = obj.lesson.chapters.all()  
             total_chapters = chapters.count()
             completed_chapters = 0
 
