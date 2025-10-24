@@ -208,7 +208,7 @@ class CourseDetailWithProgressSerializer(serializers.ModelSerializer):
 
 class LessonWithProgressSerializer(serializers.ModelSerializer):
     chapters = ChapterSerializer(many=True, read_only=True)
-    course_completion_rate = serializers.SerializerMethodField(read_only=True)
+    lesson_completion_rate = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Lesson
@@ -216,9 +216,9 @@ class LessonWithProgressSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "chapters",
-            "course_completion_rate",  
+            "lesson_completion_rate",  
         ]
-        read_only_fields = ["id", "course_completion_rate"]
+        read_only_fields = ["id", "lesson_completion_rate"]
 
     def get_course_completion_rate(self, obj):
 
