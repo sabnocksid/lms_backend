@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
-from lessons.serializers import  LessonWithChapterCountSerializer
+from lessons.serializers import  LessonWithChapterCountSerializer, CourseCompletionPercentageSerializer
 from quizes.serializers import QuizSerializer
 
 
@@ -12,12 +12,13 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
+    categories = CategorySerializer(many=True, read_only=True)
     instructor = serializers.SerializerMethodField()
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     quizzes_count = serializers.SerializerMethodField()
     lessons_count = serializers.SerializerMethodField()
-    completion_percentage = serializers.SerializerMethodField()
+    completion_percentage = CourseCompletionPercentageSerializer()
 
     class Meta:
         model = Course
@@ -31,7 +32,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "date_added",
             "quizzes_count",
             "lessons_count",
-            "completion_percentage",  
+            "completion_percentage"
         ]
 
     def get_thumbnail(self, obj):
@@ -73,19 +74,6 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
-
-    def get_completion_percentage(self, obj):
-        user = self.context.get("user")  
-        if not user:
-            return 0  
-
-        total_lessons = obj.lessons.count()  
-        if total_lessons == 0:
-            return 0 
-
-        completed_lessons = obj.lessons.filter(progress__user=user, progress__completed=True).count()
-
-        return (completed_lessons / total_lessons) * 100
 
 
  
