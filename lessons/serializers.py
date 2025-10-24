@@ -205,6 +205,36 @@ class CourseDetailWithProgressSerializer(serializers.ModelSerializer):
         return (completed_lessons / total_lessons) * 100
 
 
+class LessonWithProgressSerializer(serializers.ModelSerializer):
+    chapters = ChapterSerializer(many=True, read_only=True)  
+    lesson_progress = serializers.SerializerMethodField() 
+
+    class Meta:
+        model = Lesson
+        fields = [
+            "id", "course", "title", "description", "thumbnail", 
+            "created_at", "chapters", "lesson_progress"
+        ]
+
+    def get_lesson_progress(self, obj):
+        user = self.context.get("user") 
+        if not user:
+            return 0
+
+        total_chapters = obj.chapters.count()
+
+        completed_chapters = 0
+        for chapter in obj.chapters.all():
+            progress = ChapterProgress.objects.filter(user=user, chapter=chapter).first()
+            if progress and progress.completed:
+                completed_chapters += 1
+
+        if total_chapters == 0:
+            return 0
+
+        return (completed_chapters / total_chapters) * 100
+
+
 class LessonCompletionPercentageSerializer(serializers.ModelSerializer):
     progress_percentage = serializers.SerializerMethodField()
 
@@ -295,16 +325,6 @@ class LessonDetailSerializer(serializers.ModelSerializer):
         return instance
 
 
-
-
-    
-class ChapterProgressSerializer(serializers.ModelSerializer):
-    chapter_title = serializers.CharField(source="chapter.title", read_only=True)
-
-    class Meta:
-        model = ChapterProgress
-        fields = ["id", "chapter", "chapter_title", "completed", "completed_at"]
-        read_only_fields = ["completed_at"]
 
 
 class ChapterProgressSerializer(serializers.ModelSerializer):
