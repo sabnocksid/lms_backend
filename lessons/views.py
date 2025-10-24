@@ -8,7 +8,7 @@ from django.utils import timezone
 
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all().order_by("-created_at")
-    serializer_class = LessonWithProgressSerializer
+    serializer_class = LessonDetailSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_serializer_context(self):
