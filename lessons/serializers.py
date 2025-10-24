@@ -14,7 +14,6 @@ class ChapterSerializer(serializers.ModelSerializer):
     video = serializers.SerializerMethodField(read_only=True)
     material = serializers.SerializerMethodField(read_only=True)
     progress = serializers.SerializerMethodField(read_only=True)
-    course_completion_rate = serializers.SerializerMethodField(read_only=True) 
 
     class Meta:
         model = Chapter
@@ -25,12 +24,11 @@ class ChapterSerializer(serializers.ModelSerializer):
             "video",
             "material",
             "progress",
-            "course_completion_rate",  
             "video_file",
             "material_file",
             "created_at",
         ]
-        read_only_fields = ["id", "video", "material", "progress", "created_at", "course_completion_rate"]
+        read_only_fields = ["id", "video", "material", "progress", "created_at"]
 
     def get_video(self, obj):
         if obj.video:
@@ -53,25 +51,6 @@ class ChapterSerializer(serializers.ModelSerializer):
                 "completed_at": progress.completed_at
             }
         return {"completed": False, "completed_at": None}
-
-    def get_course_completion_rate(self, obj):
-
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            chapters = obj.lesson.chapters.all()  
-            total_chapters = chapters.count()
-            completed_chapters = 0
-
-            for chapter in chapters:
-                progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
-                if progress.completed:
-                    completed_chapters += 1
-
-            if total_chapters == 0:
-                return 0  
-            return (completed_chapters / total_chapters) * 100
-        
-        return 0  
 
     def create(self, validated_data):
         video_file = validated_data.pop("video_file", None)
@@ -228,33 +207,37 @@ class CourseDetailWithProgressSerializer(serializers.ModelSerializer):
 
 
 class LessonWithProgressSerializer(serializers.ModelSerializer):
-    chapters = ChapterSerializer(many=True, read_only=True)  
-    lesson_progress = serializers.SerializerMethodField() 
+    chapters = ChapterSerializer(many=True, read_only=True)
+    course_completion_rate = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Lesson
         fields = [
-            "id", "course", "title", "description", "thumbnail", 
-            "created_at", "chapters", "lesson_progress"
+            "id",
+            "title",
+            "chapters",
+            "course_completion_rate",  
         ]
+        read_only_fields = ["id", "course_completion_rate"]
 
-    def get_lesson_progress(self, obj):
-        user = self.context.get("user") 
-        if not user:
-            return 0
+    def get_course_completion_rate(self, obj):
 
-        total_chapters = obj.chapters.count()
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            chapters = obj.chapters.all()
+            total_chapters = chapters.count()
+            completed_chapters = 0
 
-        completed_chapters = 0
-        for chapter in obj.chapters.all():
-            progress = ChapterProgress.objects.filter(user=user, chapter=chapter).first()
-            if progress and progress.completed:
-                completed_chapters += 1
+            for chapter in chapters:
+                progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
+                if progress.completed:
+                    completed_chapters += 1
 
-        if total_chapters == 0:
-            return 0
-
-        return (completed_chapters / total_chapters) * 100
+            if total_chapters == 0:
+                return 0  
+            return (completed_chapters / total_chapters) * 100
+        
+        return 0 
 
 
 class LessonCompletionPercentageSerializer(serializers.ModelSerializer):
