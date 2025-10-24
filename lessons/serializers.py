@@ -289,21 +289,42 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     thumbnail_file = serializers.FileField(write_only=True, required=False)
     thumbnail = serializers.SerializerMethodField(read_only=True)
     course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
-    chapters = ChapterSerializer(many=True, read_only=True)  
+    chapters = ChapterSerializer(many=True, read_only=True)
+    course_completion_percentage = serializers.SerializerMethodField() 
 
     class Meta:
         model = Lesson
         fields = [
             "id", "course", "title", "description", "thumbnail", 
-            "thumbnail_file", "created_at", "chapters"
+            "thumbnail_file", "created_at", "chapters", "course_completion_percentage"
         ]
-        read_only_fields = ["id", "thumbnail", "created_at", "chapters"]
+        read_only_fields = ["id", "thumbnail", "created_at", "chapters", "course_completion_percentage"]
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
             request = self.context.get("request")
             return get_presigned_url(obj.thumbnail, request=request)
         return None
+
+    def get_course_completion_percentage(self, obj):
+        user = self.context.get("user") 
+        if not user:
+            return 0  #
+
+        total_lessons = obj.course.lessons.count()  
+        completed_lessons = 0 
+
+        for lesson in obj.course.lessons.all():
+            total_chapters = lesson.chapters.count()  
+            completed_chapters = lesson.chapters.filter(progress__user=user, progress__completed=True).count()  # Completed chapters for this user
+
+            if total_chapters > 0 and completed_chapters == total_chapters:
+                completed_lessons += 1  
+
+        if total_lessons == 0:
+            return 0 
+
+        return (completed_lessons / total_lessons) * 100 
 
     def create(self, validated_data):
         file_obj = validated_data.pop("thumbnail_file", None)
