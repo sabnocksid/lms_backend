@@ -18,6 +18,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     thumbnail = serializers.SerializerMethodField()
     quizzes_count = serializers.SerializerMethodField()
     lessons_count = serializers.SerializerMethodField()
+    chapter_count = serializers.SerializerMethodField()
     completion_percentage = serializers.SerializerMethodField()
     lessons = LessonWithProgressSerializer(many=True, read_only=True)  
 
@@ -33,6 +34,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "date_added",
             "quizzes_count",
             "lessons_count",
+            "chapters_count",
             "completion_percentage",
             "lessons",  
         ]
@@ -76,9 +78,12 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
+    
+    def get_chapters_count(self, obj):
+        return obj.chapters.count()
 
     def get_completion_percentage(self, obj):
-        total_lessons = obj.lessons.chapters.count()
+        total_lessons = obj.lessons.count()
         if total_lessons == 0:
             return 0
 
