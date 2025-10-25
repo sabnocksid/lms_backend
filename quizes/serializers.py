@@ -20,7 +20,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_is_true = serializers.SerializerMethodField()
+    question_is_true = serializers.SerializerMethodField()  
     correct = serializers.SerializerMethodField()
 
     class Meta:
@@ -39,6 +39,7 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         elif obj.question.question_type == 'TF':
             return (obj.selected_choice.is_correct if obj.selected_choice else False) == obj.question.is_true
         return None
+
 
 
 
