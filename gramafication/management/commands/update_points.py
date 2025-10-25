@@ -14,7 +14,7 @@ class Command(BaseCommand):
         for user in User.objects.all():
             for course in Course.objects.all():
                 result = process_course_gamification(user, course)
-                self.stdout.write(f"Updated {user.email} for course {course.title}:\n")
+                self.stdout.write(f"Updated {user.email} for course {course.name}:\n")
                 self.stdout.write(f"Points Earned: {result['points_earned']}, XP Earned: {result['xp_earned']}\n")
         
         self.stdout.write("Points and XP update complete.\n")
