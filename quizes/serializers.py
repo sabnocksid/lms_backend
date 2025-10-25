@@ -13,14 +13,14 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id', 'text', 'question_type', 'marks', 'is_correct', 'choices']
+        fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
 
 
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_is_true = serializers.SerializerMethodField()  
+    question_is_true = serializers.SerializerMethodField()
     correct = serializers.SerializerMethodField()
 
     class Meta:
@@ -43,6 +43,7 @@ class UserAnswerSerializer(serializers.ModelSerializer):
 
 
 
+
 class QuizSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
 
@@ -56,7 +57,7 @@ class QuizSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
+    questions = UserAnswerSerializer(source='questions', many=True, read_only=True)
 
     class Meta:
         model = Quiz
