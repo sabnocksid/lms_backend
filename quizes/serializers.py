@@ -1,21 +1,11 @@
 from rest_framework import serializers
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct']
 
-class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Question
-        fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.SerializerMethodField()
@@ -37,48 +27,24 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         return obj.question.question_type
 
     def get_question_is_true(self, obj):
-        return bool(obj.question.is_true)
+        # type-safe boolean access
+        return bool(getattr(obj.question, 'is_true', False))
 
     def get_correct(self, obj):
         try:
-            if obj.question.question_type == 'MCQ':
-                return obj.selected_choice.is_correct if obj.selected_choice else False
-            elif obj.question.question_type == 'TF':
-                selected = obj.selected_choice.is_correct if obj.selected_choice else False
-                return selected == bool(obj.question.is_true)
+            q = obj.question
+            if q.question_type == 'MCQ':
+                return bool(obj.selected_choice.is_correct) if obj.selected_choice else False
+            elif q.question_type == 'TF':
+                selected = bool(obj.selected_choice.is_correct) if obj.selected_choice else False
+                return selected == bool(q.is_true)
             return None
-        except Exception as e:
-            logger.error(f"Error in get_correct: {e}")
-            return None
-
-    
-class UserAnswerSerializer(serializers.ModelSerializer):
-    question_text = serializers.CharField(source='question.text', read_only=True)
-    question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_is_true = serializers.BooleanField(source='question.is_true', read_only=True)
-    correct = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Answer
-        fields = [
-            'question', 'question_text', 'question_type', 'selected_choice',
-            'text_answer', 'question_is_true', 'correct'
-        ]
-
-    def get_correct(self, obj):
-        try:
-            if obj.question.question_type == 'MCQ':
-                return obj.selected_choice.is_correct if obj.selected_choice else False
-            elif obj.question.question_type == 'TF':
-                return obj.selected_choice.is_correct == obj.question.is_true if obj.selected_choice else False
-            return None
-        except Exception as e:
-            logger.error(f"Error in get_correct: {e}")
-            return None
+        except Exception:
+            return False
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = UserAnswerSerializer(source='questions', many=True, read_only=True)
+    questions = UserAnswerSerializer(many=True, read_only=True)
 
     class Meta:
         model = Quiz
@@ -96,14 +62,10 @@ class QuizSerializer(serializers.ModelSerializer):
         return obj.questions.count()
 
 
-
-
-
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
         fields = ['question', 'selected_choice', 'text_answer']
-
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
@@ -174,8 +136,14 @@ class QuizResultSerializer(serializers.ModelSerializer):
         attempt = self.context.get('attempt')
         if not attempt:
             return 0
-        mcq_correct = sum(1 for a in attempt.answers.all() if a.question.question_type == 'MCQ' and a.selected_choice and a.selected_choice.is_correct)
-        tf_correct = sum(1 for a in attempt.answers.all() if a.question.question_type == 'TF' and (a.selected_choice.is_correct if a.selected_choice else False) == a.question.is_true)
+        mcq_correct = sum(
+            1 for a in attempt.answers.all()
+            if a.question.question_type == 'MCQ' and a.selected_choice and a.selected_choice.is_correct
+        )
+        tf_correct = sum(
+            1 for a in attempt.answers.all()
+            if a.question.question_type == 'TF' and (a.selected_choice.is_correct if a.selected_choice else False) == bool(a.question.is_true)
+        )
         return mcq_correct + tf_correct
 
     def get_total_incorrect(self, obj):
