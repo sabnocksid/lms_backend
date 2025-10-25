@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from .models import Lesson, Chapter, ChapterProgress
 from .serializers import LessonDetailSerializer, LessonWithProgressSerializer, ChapterSerializer, ChapterProgressSerializer
 from django.utils import timezone
+from gramafication.algorithm.gramafication_course import process_course_gamification
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -28,6 +29,8 @@ class ChapterViewSet(viewsets.ModelViewSet):
         progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=current_chapter)
         progress.mark_completed()
 
+        process_course_gamification(request.user, current_chapter.lesson.course)
+
         next_chapter = (
             Chapter.objects
             .filter(lesson=current_chapter.lesson, id__gt=current_chapter.id)
@@ -36,7 +39,13 @@ class ChapterViewSet(viewsets.ModelViewSet):
         )
 
         if not next_chapter:
-            return Response({"status": "completed_all", "message": "You finished all chapters!"})
+            return Response({
+                "status": "completed_all",
+                "message": "You finished all chapters and completed the course!"
+            })
 
         serializer = self.get_serializer(next_chapter, context={"request": request})
-        return Response({"status": "next_chapter", "chapter": serializer.data})
+        return Response({
+            "status": "next_chapter",
+            "chapter": serializer.data
+        })
