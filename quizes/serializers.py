@@ -55,9 +55,15 @@ class QuizCreateSerializer(serializers.ModelSerializer):
         return quiz
 
 
+class QuestionBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ['id', 'text', 'question_type', 'marks']
+
+
 class QuizDetailSerializer(serializers.ModelSerializer):
     question_count = serializers.SerializerMethodField()
-    questions = QuestionSerializer(many=True, read_only=True)
+    questions = QuestionBasicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Quiz
