@@ -28,18 +28,11 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = serializers.SerializerMethodField()
+    questions = QuestionSerializer(many=True, read_only=True)  
 
     class Meta:
         model = Quiz
         fields = ['id', 'title', 'description', 'time_limit', 'questions']
-
-    def get_questions(self, obj):
-        user = self.context['request'].user
-        attempt = QuizAttempt.objects.filter(quiz=obj, user=user).last()
-        if attempt:
-            return UserAnswerSerializer(attempt.answers.all(), many=True).data
-        return QuestionSerializer(obj.questions.all(), many=True).data
 
 
 class QuizSerializer(serializers.ModelSerializer):
