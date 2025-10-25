@@ -47,25 +47,32 @@ class LeaderboardView(APIView):
 
         current_user = None
         rank = None
+        
         if hasattr(request.user, 'learner_profile'):
             try:
                 current_user = request.user.learner_profile
-                rank = current_user.get_rank_position()
+                rank = current_user.get_rank_position()  
             except LearnerProfile.DoesNotExist:
                 current_user = None
                 rank = None
 
-        return Response({
-            "leaderboard": serializer.data,
-            "current_user": {
-                "id": current_user.id if current_user else None,
-                "full_name": current_user.full_name if current_user else None,
-                "points": current_user.points if current_user else None,
-                "xp": current_user.xp if current_user else None,
-                "rank": current_user.rank if current_user else None,
-                "rank_position": rank
-            }
-        })
+        if request.user.role == 'student':
+            return Response({
+                "leaderboard": serializer.data,
+                "current_user": {
+                    "id": current_user.id if current_user else None,
+                    "full_name": current_user.full_name if current_user else None,
+                    "points": current_user.points if current_user else None,
+                    "xp": current_user.xp if current_user else None,
+                    "rank": current_user.rank if current_user else None,
+                    "rank_position": rank
+                }
+            })
+        else:
+            return Response({
+                "leaderboard": serializer.data
+            })
+
 
 class CourseGamificationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
