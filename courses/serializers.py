@@ -114,7 +114,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
-    question_count = serializers.SerializerMethodField()  # 👈 new field
 
     class Meta:
         model = Course
@@ -135,7 +134,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "lesson_count",
             "lesson_completion_rate",
             "chapter_count",
-            "question_count",  # 👈 added in Meta
+            "question_count", 
         ]
 
     def get_thumbnail(self, obj):
@@ -165,11 +164,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             total_chapters += lesson.chapters.count()
         return total_chapters
 
-    def get_question_count(self, obj):
-        total_questions = 0
-        for quiz in obj.quizzes.all():
-            total_questions += quiz.questions.count()
-        return total_questions
 
 
 

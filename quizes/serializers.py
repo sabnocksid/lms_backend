@@ -56,11 +56,19 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
+    questions = serializers.SerializerMethodField()
+    question_count = serializers.SerializerMethodField() \
 
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit', 'questions']
+        fields = ["id", "title", "description", "time_limit", "question_count", "questions"]
+
+    def get_questions(self, obj):
+        from quizes.serializers import QuestionSerializer  
+        return QuestionSerializer(obj.questions.all(), many=True).data
+
+    def get_question_count(self, obj):
+        return obj.questions.count()
 
 
 class AnswerSerializer(serializers.ModelSerializer):
