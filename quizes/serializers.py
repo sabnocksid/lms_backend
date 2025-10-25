@@ -13,12 +13,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
 
-class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
 
-    class Meta:
-        model = Quiz
-        fields = ['id', 'course', 'title', 'description', 'time_limit', 'questions']
 
 class QuizSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
@@ -60,11 +55,16 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
+    is_true = serializers.BooleanField(source='question.is_true', read_only=True)  
+
     correct = serializers.SerializerMethodField()
 
     class Meta:
         model = Answer
-        fields = ['question', 'question_text', 'question_type', 'selected_choice', 'text_answer', 'correct']
+        fields = [
+            'question', 'question_text', 'question_type', 'selected_choice', 
+            'text_answer', 'correct', 'is_true'
+        ]
 
     def get_correct(self, obj):
         if obj.question.question_type == 'MCQ':
@@ -74,6 +74,14 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         elif obj.question.question_type == 'TEXT':
             return None
         return False
+    
+
+class QuizDetailSerializer(serializers.ModelSerializer):
+    questions = UserAnswerSerializer(source='questions', many=True, read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
 class QuizResultSerializer(serializers.ModelSerializer):
     mcq_answers = serializers.SerializerMethodField()
