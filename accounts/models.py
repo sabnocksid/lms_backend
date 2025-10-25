@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from gramafication.models import LearnerProfile
 
 ROLE_CHOICES = (
     ('admin', 'Admin'),
@@ -35,10 +36,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     full_name = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=False) 
+    is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     encryption_key = models.CharField(max_length=64, editable=False)
+    
+    learner_profile = models.OneToOneField('LearnerProfile', on_delete=models.CASCADE, related_name='user', null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name', 'role']
@@ -47,3 +50,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    def save(self, *args, **kwargs):
+        if not self.learner_profile:
+            self.learner_profile = LearnerProfile.objects.create(user=self)
+        super().save(*args, **kwargs)
