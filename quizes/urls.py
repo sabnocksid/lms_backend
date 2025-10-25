@@ -1,21 +1,18 @@
 from django.urls import path
-from .views import (
-    CreateMCQQuestion, CreateTextQuestion, CreateTFQuestion,
-    QuizQuestionsList, SubmitQuizAttempt, CreateQuizView, ListQuizView
-)
+from . import views
 
 urlpatterns = [
-    path('quizzes/', ListQuizView.as_view(), name='list-quizzes'),       
-    path('quizzes/create/', CreateQuizView.as_view(), name='create-quiz'), 
+    path('quizzes/', views.ListQuizView.as_view(), name='list-quizzes'),      
+    path('quizzes/create/', views.CreateQuizView.as_view(), name='create-quiz'),  
 
-    # Create questions
-    path('questions/mcq/', CreateMCQQuestion.as_view(), name='create-mcq'),
-    path('questions/text/', CreateTextQuestion.as_view(), name='create-text'),
-    path('questions/tf/', CreateTFQuestion.as_view(), name='create-tf'),
+    path('quizzes/<int:quiz_id>/mcq/', views.ListMCQQuestions.as_view(), name='list-mcq-questions'), 
+    path('quizzes/mcq/create/', views.CreateMCQQuestion.as_view(), name='create-mcq-question'),    
 
-    # Get questions (filtered by query param)
-    path('quiz/<int:quiz_id>/questions/', QuizQuestionsList.as_view(), name='quiz-questions'),
+    path('quizzes/<int:quiz_id>/text/', views.ListTextQuestions.as_view(), name='list-text-questions'),
+    path('quizzes/text/create/', views.CreateTextQuestion.as_view(), name='create-text-question'),     
 
-    # Submit attempt
-    path('quiz/<int:pk>/attempt/', SubmitQuizAttempt.as_view(), name='quiz-attempt')
+    path('quizzes/<int:quiz_id>/tf/', views.ListTFQuestions.as_view(), name='list-tf-questions'),      
+    path('quizzes/tf/create/', views.CreateTFQuestion.as_view(), name='create-tf-question'),         
+
+    path('quizzes/<int:pk>/attempt/', views.SubmitQuizAttempt.as_view(), name='submit-quiz-attempt'),    
 ]
