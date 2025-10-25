@@ -75,9 +75,7 @@ class QuizResultView(generics.RetrieveAPIView):
         return Quiz.objects.all()
 
     def retrieve(self, request, *args, **kwargs):
-        quiz_id = kwargs.get(self.lookup_url_kwarg)
-        quiz = Quiz.objects.get(id=quiz_id)
-        user = request.user
-        attempt = QuizAttempt.objects.filter(quiz=quiz, user=user).first()
+        quiz = self.get_object()
+        attempt = QuizAttempt.objects.filter(quiz=quiz, user=request.user).first()
         serializer = self.get_serializer(quiz, context={'attempt': attempt})
         return Response(serializer.data)
