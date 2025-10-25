@@ -169,3 +169,4 @@ class QuizResultSerializer(serializers.ModelSerializer):
 
     def get_total_incorrect(self, obj):
         return self.get_attempted(obj) - self.get_total_correct(obj)
+
