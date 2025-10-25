@@ -6,7 +6,8 @@ from .serializers import (
     QuizCreateSerializer,
     QuizDetailSerializer,
     QuizAttemptSubmitSerializer,
-    QuizResultSerializer
+    QuizResultSerializer,
+    UserAnswerSerializer
 )
 
 

@@ -93,6 +93,19 @@ class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
         for answer_data in answers_data:
             Answer.objects.create(attempt=attempt, **answer_data)
         return attempt
+    
+class UserAnswerSerializer(serializers.ModelSerializer):
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    question_type = serializers.CharField(source='question.question_type', read_only=True)
+    answer_is_true = serializers.BooleanField(source='question.answer_is_true', read_only=True)
+    correct = serializers.BooleanField(source='is_correct', read_only=True)
+    
+    class Meta:
+        model = Answer
+        fields = [
+            'question', 'question_text', 'question_type', 'selected_choice',
+            'text_answer', 'answer_is_true', 'correct'
+        ]
 
 
 class QuizResultSerializer(serializers.ModelSerializer):
