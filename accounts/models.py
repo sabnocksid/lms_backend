@@ -41,7 +41,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     encryption_key = models.CharField(max_length=64, editable=False)
     
-    learner_profile = models.OneToOneField('gramafication.LearnerProfile', on_delete=models.CASCADE)
+    learner_profile = models.OneToOneField('gramafication.LearnerProfile', on_delete=models.CASCADE, null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name', 'role']
@@ -52,6 +52,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def save(self, *args, **kwargs):
-        if not self.learner_profile:
+        if self.role == 'student' and not self.learner_profile:
             self.learner_profile = LearnerProfile.objects.create(user=self)
         super().save(*args, **kwargs)
