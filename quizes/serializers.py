@@ -3,6 +3,8 @@ from .models import Quiz, Question, Choice, QuizAttempt, Answer
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
+    is_correct = serializers.BooleanField()
+    
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct']
@@ -56,15 +58,12 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    quiz_questions = QuestionSerializer(many=True, read_only=True, source='questions')
-    question_count = serializers.SerializerMethodField()
+    questions = QuestionSerializer(many=True, read_only=True)
+    question_count = serializers.IntegerField(source='questions.count', read_only=True)
 
     class Meta:
         model = Quiz
-        fields = ["id", "title", "description", "time_limit", "question_count", "quiz_questions"]
-
-    def get_question_count(self, obj):
-        return obj.questions.count()
+        fields = ["id", "title", "description", "time_limit", "question_count", "questions"]
 
 
 class AnswerSerializer(serializers.ModelSerializer):
