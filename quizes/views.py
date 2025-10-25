@@ -19,16 +19,16 @@ class QuizCreateAPIView(generics.CreateAPIView):
 
 class QuizViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Quiz.objects.all()
-    serializer_class = QuizFullDetailSerializer  
-    permission_classes = [permissions.IsAuthenticated] 
+    serializer_class = QuizFullDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    @action(detail=True, methods=['get'])
-    def detail(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='quiz-detail')  
+    def quiz_detail(self, request, pk=None):  
         quiz = self.get_object()
-        serializer = QuizFullDetailSerializer(quiz, context={'request': request})  # Changed this
+        serializer = QuizFullDetailSerializer(quiz, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], url_path='result')
     def result(self, request, pk=None):
         quiz = self.get_object()
         attempt_id = request.query_params.get('attempt_id')
