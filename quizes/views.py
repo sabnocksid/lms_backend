@@ -13,8 +13,16 @@ class QuizViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
-        quiz = self.get_object()
+        quiz = self.get_object()  
         serializer = QuizDetailSerializer(quiz, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def result(self, request, pk=None):
+        quiz = self.get_object()  
+        attempt_id = request.query_params.get('attempt_id')
+        attempt = QuizAttempt.objects.get(id=attempt_id, quiz=quiz, user=request.user)
+        serializer = QuizResultSerializer(quiz, context={'attempt': attempt})
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
