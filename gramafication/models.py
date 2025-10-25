@@ -1,21 +1,25 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+from courses.models import Course
+from quizes.models import Quiz, QuizAttempt
+from lessons.models import Chapter, ChapterProgress
 
 
 class LearnerProfile(models.Model):
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,  
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="learner_profile"
     )
     full_name = models.CharField(max_length=150)
-    profile_image = models.CharField( max_length=255, blank=True,null=True)
+    profile_image = models.CharField(max_length=255, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     joined_date = models.DateField(auto_now_add=True)
 
     points = models.IntegerField(default=0)
-    level = models.PositiveIntegerField(default=1)
     xp = models.PositiveIntegerField(default=0)
+    level = models.PositiveIntegerField(default=1)
     rank = models.CharField(max_length=50, default="Beginner")
 
     def __str__(self):
@@ -59,42 +63,26 @@ class LearnerProfile(models.Model):
         return higher_points + 1
 
 
-class Task(models.Model):
-    course = models.ForeignKey(
-        "courses.Course",
-        on_delete=models.CASCADE,
-        related_name="tasks"
-    )
-    name = models.CharField(max_length=200)
+class Badge(models.Model):
+    name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
-    points = models.IntegerField(default=0)  
-    active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    icon = models.CharField(max_length=100)
+    points_required = models.PositiveIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.name} ({self.points} pts)"
+        return self.name
 
 
-class TaskCompletion(models.Model):
-    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='completed_tasks')
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    completed_at = models.DateTimeField(auto_now_add=True)
-    processed = models.BooleanField(default=False)
+class LearnerBadge(models.Model):
+    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='earned_badges')
+    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
+    earned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("learner", "task")
+        unique_together = ("learner", "badge")
 
-    def save(self, *args, **kwargs):
-        is_new = self._state.adding
-        super().save(*args, **kwargs)
-        if is_new and not self.processed:
-            PointTransaction.objects.create(
-                learner=self.learner,
-                points=self.task.points,
-                reason=f"Completed task: {self.task.name}"
-            )
-            self.processed = True
-            super().save(update_fields=["processed"])
+    def __str__(self):
+        return f"{self.learner.user.username} earned {self.badge.name}"
 
 
 class PointTransaction(models.Model):
@@ -116,23 +104,21 @@ class PointTransaction(models.Model):
         return f"{sign}{abs(self.points)} pts - {self.learner.user.username}"
 
 
-class Badge(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True)
-    icon = models.CharField(max_length=100)
-    points_required = models.PositiveIntegerField(default=0)
-
-    def __str__(self):
-        return self.name
-
-
-class LearnerBadge(models.Model):
-    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='earned_badges')
-    badge = models.ForeignKey(Badge, on_delete=models.CASCADE)
-    earned_at = models.DateTimeField(auto_now_add=True)
+class CourseGamification(models.Model):
+    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name="course_progress")
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="gamification")
+    points_earned = models.IntegerField(default=0)
+    xp_earned = models.IntegerField(default=0)
+    chapters_completed = models.PositiveIntegerField(default=0)
+    total_chapters = models.PositiveIntegerField(default=0)
+    quizzes_attempted = models.PositiveIntegerField(default=0)
+    total_quizzes = models.PositiveIntegerField(default=0)
+    correct_answers = models.PositiveIntegerField(default=0)
+    course_completed = models.BooleanField(default=False)
+    last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("learner", "badge")
+        unique_together = ("learner", "course")
 
     def __str__(self):
-        return f"{self.learner.user.username} earned {self.badge.name}"
+        return f"{self.learner.user.username} - {self.course.title}"
