@@ -57,7 +57,7 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 
 class QuizDetailSerializer(serializers.ModelSerializer):
     questions = serializers.SerializerMethodField()
-    question_count = serializers.SerializerMethodField() \
+    question_count = serializers.SerializerMethodField() 
 
     class Meta:
         model = Quiz
