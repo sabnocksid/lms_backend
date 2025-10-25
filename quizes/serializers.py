@@ -18,22 +18,39 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
 
 class UserAnswerSerializer(serializers.ModelSerializer):
-    question_text = serializers.CharField(source='question.text', read_only=True)
-    question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_is_true = serializers.BooleanField(source='question.is_true', read_only=True)  # NO ()
+    question_text = serializers.SerializerMethodField()
+    question_type = serializers.SerializerMethodField()
+    question_is_true = serializers.SerializerMethodField()
     correct = serializers.SerializerMethodField()
 
     class Meta:
         model = Answer
-        fields = ['question', 'question_text', 'question_type', 'selected_choice',
-                  'text_answer', 'question_is_true', 'correct']
+        fields = [
+            'question', 'question_text', 'question_type', 'selected_choice',
+            'text_answer', 'question_is_true', 'correct'
+        ]
+
+    def get_question_text(self, obj):
+        return obj.question.text
+
+    def get_question_type(self, obj):
+        return obj.question.question_type
+
+    def get_question_is_true(self, obj):
+        return bool(obj.question.is_true)
 
     def get_correct(self, obj):
-        if obj.question.question_type == 'MCQ':
-            return obj.selected_choice.is_correct if obj.selected_choice else False
-        elif obj.question.question_type == 'TF':
-            return (obj.selected_choice.is_correct if obj.selected_choice else False) == obj.question.is_true
-        return None
+        try:
+            if obj.question.question_type == 'MCQ':
+                return obj.selected_choice.is_correct if obj.selected_choice else False
+            elif obj.question.question_type == 'TF':
+                selected = obj.selected_choice.is_correct if obj.selected_choice else False
+                return selected == bool(obj.question.is_true)
+            return None
+        except Exception as e:
+            logger.error(f"Error in get_correct: {e}")
+            return None
+
     
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
