@@ -16,7 +16,7 @@ class QuizViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
         quiz = self.get_object()
-        serializer = QuizDetailSerializer(quiz)
+        serializer = QuizDetailSerializer(quiz, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
