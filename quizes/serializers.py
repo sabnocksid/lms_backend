@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
 
+
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
@@ -8,23 +9,50 @@ class ChoiceSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    choices = serializers.SerializerMethodField()
-    answer_is_true = serializers.BooleanField(read_only=True)
+    choices = ChoiceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Question
         fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
 
-    def get_choices(self, obj):
-        choices = obj.choices.all()
 
-        if not choices.exists() and obj.question_type == "TF":
-            return [
-                {"text": "True", "is_correct": obj.answer_is_true},
-                {"text": "False", "is_correct": not obj.answer_is_true},
-            ]
+class ChoiceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Choice
+        fields = ['text', 'is_correct']
 
-        return ChoiceSerializer(choices, many=True).data
+
+class QuestionCreateSerializer(serializers.ModelSerializer):
+    choices = ChoiceCreateSerializer(many=True, required=False)
+
+    class Meta:
+        model = Question
+        fields = ['text', 'question_type', 'marks', 'answer_is_true', 'choices']
+
+    def create(self, validated_data):
+        choices_data = validated_data.pop('choices', [])
+        question = Question.objects.create(**validated_data)
+        for choice in choices_data:
+            Choice.objects.create(question=question, **choice)
+        return question
+
+
+class QuizCreateSerializer(serializers.ModelSerializer):
+    questions = QuestionCreateSerializer(many=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['course', 'title', 'description', 'time_limit', 'questions']
+
+    def create(self, validated_data):
+        questions_data = validated_data.pop('questions', [])
+        quiz = Quiz.objects.create(**validated_data)
+        for question_data in questions_data:
+            choices = question_data.pop('choices', [])
+            question = Question.objects.create(quiz=quiz, **question_data)
+            for choice_data in choices:
+                Choice.objects.create(question=question, **choice_data)
+        return quiz
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
@@ -34,40 +62,56 @@ class QuizDetailSerializer(serializers.ModelSerializer):
         model = Quiz
         fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
-class UserAnswerSerializer(serializers.ModelSerializer):
-    question_text = serializers.CharField(source='question.text', read_only=True)
-    question_type = serializers.CharField(source='question.question_type', read_only=True)
-    question_is_true = serializers.BooleanField(source='question.answer_is_true', read_only=True)
-    correct = serializers.BooleanField(source='is_correct', read_only=True)
 
+class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = [
-            'question', 'question_text', 'question_type', 'selected_choice',
-            'text_answer', 'question_is_true', 'correct'
-        ]
+        fields = ['question', 'selected_choice', 'text_answer']
 
-class QuizSerializer(serializers.ModelSerializer):
-    questions_count = serializers.SerializerMethodField()
+
+class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
+    answers = AnswerSerializer(many=True)
+
+    class Meta:
+        model = QuizAttempt
+        fields = ['quiz', 'answers']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        answers_data = validated_data.pop('answers')
+        quiz = validated_data['quiz']
+
+        attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
+        for answer_data in answers_data:
+            Answer.objects.create(attempt=attempt, **answer_data)
+        return attempt
+
+
+class QuizResultSerializer(serializers.ModelSerializer):
+    total_questions = serializers.SerializerMethodField()
+    attempted = serializers.SerializerMethodField()
+    total_correct = serializers.SerializerMethodField()
+    total_incorrect = serializers.SerializerMethodField()
 
     class Meta:
         model = Quiz
-        fields = ['id', 'course', 'title', 'description', 'time_limit', 'questions_count']
+        fields = ['id', 'title', 'total_questions', 'attempted', 'total_correct', 'total_incorrect']
 
-    def get_questions_count(self, obj):
+    def get_total_questions(self, obj):
         return obj.questions.count()
 
+    def get_attempted(self, obj):
+        attempt = self.context.get('attempt')
+        return attempt.answers.count() if attempt else 0
 
-class QuizUserDetailSerializer(serializers.ModelSerializer):
-    answers = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit', 'answers']
-
-    def get_answers(self, obj):
-        user = self.context['request'].user
-        attempt = QuizAttempt.objects.filter(quiz=obj, user=user).last()
+    def get_total_correct(self, obj):
+        attempt = self.context.get('attempt')
         if not attempt:
-            return []
-        return UserAnswerSerializer(attempt.answers.all(), many=True).data
+            return 0
+        return sum(
+            1 for a in attempt.answers.all()
+            if (a.selected_choice and a.selected_choice.is_correct)
+        )
+
+    def get_total_incorrect(self, obj):
+        return self.get_attempted(obj) - self.get_total_correct(obj)
