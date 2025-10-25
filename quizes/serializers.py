@@ -111,11 +111,16 @@ class QuizResultSerializer(serializers.ModelSerializer):
     tf_correct = serializers.SerializerMethodField()
     tf_incorrect = serializers.SerializerMethodField()
     text_count = serializers.SerializerMethodField()
+    total_questions = serializers.SerializerMethodField()
+    attempted = serializers.SerializerMethodField()
+    total_correct = serializers.SerializerMethodField()
+    total_incorrect = serializers.SerializerMethodField()
 
     class Meta:
         model = Quiz
         fields = [
             'id', 'title',
+            'total_questions', 'attempted', 'total_correct', 'total_incorrect',
             'mcq_answers', 'mcq_correct', 'mcq_incorrect',
             'tf_answers', 'tf_correct', 'tf_incorrect',
             'text_answers', 'text_count'
@@ -152,3 +157,22 @@ class QuizResultSerializer(serializers.ModelSerializer):
     def get_text_count(self, obj):
         attempt = self.context.get('attempt')
         return sum(1 for a in attempt.answers.all() if a.question.question_type=='TEXT')
+
+    def get_total_questions(self, obj):
+        return obj.questions.count()
+
+    def get_attempted(self, obj):
+        attempt = self.context.get('attempt')
+        return attempt.answers.count() if attempt else 0
+
+    def get_total_correct(self, obj):
+        attempt = self.context.get('attempt')
+        if not attempt:
+            return 0
+        return self.get_mcq_correct(obj) + self.get_tf_correct(obj)
+
+    def get_total_incorrect(self, obj):
+        attempt = self.context.get('attempt')
+        if not attempt:
+            return 0
+        return self.get_attempted(obj) - self.get_total_correct(obj)

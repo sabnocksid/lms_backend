@@ -66,6 +66,7 @@ class SubmitQuizAttempt(generics.CreateAPIView):
         serializer.save(attempt=attempt)
 
 
+
 class QuizResultView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = QuizResultSerializer
