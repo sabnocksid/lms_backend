@@ -70,12 +70,11 @@ class QuizSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    # questions = UserAnswerSerializer(many=True, read_only=True) 
+    questions = UserAnswerSerializer(many=True, read_only=True) 
 
     class Meta:
         model = Quiz
-        # fields = ['id', 'title', 'description', 'time_limit', 'questions']
-        fields = ['id', 'title', 'description', 'time_limit']
+        fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
 
 class AnswerSerializer(serializers.ModelSerializer):
