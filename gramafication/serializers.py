@@ -56,6 +56,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank_position = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
+    
 
     class Meta:
         model = LearnerProfile
