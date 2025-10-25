@@ -12,7 +12,7 @@ XP_COURSE_COMPLETION = 25
 
 def process_course_gamification(user, course):
     # Get the learner profile for the user
-    learner = user.learner_profile
+    learner = user.profile
 
     # Step 1: Calculate completed chapters
     completed_chapters = ChapterProgress.objects.filter(

@@ -40,7 +40,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
         )
         progress.mark_completed()
 
-        learner_profile = getattr(request.user, "learner_profile", None)
+        learner_profile = getattr(request.user, "profile", None)
         if learner_profile is None:
             return Response({
                 "status": "error",
