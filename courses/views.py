@@ -37,10 +37,8 @@ class CourseFilter(FilterSet):
         }
 
     def filter_rating_range(self, queryset, name, value):
-        # Annotate avg_rating
         queryset = queryset.annotate(avg_rating=Avg('ratings__points'))
 
-        # Map choice to Q filters
         if value == '1':
             return queryset.filter(avg_rating__gte=1, avg_rating__lt=2)
         elif value == '2':

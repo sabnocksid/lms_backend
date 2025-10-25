@@ -19,7 +19,7 @@ class QuizCreateAPIView(generics.CreateAPIView):
 class QuizViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Quiz.objects.all()
     serializer_class = QuizDetailSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated] 
 
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
@@ -31,9 +31,11 @@ class QuizViewSet(viewsets.ReadOnlyModelViewSet):
     def result(self, request, pk=None):
         quiz = self.get_object()
         attempt_id = request.query_params.get('attempt_id')
+
         attempt = QuizAttempt.objects.filter(id=attempt_id, quiz=quiz, user=request.user).first()
         if not attempt:
             return Response({'detail': 'Attempt not found'}, status=404)
+
         serializer = QuizResultSerializer(quiz, context={'attempt': attempt})
         return Response(serializer.data)
 
