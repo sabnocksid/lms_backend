@@ -10,7 +10,6 @@ class ChoiceSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True, read_only=True)
-    answer_is_true = serializers.BooleanField()
 
     class Meta:
         model = Question
@@ -57,8 +56,20 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)
     question_count = serializers.SerializerMethodField()
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = ["id", "title", "description", "time_limit", "question_count", "questions"]
+
+    def get_question_count(self, obj):
+        return obj.questions.count()
+
+
+class QuizFullDetailSerializer(serializers.ModelSerializer):
+    question_count = serializers.SerializerMethodField()
+    questions = QuestionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Quiz
@@ -91,6 +102,7 @@ class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
             Answer.objects.create(attempt=attempt, **answer_data)
         return attempt
     
+
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)

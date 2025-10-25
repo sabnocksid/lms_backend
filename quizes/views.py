@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .models import Quiz, QuizAttempt
 from .serializers import (
     QuizCreateSerializer,
-    QuizDetailSerializer,
+    QuizFullDetailSerializer,  
     QuizAttemptSubmitSerializer,
     QuizResultSerializer,
     UserAnswerSerializer
@@ -19,13 +19,13 @@ class QuizCreateAPIView(generics.CreateAPIView):
 
 class QuizViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Quiz.objects.all()
-    serializer_class = QuizDetailSerializer
+    serializer_class = QuizFullDetailSerializer  
     permission_classes = [permissions.IsAuthenticated] 
 
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
         quiz = self.get_object()
-        serializer = QuizDetailSerializer(quiz, context={'request': request})
+        serializer = QuizFullDetailSerializer(quiz, context={'request': request})  # Changed this
         return Response(serializer.data)
 
     @action(detail=True, methods=['get'])
