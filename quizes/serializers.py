@@ -28,11 +28,11 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True)  
+    # questions = QuestionSerializer(many=True, read_only=True)  
 
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit', 'questions']
+        fields = ['id', 'title', 'description', 'time_limit']
 
 
 class QuizSerializer(serializers.ModelSerializer):
