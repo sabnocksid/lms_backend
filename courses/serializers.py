@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Course, Category, Rating
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer, LessonOverviewSerializer
-from quizes.serializers import QuizSerializer
+from quizes.serializers import QuizDetailSerializer
 from lessons.models import ChapterProgress
 
 
@@ -110,7 +110,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     lessons = LessonOverviewSerializer(many=True, read_only=True)
-    quizzes = QuizSerializer(many=True, read_only=True)
+    quizzes = QuizDetailSerializer(many=True, read_only=True)
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
@@ -153,7 +153,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         total_completion_rate = 0
         for lesson in obj.lessons.all():
             lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
-            total_completion_rate += lesson_serializer.data.get('lesson_completion_rate', 0)
+            total_completion_rate += lesson_serializer.data.get("lesson_completion_rate", 0)
 
         return total_completion_rate / total_lessons if total_lessons > 0 else 0
 
