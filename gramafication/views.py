@@ -9,7 +9,7 @@ from .serializers import (
     CourseGamificationSerializer
 )
 from rest_framework.parsers import MultiPartParser, FormParser
-from lessons.utils.upload_minio import upload_file_to_minio
+from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -27,11 +27,16 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         return profile
 
     def get(self, request, *args, **kwargs):
+        profile = self.get_object() 
+        
         if request.user.role == 'student':
-            profile = self.get_object()
+            profile_image_url = None
+            if profile.profile_image:
+                profile_image_url = get_presigned_url(profile.profile_image, request=request)
+
             return Response({
                 "full_name": profile.full_name,
-                "profile_image": profile.profile_image,
+                "profile_image": profile_image_url,  
                 "points": profile.points,
                 "xp": profile.xp,
                 "rank": profile.rank,
@@ -40,7 +45,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         else:
             return Response({
                 "full_name": request.user.full_name,
-                "role": request.user.role  
+                "role": request.user.role
             })
 
 
