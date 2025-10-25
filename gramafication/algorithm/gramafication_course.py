@@ -1,5 +1,5 @@
 from django.utils import timezone
-from ..models import LearnerProfile
+from ..models import LearnerProfile, PointTransaction
 from quizes.models import Quiz, QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 
@@ -11,57 +11,80 @@ POINTS_COURSE_COMPLETION = 50
 XP_COURSE_COMPLETION = 25
 
 def process_course_gamification(user, course):
-    # Get the learner profile for the user
-    learner = user.profile
+    learner = user.profile  # Make sure the related_name matches
 
-    # Step 1: Calculate completed chapters
+    # --- Chapters ---
     completed_chapters = ChapterProgress.objects.filter(
         user=user, chapter__lesson__course=course, completed=True
-    ).count()
+    )
+    chapter_points = 0
+    chapter_xp = 0
 
-    # Get the total number of chapters in the course
-    total_chapters = Chapter.objects.filter(lesson__course=course).count()
+    for progress in completed_chapters:
+        reason = f"Chapter completed: {progress.chapter.id}"
+        if not PointTransaction.objects.filter(learner=learner, reason=reason).exists():
+            PointTransaction.objects.create(
+                learner=learner,
+                points=POINTS_PER_CHAPTER,
+                reason=reason
+            )
+            chapter_points += POINTS_PER_CHAPTER
+            chapter_xp += XP_PER_CHAPTER
 
-    # Calculate points and XP for completed chapters
-    chapter_points = completed_chapters * POINTS_PER_CHAPTER
-    chapter_xp = completed_chapters * XP_PER_CHAPTER
-
-    # Step 2: Calculate completed quiz attempts
+    # --- Quizzes ---
     quiz_attempts = QuizAttempt.objects.filter(user=user, quiz__course=course)
     correct_answers = 0
-    total_quizzes = course.quizzes.count()
-    completed_quizzes = quiz_attempts.count()
+    quiz_points = 0
+    quiz_xp = 0
 
-    # Calculate the number of correct answers from quiz attempts
     for attempt in quiz_attempts:
+        attempt_correct = 0
         for answer in attempt.answers.all():
             question = answer.question
             if question.question_type == "MCQ" and answer.selected_choice and answer.selected_choice.is_correct:
-                correct_answers += 1
+                attempt_correct += 1
             elif question.question_type == "TF" and answer.selected_choice and getattr(question, "is_true", False) == answer.selected_choice.is_correct:
-                correct_answers += 1
+                attempt_correct += 1
+        if attempt_correct > 0:
+            reason = f"Quiz correct answers: {attempt.quiz.id}"
+            if not PointTransaction.objects.filter(learner=learner, reason=reason).exists():
+                points = attempt_correct * POINTS_PER_CORRECT_ANSWER
+                xp = attempt_correct * XP_PER_CORRECT_ANSWER
+                PointTransaction.objects.create(
+                    learner=learner,
+                    points=points,
+                    reason=reason
+                )
+                quiz_points += points
+                quiz_xp += xp
+                correct_answers += attempt_correct
 
-    # Calculate points and XP for correct answers
-    quiz_points = correct_answers * POINTS_PER_CORRECT_ANSWER
-    quiz_xp = correct_answers * XP_PER_CORRECT_ANSWER
-
+    # --- Course completion bonus ---
+    total_chapters = Chapter.objects.filter(lesson__course=course).count()
+    total_quizzes = course.quizzes.count()
     course_completed_bonus = False
-    if completed_chapters == total_chapters and completed_quizzes == total_quizzes:
-        quiz_points += POINTS_COURSE_COMPLETION
-        quiz_xp += XP_COURSE_COMPLETION
-        course_completed_bonus = True
 
-    learner.points += chapter_points + quiz_points
+    if completed_chapters.count() == total_chapters and quiz_attempts.count() == total_quizzes:
+        reason = f"Course completed bonus: {course.id}"
+        if not PointTransaction.objects.filter(learner=learner, reason=reason).exists():
+            PointTransaction.objects.create(
+                learner=learner,
+                points=POINTS_COURSE_COMPLETION,
+                reason=reason
+            )
+            quiz_points += POINTS_COURSE_COMPLETION
+            quiz_xp += XP_COURSE_COMPLETION
+            course_completed_bonus = True
+
+    # --- Update profile XP and rank ---
     learner.xp += chapter_xp + quiz_xp
-
     learner.update_rank()
-
-    learner.save(update_fields=["points", "xp", "rank"])
+    learner.save(update_fields=["xp", "rank"])
 
     return {
-        "completed_chapters": completed_chapters,
+        "completed_chapters": completed_chapters.count(),
         "total_chapters": total_chapters,
-        "completed_quizzes": completed_quizzes,
+        "completed_quizzes": quiz_attempts.count(),
         "total_quizzes": total_quizzes,
         "correct_answers": correct_answers,
         "points_earned": chapter_points + quiz_points,

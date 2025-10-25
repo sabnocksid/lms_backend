@@ -12,7 +12,7 @@ from .serializers import (
 )
 
 from gramafication.algorithm.gramafication_course import process_course_gamification
-from gramafication.models import LearnerProfile 
+from gramafication.models import LearnerProfile, PointTransaction
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -34,10 +34,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def complete_and_next(self, request, pk=None):
         current_chapter = self.get_object()
-
-        progress, _ = ChapterProgress.objects.get_or_create(
-            user=request.user, chapter=current_chapter
-        )
+        progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=current_chapter)
         progress.mark_completed()
 
         learner_profile = getattr(request.user, "profile", None)
@@ -47,7 +44,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
                 "message": "Learner profile does not exist for the user."
             })
 
-        process_course_gamification(request.user, current_chapter.lesson.course)
+        gamification_result = process_course_gamification(request.user, current_chapter.lesson.course)
 
         next_chapter = (
             Chapter.objects
@@ -59,11 +56,13 @@ class ChapterViewSet(viewsets.ModelViewSet):
         if not next_chapter:
             return Response({
                 "status": "completed_all",
-                "message": "You finished all chapters and completed the course!"
+                "message": "You finished all chapters and completed the course!",
+                "gamification": gamification_result
             })
 
         serializer = self.get_serializer(next_chapter, context={"request": request})
         return Response({
             "status": "next_chapter",
-            "chapter": serializer.data
+            "chapter": serializer.data,
+            "gamification": gamification_result
         })
