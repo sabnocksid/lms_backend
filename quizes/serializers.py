@@ -16,16 +16,15 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
 
     def get_choices(self, obj):
-        if obj.question_type == "TEXT":
-            return []
+        choices = obj.choices.all()
 
-        if obj.question_type == "TF":
+        if not choices.exists() and obj.question_type == "TF":
             return [
                 {"text": "True", "is_correct": obj.answer_is_true},
                 {"text": "False", "is_correct": not obj.answer_is_true},
             ]
 
-        return ChoiceSerializer(obj.choices.all(), many=True).data
+        return ChoiceSerializer(choices, many=True).data
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
