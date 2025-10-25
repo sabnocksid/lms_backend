@@ -2,92 +2,10 @@ from rest_framework import serializers
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
 
 
-
 class QuizCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz
         fields = ['course', 'title', 'description', 'time_limit']
-
-
-
-class ChoiceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Choice
-        fields = ['id', 'text']
-
-
-
-class MCQQuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True)
-
-    class Meta:
-        model = Question
-        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'choices']
-
-    def create(self, validated_data):
-        choices_data = validated_data.pop('choices')
-        question = Question.objects.create(**validated_data)
-        for choice_data in choices_data:
-            Choice.objects.create(question=question, **choice_data)
-        return question
-
-
-
-
-class TextQuestionSerializer(serializers.ModelSerializer):
-    time_limit = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Question
-        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'time_limit']
-
-    def get_time_limit(self, obj):
-        return obj.quiz.time_limit
-
-
-class TFQuestionSerializer(serializers.ModelSerializer):
-    is_true = serializers.BooleanField(write_only=True)
-    class Meta:
-        model = Question
-        fields = [
-            'id',
-            'quiz',
-            'text',
-            'marks',
-            'is_true',  
-        ]
-
-    def create(self, validated_data):
-        validated_data['question_type'] = 'TF'
-        is_true_value = validated_data.pop('is_true', True)
-        question = Question.objects.create(**validated_data)
-        
-        question.is_true = is_true_value  
-        question.save()
-
-        return question
-
-
-
-
-
-
-class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Question
-        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'choices']
-
-    def to_representation(self, instance):
-        if instance.question_type == 'MCQ':
-            return MCQQuestionSerializer(instance).data
-        elif instance.question_type == 'TEXT':
-            return TextQuestionSerializer(instance).data
-        elif instance.question_type == 'TF':
-            return TFQuestionSerializer(instance).data
-        return super().to_representation(instance)
-
 
 
 class QuizSerializer(serializers.ModelSerializer):
@@ -101,12 +19,76 @@ class QuizSerializer(serializers.ModelSerializer):
         return obj.questions.count()
 
 
+class ChoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Choice
+        fields = ['id', 'text']
+
+
+class MCQQuestionSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'quiz', 'text', 'marks', 'question_type', 'choices']
+
+    def create(self, validated_data):
+        choices_data = validated_data.pop('choices')
+        question = Question.objects.create(**validated_data)
+        for choice_data in choices_data:
+            Choice.objects.create(question=question, **choice_data)
+        return question
+
+
+class TextQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ['id', 'quiz', 'text', 'marks', 'question_type']
+
+
+class TFQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ['id', 'quiz', 'text', 'marks', 'question_type']
+
+
+class CreateTFQuestionSerializer(serializers.ModelSerializer):
+    is_true = serializers.BooleanField(write_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['quiz', 'text', 'marks', 'is_true']
+
+    def create(self, validated_data):
+        validated_data['question_type'] = 'TF'
+        is_true_value = validated_data.pop('is_true')
+        question = Question.objects.create(**validated_data)
+        question.is_true = is_true_value  # stored internally
+        question.save()
+        return question
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'quiz', 'text', 'marks', 'question_type', 'choices']
+
+    def to_representation(self, instance):
+        if instance.question_type == 'MCQ':
+            return MCQQuestionSerializer(instance).data
+        elif instance.question_type == 'TEXT':
+            return TextQuestionSerializer(instance).data
+        elif instance.question_type == 'TF':
+            return TFQuestionSerializer(instance).data
+        return super().to_representation(instance)
+
 
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
         fields = ['question', 'selected_choice', 'text_answer']
-
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
@@ -130,7 +112,3 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
                 }
             )
         return attempt
-
-
-
-

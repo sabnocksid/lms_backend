@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from .models import Quiz, Question, QuizAttempt
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
-    QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer, QuizSerializer
+    CreateTFQuestionSerializer, QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer
 )
 
 
 class CreateQuizView(generics.CreateAPIView):
     serializer_class = QuizCreateSerializer
     permission_classes = [IsAuthenticated]
+
 
 class ListQuizView(generics.ListAPIView):
     serializer_class = QuizSerializer
@@ -23,20 +24,22 @@ class ListQuizView(generics.ListAPIView):
             qs = qs.filter(questions__question_type=q_type).distinct()
         return qs
 
-# Create questions by type
+
 class CreateMCQQuestion(generics.CreateAPIView):
     serializer_class = MCQQuestionSerializer
     permission_classes = [IsAuthenticated]
+
 
 class CreateTextQuestion(generics.CreateAPIView):
     serializer_class = TextQuestionSerializer
     permission_classes = [IsAuthenticated]
 
+
 class CreateTFQuestion(generics.CreateAPIView):
-    serializer_class = TFQuestionSerializer
+    serializer_class = CreateTFQuestionSerializer
     permission_classes = [IsAuthenticated]
 
-# GET questions with filter
+
 class QuizQuestionsList(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
@@ -70,7 +73,7 @@ class QuizQuestionsList(generics.ListAPIView):
             "questions": serializer.data
         })
 
-# Submit quiz attempt
+
 class SubmitQuizAttempt(generics.CreateAPIView):
     serializer_class = QuizAttemptSerializer
     permission_classes = [IsAuthenticated]
