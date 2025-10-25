@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .models import Quiz, Question, QuizAttempt
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
-    QuizSerializer, QuizCreateSerializer, QuizAttemptSerializer
+    QuizSerializer, QuizCreateSerializer, QuizAttemptSerializer, QuizResultSerializer
 )
 
 class CreateQuizView(generics.CreateAPIView):
@@ -64,3 +64,20 @@ class SubmitQuizAttempt(generics.CreateAPIView):
         user = self.request.user
         attempt, created = QuizAttempt.objects.get_or_create(user=user, quiz=quiz)
         serializer.save(attempt=attempt)
+
+
+class QuizResultView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = QuizResultSerializer
+    lookup_url_kwarg = 'quiz_id'
+
+    def get_queryset(self):
+        return Quiz.objects.all()
+
+    def retrieve(self, request, *args, **kwargs):
+        quiz_id = kwargs.get(self.lookup_url_kwarg)
+        quiz = Quiz.objects.get(id=quiz_id)
+        user = request.user
+        attempt = QuizAttempt.objects.filter(quiz=quiz, user=user).first()
+        serializer = self.get_serializer(quiz, context={'attempt': attempt})
+        return Response(serializer.data)

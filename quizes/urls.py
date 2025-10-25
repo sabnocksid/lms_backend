@@ -13,6 +13,6 @@ urlpatterns = [
 
     path('quizzes/<int:quiz_id>/tf/', views.ListTFQuestions.as_view(), name='list-tf-questions'),      
     path('quizzes/tf/create/', views.CreateTFQuestion.as_view(), name='create-tf-question'),         
-
     path('quizzes/<int:pk>/attempt/', views.SubmitQuizAttempt.as_view(), name='submit-quiz-attempt'),    
+    path('quizzes/<int:quiz_id>/result/', views.QuizResultView.as_view(), name='quiz-result'),
 ]

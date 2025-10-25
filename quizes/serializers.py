@@ -83,3 +83,50 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
                 }
             )
         return attempt
+class UserAnswerSerializer(serializers.ModelSerializer):
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    question_type = serializers.CharField(source='question.question_type', read_only=True)
+    correct = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Answer
+        fields = ['question', 'question_text', 'question_type', 'selected_choice', 'text_answer', 'correct']
+
+    def get_correct(self, obj):
+        if obj.question.question_type == 'MCQ':
+            return obj.selected_choice.is_correct if obj.selected_choice else False
+        elif obj.question.question_type == 'TF':
+            return obj.question.is_true == obj.selected_choice.is_correct if obj.selected_choice else False
+        elif obj.question.question_type == 'TEXT':
+            return None
+        return False
+
+
+class QuizResultSerializer(serializers.ModelSerializer):
+    answers = UserAnswerSerializer(source='quizattempt_set.first.answers', many=True)
+    total_correct = serializers.SerializerMethodField()
+    total_incorrect = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'title', 'answers', 'total_correct', 'total_incorrect']
+
+    def get_total_correct(self, obj):
+        attempt = self.context.get('attempt')
+        if not attempt:
+            return 0
+        correct_count = 0
+        for answer in attempt.answers.all():
+            if answer.question.question_type in ['MCQ', 'TF']:
+                if answer.question.question_type == 'MCQ' and answer.selected_choice and answer.selected_choice.is_correct:
+                    correct_count += 1
+                elif answer.question.question_type == 'TF' and answer.question.is_true == (answer.selected_choice.is_correct if answer.selected_choice else False):
+                    correct_count += 1
+        return correct_count
+
+    def get_total_incorrect(self, obj):
+        attempt = self.context.get('attempt')
+        if not attempt:
+            return 0
+        total_questions = attempt.answers.count()
+        return total_questions - self.get_total_correct(obj)
