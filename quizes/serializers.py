@@ -13,7 +13,6 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
-        # fields = ['id', 'text', 'is_correct']
         fields = ['id', 'text']
 
 
@@ -48,13 +47,38 @@ class TextQuestionSerializer(serializers.ModelSerializer):
 
 class TFQuestionSerializer(serializers.ModelSerializer):
     time_limit = serializers.SerializerMethodField()
+    choices = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
-        fields = ['id', 'quiz', 'text', 'question_type', 'marks', 'time_limit']
+        fields = [
+            'id',
+            'quiz',
+            'text',
+            'question_type',
+            'marks',
+            'time_limit',
+            'choices',
+        ]
 
     def get_time_limit(self, obj):
         return obj.quiz.time_limit
+
+    def get_choices(self, obj):
+        return [
+            {"id": None, "text": "True"},
+            {"id": None, "text": "False"}
+        ]
+
+    def create(self, validated_data):
+
+        question = Question.objects.create(**validated_data)
+
+        Choice.objects.create(question=question, text="True")
+        Choice.objects.create(question=question, text="False")
+
+        return question
+
 
 
 
