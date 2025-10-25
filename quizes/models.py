@@ -9,6 +9,7 @@ class Quiz(models.Model):
     description = models.TextField(blank=True)
     time_limit = models.PositiveIntegerField(help_text="Time limit in minutes", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_true = models.BooleanField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.course.name} - {self.title}"
