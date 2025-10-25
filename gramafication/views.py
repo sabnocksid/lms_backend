@@ -26,6 +26,21 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         )
         return profile
 
+    def get(self, request, *args, **kwargs):
+        if request.user.role == 'student':
+            profile = self.get_object()
+            return Response({
+                "full_name": profile.full_name,
+                "profile_image": profile.profile_image,
+                "points": profile.points,
+                "xp": profile.xp,
+                "rank": profile.rank,
+                "rank_position": profile.get_rank_position()
+            })
+        else:
+            return super().get(request, *args, **kwargs)
+
+
 class LearnerProfileUpdateView(generics.UpdateAPIView):
     serializer_class = LearnerProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -43,15 +58,16 @@ class LeaderboardView(APIView):
 
     def get(self, request):
         top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
+        
         serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
 
         current_user = None
         rank = None
-        
+
         if hasattr(request.user, 'learner_profile'):
             try:
                 current_user = request.user.learner_profile
-                rank = current_user.get_rank_position() if current_user else None 
+                rank = current_user.get_rank_position() if current_user else None
             except LearnerProfile.DoesNotExist:
                 current_user = None
                 rank = None
@@ -69,9 +85,13 @@ class LeaderboardView(APIView):
                 }
             })
         else:
+            top_3_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
+            top_3_serializer = LeaderboardSerializer(top_3_learners, many=True, context={"request": request})
             return Response({
-                "leaderboard": serializer.data
+                "leaderboard": serializer.data,  
+                "top_3_learners": top_3_serializer.data 
             })
+
 
 
 class CourseGamificationView(APIView):
