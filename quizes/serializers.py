@@ -47,7 +47,7 @@ class TextQuestionSerializer(serializers.ModelSerializer):
 
 class TFQuestionSerializer(serializers.ModelSerializer):
     time_limit = serializers.SerializerMethodField()
-    # choices = serializers.SerializerMethodField()
+    choices = serializers.SerializerMethodField()
     is_true = serializers.BooleanField(write_only=True)
 
     class Meta:
@@ -59,7 +59,7 @@ class TFQuestionSerializer(serializers.ModelSerializer):
             'question_type',
             'marks',
             'time_limit',
-            # 'choices',
+            'choices',
             'is_true', 
         ]
 
@@ -71,6 +71,7 @@ class TFQuestionSerializer(serializers.ModelSerializer):
         return [{"id": c.id, "text": c.text} for c in choices]
 
     def create(self, validated_data):
+        validated_data['question_type'] = 'TF'
         is_true = validated_data.pop('is_true', True)
 
         question = Question.objects.create(**validated_data)
