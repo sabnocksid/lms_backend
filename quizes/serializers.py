@@ -7,11 +7,18 @@ class ChoiceSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'is_correct']
 
 class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, required=False)
-    
+    choices = ChoiceSerializer(many=True, read_only=True)
+
     class Meta:
         model = Question
-        fields = ['id', 'quiz', 'text', 'marks', 'question_type', 'choices']
+        fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
+
+class QuizDetailSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'course', 'title', 'description', 'time_limit', 'questions']
 
 class QuizSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
@@ -23,14 +30,7 @@ class QuizSerializer(serializers.ModelSerializer):
     def get_questions_count(self, obj):
         return obj.questions.count()
 
-class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True)
-    
-    class Meta:
-        model = Quiz
-        fields = ['id', 'course', 'title', 'description', 'time_limit', 'questions']
 
-# ------------------ Quiz Attempt & Results ------------------
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
