@@ -7,11 +7,24 @@ class ChoiceSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'is_correct']
 
 class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, read_only=True)
+    choices = serializers.SerializerMethodField()
+    answer_is_true = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Question
         fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
+
+    def get_choices(self, obj):
+        if obj.question_type == "TEXT":
+            return []
+
+        if obj.question_type == "TF":
+            return [
+                {"text": "True", "is_correct": obj.answer_is_true},
+                {"text": "False", "is_correct": not obj.answer_is_true}
+            ]
+
+        return ChoiceSerializer(obj.choices.all(), many=True).data
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
