@@ -40,17 +40,14 @@ class UserAnswerSerializer(serializers.ModelSerializer):
             if obj.question.question_type == 'MCQ':
                 return obj.selected_choice.is_correct if obj.selected_choice else False
             
-            # For True/False questions
             elif obj.question.question_type == 'TF':
                 return obj.selected_choice.is_correct == obj.question.is_true if obj.selected_choice else False
 
-            # For Text questions (could be handled with custom logic)
             elif obj.question.question_type == 'TEXT':
-                # Assuming there's a field `correct_answer` in the Question model (if exists)
-                # If not, this could just be `None`
+         
                 return obj.text_answer == obj.question.correct_answer if obj.text_answer else False
 
-            return None  # Default return if no question type matches
+            return None  
         except Exception as e:
             logger.error(f"Error in get_correct: {e}")
             return None
@@ -73,11 +70,12 @@ class QuizSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = UserAnswerSerializer(many=True, read_only=True) 
+    # questions = UserAnswerSerializer(many=True, read_only=True) 
 
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit', 'questions']
+        # fields = ['id', 'title', 'description', 'time_limit', 'questions']
+        fields = ['id', 'title', 'description', 'time_limit']
 
 
 class AnswerSerializer(serializers.ModelSerializer):
