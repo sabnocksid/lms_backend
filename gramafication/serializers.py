@@ -62,7 +62,9 @@ class LeaderboardSerializer(serializers.ModelSerializer):
         fields = ["id", "full_name", "profile_image", "points", "xp", "rank", "rank_position"]
 
     def get_rank_position(self, obj):
-        all_learners = LearnerProfile.objects.order_by("-points", "full_name")
+        if not obj:
+            return None
+        all_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
         current_rank = 0
         last_points = None
         rank_map = {}
@@ -74,7 +76,7 @@ class LeaderboardSerializer(serializers.ModelSerializer):
         return rank_map.get(obj.id, None)
 
     def get_profile_image(self, obj):
-        if obj.profile_image:
+        if obj and obj.profile_image:
             request = self.context.get("request")
             return get_presigned_url(obj.profile_image, request=request)
         return None

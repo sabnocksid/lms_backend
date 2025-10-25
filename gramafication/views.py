@@ -42,7 +42,7 @@ class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        top_learners = LearnerProfile.objects.order_by("-points", "full_name")[:10]
+        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
         serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
 
         try:
