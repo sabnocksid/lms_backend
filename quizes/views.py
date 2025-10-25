@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from .models import Quiz, Question, QuizAttempt
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
-    QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer
+    QuizSerializer, QuizCreateSerializer, QuizAttemptSerializer
 )
 
 class CreateQuizView(generics.CreateAPIView):
@@ -18,50 +18,41 @@ class ListQuizView(generics.ListAPIView):
     def get_queryset(self):
         return Quiz.objects.all()
 
+class ListMCQQuestions(generics.ListAPIView):
+    serializer_class = MCQQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        quiz_id = self.kwargs['quiz_id']
+        return Question.objects.filter(quiz_id=quiz_id, question_type='MCQ')
+
 class CreateMCQQuestion(generics.CreateAPIView):
     serializer_class = MCQQuestionSerializer
     permission_classes = [IsAuthenticated]
+
+class ListTextQuestions(generics.ListAPIView):
+    serializer_class = TextQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        quiz_id = self.kwargs['quiz_id']
+        return Question.objects.filter(quiz_id=quiz_id, question_type='TEXT')
 
 class CreateTextQuestion(generics.CreateAPIView):
     serializer_class = TextQuestionSerializer
     permission_classes = [IsAuthenticated]
 
-class CreateTFQuestion(generics.CreateAPIView):
+class ListTFQuestions(generics.ListAPIView):
     serializer_class = TFQuestionSerializer
     permission_classes = [IsAuthenticated]
 
-class QuizQuestionsList(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        q_type = self.request.query_params.get('type')
-        if q_type == 'MCQ':
-            return MCQQuestionSerializer
-        elif q_type == 'TEXT':
-            return TextQuestionSerializer
-        elif q_type == 'TF':
-            return TFQuestionSerializer
-        return MCQQuestionSerializer
-
     def get_queryset(self):
         quiz_id = self.kwargs['quiz_id']
-        q_type = self.request.query_params.get('type')
-        qs = Question.objects.filter(quiz_id=quiz_id)
-        if q_type:
-            qs = qs.filter(question_type=q_type)
-        return qs
+        return Question.objects.filter(quiz_id=quiz_id, question_type='TF')
 
-    def list(self, request, *args, **kwargs):
-        quiz_id = self.kwargs['quiz_id']
-        quiz = Quiz.objects.get(id=quiz_id)
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        return Response({
-            "quiz_id": quiz.id,
-            "title": quiz.title,
-            "description": quiz.description,
-            "time_limit": quiz.time_limit,
-            "questions": serializer.data
-        })
+class CreateTFQuestion(generics.CreateAPIView):
+    serializer_class = TFQuestionSerializer
+    permission_classes = [IsAuthenticated]
 
 class SubmitQuizAttempt(generics.CreateAPIView):
     serializer_class = QuizAttemptSerializer
