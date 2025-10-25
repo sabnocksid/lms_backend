@@ -9,12 +9,12 @@ class ChoiceSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, read_only=True)
+    # choices = ChoiceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Question
         # fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
-        fields = ['id', 'text', 'question_type', 'marks', 'choices']
+        fields = ['id', 'text', 'question_type', 'marks']
 
 
 
