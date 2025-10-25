@@ -51,10 +51,18 @@ class QuizAttempt(models.Model):
 
 
 class Answer(models.Model):
-    attempt = models.ForeignKey(QuizAttempt, related_name='answers', on_delete=models.CASCADE)
-    question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    selected_choice = models.ForeignKey(Choice, null=True, blank=True, on_delete=models.SET_NULL)
+    attempt = models.ForeignKey(QuizAttempt, on_delete=models.CASCADE, related_name='answers')
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='answers')
+    selected_choice = models.ForeignKey(
+        Choice, null=True, blank=True, on_delete=models.SET_NULL, related_name='+'
+    )
     text_answer = models.TextField(blank=True, null=True)
 
-    def __str__(self):
-        return f"{self.attempt.user.full_name} - {self.question.text[:30]}"
+    @property
+    def is_correct(self):
+        if self.question.question_type == 'MCQ':
+            return bool(self.selected_choice.is_correct) if self.selected_choice else False
+        elif self.question.question_type == 'TF':
+            selected = bool(self.selected_choice.is_correct) if self.selected_choice else False
+            return selected == self.question.is_true
+        return None
