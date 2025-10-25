@@ -1,13 +1,17 @@
 from rest_framework import serializers
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
-import logging
-
-logger = logging.getLogger(__name__)
 
 class ChoiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct']
+
+class QuestionSerializer(serializers.ModelSerializer):
+    choices = ChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
@@ -17,23 +21,10 @@ class UserAnswerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Answer
-        fields = ['question', 'question_text', 'question_type', 'selected_choice',
-                  'text_answer', 'question_is_true', 'correct']
-
-class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Question
-        fields = ['id', 'text', 'question_type', 'marks', 'answer_is_true', 'choices']
-
-class QuizDetailSerializer(serializers.ModelSerializer):
-    # questions = QuestionSerializer(many=True, read_only=True)  
-
-    class Meta:
-        model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit']
-
+        fields = [
+            'question', 'question_text', 'question_type', 'selected_choice',
+            'text_answer', 'question_is_true', 'correct'
+        ]
 
 class QuizSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
@@ -45,82 +36,23 @@ class QuizSerializer(serializers.ModelSerializer):
     def get_questions_count(self, obj):
         return obj.questions.count()
 
-class AnswerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Answer
-        fields = ['question', 'selected_choice', 'text_answer']
-
-class QuizAttemptSerializer(serializers.ModelSerializer):
-    answers = AnswerSerializer(many=True)
-
-    class Meta:
-        model = QuizAttempt
-        fields = ['id', 'completed_at', 'answers']
-
-    def create(self, validated_data):
-        answers_data = validated_data.pop('answers')
-        attempt = validated_data.pop('attempt', None) or QuizAttempt.objects.create(**validated_data)
-        for answer_data in answers_data:
-            Answer.objects.update_or_create(
-                attempt=attempt,
-                question=answer_data['question'],
-                defaults={
-                    'selected_choice': answer_data.get('selected_choice'),
-                    'text_answer': answer_data.get('text_answer')
-                }
-            )
-        return attempt
-
-class QuizResultSerializer(serializers.ModelSerializer):
-    mcq_answers = serializers.SerializerMethodField()
-    tf_answers = serializers.SerializerMethodField()
-    text_answers = serializers.SerializerMethodField()
-    total_questions = serializers.SerializerMethodField()
-    attempted = serializers.SerializerMethodField()
-    total_correct = serializers.SerializerMethodField()
-    total_incorrect = serializers.SerializerMethodField()
+class QuizDetailSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True) 
 
     class Meta:
         model = Quiz
-        fields = ['id', 'title',
-                  'total_questions', 'attempted', 'total_correct', 'total_incorrect',
-                  'mcq_answers', 'tf_answers', 'text_answers']
+        fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
-    def get_mcq_answers(self, obj):
-        attempt = self.context.get('attempt')
-        if not attempt: return []
-        return UserAnswerSerializer(
-            [a for a in attempt.answers.all() if a.question.question_type == 'MCQ'],
-            many=True
-        ).data
+class QuizUserDetailSerializer(serializers.ModelSerializer):
+    answers = serializers.SerializerMethodField()
 
-    def get_tf_answers(self, obj):
-        attempt = self.context.get('attempt')
-        if not attempt: return []
-        return UserAnswerSerializer(
-            [a for a in attempt.answers.all() if a.question.question_type == 'TF'],
-            many=True
-        ).data
+    class Meta:
+        model = Quiz
+        fields = ['id', 'title', 'description', 'time_limit', 'answers']
 
-    def get_text_answers(self, obj):
-        attempt = self.context.get('attempt')
-        if not attempt: return []
-        return UserAnswerSerializer(
-            [a for a in attempt.answers.all() if a.question.question_type == 'TEXT'],
-            many=True
-        ).data
-
-    def get_total_questions(self, obj):
-        return obj.questions.count()
-
-    def get_attempted(self, obj):
-        attempt = self.context.get('attempt')
-        return attempt.answers.count() if attempt else 0
-
-    def get_total_correct(self, obj):
-        attempt = self.context.get('attempt')
-        if not attempt: return 0
-        return sum(a.is_correct for a in attempt.answers.all())
-
-    def get_total_incorrect(self, obj):
-        return self.get_attempted(obj) - self.get_total_correct(obj)
+    def get_answers(self, obj):
+        user = self.context['request'].user
+        attempt = QuizAttempt.objects.filter(quiz=obj, user=user).last()
+        if not attempt:
+            return []
+        return UserAnswerSerializer(attempt.answers.all(), many=True).data
