@@ -6,6 +6,7 @@ class ChoiceSerializer(serializers.ModelSerializer):
         model = Choice
         fields = ['id', 'text', 'is_correct']
 
+
 class QuestionSerializer(serializers.ModelSerializer):
     choices = serializers.SerializerMethodField()
     answer_is_true = serializers.BooleanField(read_only=True)
@@ -21,10 +22,18 @@ class QuestionSerializer(serializers.ModelSerializer):
         if obj.question_type == "TF":
             return [
                 {"text": "True", "is_correct": obj.answer_is_true},
-                {"text": "False", "is_correct": not obj.answer_is_true}
+                {"text": "False", "is_correct": not obj.answer_is_true},
             ]
 
         return ChoiceSerializer(obj.choices.all(), many=True).data
+
+
+class QuizDetailSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
@@ -49,12 +58,6 @@ class QuizSerializer(serializers.ModelSerializer):
     def get_questions_count(self, obj):
         return obj.questions.count()
 
-class QuizDetailSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, read_only=True) 
-
-    class Meta:
-        model = Quiz
-        fields = ['id', 'title', 'description', 'time_limit', 'questions']
 
 class QuizUserDetailSerializer(serializers.ModelSerializer):
     answers = serializers.SerializerMethodField()
