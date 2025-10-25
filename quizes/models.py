@@ -24,7 +24,7 @@ class Question(models.Model):
     text = models.TextField()
     question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='MCQ')
     marks = models.PositiveIntegerField(default=1)
-    is_true = models.BooleanField(null=True, blank=True)
+    is_true = models.BooleanField(default=False)
 
 
     def __str__(self):
