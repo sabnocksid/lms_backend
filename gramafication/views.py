@@ -51,7 +51,7 @@ class LeaderboardView(APIView):
         if hasattr(request.user, 'learner_profile'):
             try:
                 current_user = request.user.learner_profile
-                rank = current_user.get_rank_position()  
+                rank = current_user.get_rank_position() if current_user else None 
             except LearnerProfile.DoesNotExist:
                 current_user = None
                 rank = None
