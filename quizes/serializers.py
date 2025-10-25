@@ -83,6 +83,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
                 }
             )
         return attempt
+
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
@@ -96,44 +97,58 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         if obj.question.question_type == 'MCQ':
             return obj.selected_choice.is_correct if obj.selected_choice else False
         elif obj.question.question_type == 'TF':
-            return obj.question.is_true == obj.selected_choice.is_correct if obj.selected_choice else False
+            return obj.question.is_true == (obj.selected_choice.is_correct if obj.selected_choice else False)
         elif obj.question.question_type == 'TEXT':
             return None
         return False
 
-
 class QuizResultSerializer(serializers.ModelSerializer):
-    answers = serializers.SerializerMethodField()
-    total_correct = serializers.SerializerMethodField()
-    total_incorrect = serializers.SerializerMethodField()
+    mcq_answers = serializers.SerializerMethodField()
+    tf_answers = serializers.SerializerMethodField()
+    text_answers = serializers.SerializerMethodField()
+    mcq_correct = serializers.SerializerMethodField()
+    mcq_incorrect = serializers.SerializerMethodField()
+    tf_correct = serializers.SerializerMethodField()
+    tf_incorrect = serializers.SerializerMethodField()
+    text_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'answers', 'total_correct', 'total_incorrect']
+        fields = [
+            'id', 'title',
+            'mcq_answers', 'mcq_correct', 'mcq_incorrect',
+            'tf_answers', 'tf_correct', 'tf_incorrect',
+            'text_answers', 'text_count'
+        ]
 
-    def get_answers(self, obj):
+    def get_mcq_answers(self, obj):
         attempt = self.context.get('attempt')
-        if not attempt:
-            return []
-        return UserAnswerSerializer(attempt.answers.all(), many=True).data
+        return UserAnswerSerializer([a for a in attempt.answers.all() if a.question.question_type=='MCQ'], many=True).data
 
-    def get_total_correct(self, obj):
+    def get_tf_answers(self, obj):
         attempt = self.context.get('attempt')
-        if not attempt:
-            return 0
+        return UserAnswerSerializer([a for a in attempt.answers.all() if a.question.question_type=='TF'], many=True).data
 
-        correct_count = 0
-        for answer in attempt.answers.all():
-            if answer.question.question_type == 'MCQ' and answer.selected_choice and answer.selected_choice.is_correct:
-                correct_count += 1
-            elif answer.question.question_type == 'TF':
-                selected = answer.selected_choice
-                if selected:
-                    correct_count += answer.question.is_true == selected.is_correct
-        return correct_count
-
-    def get_total_incorrect(self, obj):
+    def get_text_answers(self, obj):
         attempt = self.context.get('attempt')
-        if not attempt:
-            return 0
-        return attempt.answers.count() - self.get_total_correct(obj)
+        return UserAnswerSerializer([a for a in attempt.answers.all() if a.question.question_type=='TEXT'], many=True).data
+
+    def get_mcq_correct(self, obj):
+        attempt = self.context.get('attempt')
+        return sum(1 for a in attempt.answers.all() if a.question.question_type=='MCQ' and a.selected_choice and a.selected_choice.is_correct)
+
+    def get_mcq_incorrect(self, obj):
+        attempt = self.context.get('attempt')
+        return sum(1 for a in attempt.answers.all() if a.question.question_type=='MCQ' and not (a.selected_choice and a.selected_choice.is_correct))
+
+    def get_tf_correct(self, obj):
+        attempt = self.context.get('attempt')
+        return sum(1 for a in attempt.answers.all() if a.question.question_type=='TF' and a.question.is_true == (a.selected_choice.is_correct if a.selected_choice else False))
+
+    def get_tf_incorrect(self, obj):
+        attempt = self.context.get('attempt')
+        return sum(1 for a in attempt.answers.all() if a.question.question_type=='TF' and a.question.is_true != (a.selected_choice.is_correct if a.selected_choice else False))
+
+    def get_text_count(self, obj):
+        attempt = self.context.get('attempt')
+        return sum(1 for a in attempt.answers.all() if a.question.question_type=='TEXT')
