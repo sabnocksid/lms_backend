@@ -3,8 +3,6 @@ from .models import Quiz, Question, Choice, QuizAttempt, Answer
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
-    is_correct = serializers.BooleanField()
-    
     class Meta:
         model = Choice
         fields = ['id', 'text', 'is_correct']
@@ -12,6 +10,7 @@ class ChoiceSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True, read_only=True)
+    answer_is_true = serializers.BooleanField()
 
     class Meta:
         model = Question
@@ -59,11 +58,14 @@ class QuizCreateSerializer(serializers.ModelSerializer):
 
 class QuizDetailSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
-    question_count = serializers.IntegerField(source='questions.count', read_only=True)
+    question_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Quiz
         fields = ["id", "title", "description", "time_limit", "question_count", "questions"]
+
+    def get_question_count(self, obj):
+        return obj.questions.count()
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -93,7 +95,7 @@ class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
     answer_is_true = serializers.BooleanField(source='question.answer_is_true', read_only=True)
-    correct = serializers.SerializerMethodField()  # Change this line
+    correct = serializers.SerializerMethodField()
     
     class Meta:
         model = Answer
@@ -102,8 +104,9 @@ class UserAnswerSerializer(serializers.ModelSerializer):
             'text_answer', 'answer_is_true', 'correct'
         ]
     
-    def get_correct(self, obj): 
+    def get_correct(self, obj):
         return obj.is_correct
+
 
 class QuizResultSerializer(serializers.ModelSerializer):
     total_questions = serializers.SerializerMethodField()
