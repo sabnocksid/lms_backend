@@ -29,6 +29,14 @@ class ChapterViewSet(viewsets.ModelViewSet):
         progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=current_chapter)
         progress.mark_completed()
 
+        try:
+            learner_profile = request.user.learner_profile
+        except LearnerProfile.DoesNotExist:
+            learner_profile = None
+
+        if learner_profile is None:
+            return Response({"status": "error", "message": "Learner profile does not exist for the user."})
+
         process_course_gamification(request.user, current_chapter.lesson.course)
 
         next_chapter = (
@@ -49,3 +57,4 @@ class ChapterViewSet(viewsets.ModelViewSet):
             "status": "next_chapter",
             "chapter": serializer.data
         })
+
