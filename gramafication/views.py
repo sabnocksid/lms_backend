@@ -45,12 +45,15 @@ class LeaderboardView(APIView):
         top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
         serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
 
-        try:
-            current_user = request.user.learner_profile
-            rank = current_user.get_rank_position()
-        except LearnerProfile.DoesNotExist:
-            current_user = None
-            rank = None
+        current_user = None
+        rank = None
+        if hasattr(request.user, 'learner_profile'):
+            try:
+                current_user = request.user.learner_profile
+                rank = current_user.get_rank_position()
+            except LearnerProfile.DoesNotExist:
+                current_user = None
+                rank = None
 
         return Response({
             "leaderboard": serializer.data,
