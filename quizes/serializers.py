@@ -56,3 +56,30 @@ class TFQuestionSerializer(serializers.ModelSerializer):
         question.is_true = is_true_value
         question.save()
         return question
+
+class AnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Answer
+        fields = ['question', 'selected_choice', 'text_answer']
+
+class QuizAttemptSerializer(serializers.ModelSerializer):
+    answers = AnswerSerializer(many=True)
+
+    class Meta:
+        model = QuizAttempt
+        fields = ['id', 'completed_at', 'answers']
+
+    def create(self, validated_data):
+        answers_data = validated_data.pop('answers')
+        attempt = validated_data.pop('attempt', None) or QuizAttempt.objects.create(**validated_data)
+
+        for answer_data in answers_data:
+            Answer.objects.update_or_create(
+                attempt=attempt,
+                question=answer_data['question'],
+                defaults={
+                    'selected_choice': answer_data.get('selected_choice'),
+                    'text_answer': answer_data.get('text_answer')
+                }
+            )
+        return attempt
