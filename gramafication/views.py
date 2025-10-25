@@ -56,7 +56,7 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
             defaults={"full_name": self.request.user.full_name}
         )
         return profile
-
+    
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -82,6 +82,7 @@ class LeaderboardView(APIView):
                 "current_user": {
                     "id": current_user.id if current_user else None,
                     "full_name": current_user.full_name if current_user else None,
+                    "profile_image": current_user.profile_image.url if current_user and current_user.profile_image else None,
                     "points": current_user.points if current_user else None,
                     "xp": current_user.xp if current_user else None,
                     "rank": current_user.rank if current_user else None,
@@ -93,8 +94,9 @@ class LeaderboardView(APIView):
             top_3_serializer = LeaderboardSerializer(top_3_learners, many=True, context={"request": request})
             return Response({
                 "leaderboard": serializer.data,  
-                "top_3_learners": top_3_serializer.data 
+                "top_3_learners": top_3_serializer.data
             })
+
 
 
 
