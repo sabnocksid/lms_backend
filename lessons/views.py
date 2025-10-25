@@ -1,10 +1,18 @@
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Lesson, Chapter, ChapterProgress
-from .serializers import LessonDetailSerializer, LessonWithProgressSerializer, ChapterSerializer, ChapterProgressSerializer
 from django.utils import timezone
+
+from .models import Lesson, Chapter, ChapterProgress
+from .serializers import (
+    LessonDetailSerializer,
+    LessonWithProgressSerializer,
+    ChapterSerializer,
+    ChapterProgressSerializer,
+)
+
 from gramafication.algorithm.gramafication_course import process_course_gamification
+from gramafication.models import LearnerProfile 
 
 
 class LessonViewSet(viewsets.ModelViewSet):
@@ -26,16 +34,18 @@ class ChapterViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def complete_and_next(self, request, pk=None):
         current_chapter = self.get_object()
-        progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=current_chapter)
+
+        progress, _ = ChapterProgress.objects.get_or_create(
+            user=request.user, chapter=current_chapter
+        )
         progress.mark_completed()
 
-        try:
-            learner_profile = request.user.learner_profile
-        except LearnerProfile.DoesNotExist:
-            learner_profile = None
-
+        learner_profile = getattr(request.user, "learner_profile", None)
         if learner_profile is None:
-            return Response({"status": "error", "message": "Learner profile does not exist for the user."})
+            return Response({
+                "status": "error",
+                "message": "Learner profile does not exist for the user."
+            })
 
         process_course_gamification(request.user, current_chapter.lesson.course)
 
@@ -57,4 +67,3 @@ class ChapterViewSet(viewsets.ModelViewSet):
             "status": "next_chapter",
             "chapter": serializer.data
         })
-
