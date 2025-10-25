@@ -38,7 +38,11 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
                 "rank_position": profile.get_rank_position()
             })
         else:
-            return super().get(request, *args, **kwargs)
+            return Response({
+                "full_name": request.user.full_name,
+                "role": request.user.role  
+            })
+
 
 
 class LearnerProfileUpdateView(generics.UpdateAPIView):
