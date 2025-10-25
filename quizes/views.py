@@ -1,44 +1,34 @@
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Quiz, Question, QuizAttempt
 from .serializers import (
     MCQQuestionSerializer, TextQuestionSerializer, TFQuestionSerializer,
-    CreateTFQuestionSerializer, QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer
+    QuizSerializer, QuizAttemptSerializer, QuizCreateSerializer
 )
-
 
 class CreateQuizView(generics.CreateAPIView):
     serializer_class = QuizCreateSerializer
     permission_classes = [IsAuthenticated]
-
 
 class ListQuizView(generics.ListAPIView):
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        q_type = self.request.query_params.get('type')
-        qs = Quiz.objects.all()
-        if q_type:
-            qs = qs.filter(questions__question_type=q_type).distinct()
-        return qs
-
+        return Quiz.objects.all()
 
 class CreateMCQQuestion(generics.CreateAPIView):
     serializer_class = MCQQuestionSerializer
     permission_classes = [IsAuthenticated]
 
-
 class CreateTextQuestion(generics.CreateAPIView):
     serializer_class = TextQuestionSerializer
     permission_classes = [IsAuthenticated]
 
-
 class CreateTFQuestion(generics.CreateAPIView):
-    serializer_class = CreateTFQuestionSerializer
+    serializer_class = TFQuestionSerializer
     permission_classes = [IsAuthenticated]
-
 
 class QuizQuestionsList(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
@@ -73,16 +63,13 @@ class QuizQuestionsList(generics.ListAPIView):
             "questions": serializer.data
         })
 
-
 class SubmitQuizAttempt(generics.CreateAPIView):
     serializer_class = QuizAttemptSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        quiz_id = self.kwargs.get("pk")  
+        quiz_id = self.kwargs.get("pk")
         quiz = Quiz.objects.get(id=quiz_id)
         user = self.request.user
-
         attempt, created = QuizAttempt.objects.get_or_create(user=user, quiz=quiz)
-
         serializer.save(attempt=attempt)
