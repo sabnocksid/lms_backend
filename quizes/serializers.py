@@ -93,7 +93,7 @@ class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
     question_type = serializers.CharField(source='question.question_type', read_only=True)
     answer_is_true = serializers.BooleanField(source='question.answer_is_true', read_only=True)
-    correct = serializers.BooleanField(source='is_correct', read_only=True)
+    correct = serializers.SerializerMethodField()  # Change this line
     
     class Meta:
         model = Answer
@@ -101,7 +101,9 @@ class UserAnswerSerializer(serializers.ModelSerializer):
             'question', 'question_text', 'question_type', 'selected_choice',
             'text_answer', 'answer_is_true', 'correct'
         ]
-
+    
+    def get_correct(self, obj): 
+        return obj.is_correct
 
 class QuizResultSerializer(serializers.ModelSerializer):
     total_questions = serializers.SerializerMethodField()
