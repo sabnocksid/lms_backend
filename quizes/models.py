@@ -24,7 +24,7 @@ class Question(models.Model):
     text = models.TextField()
     question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='MCQ')
     marks = models.PositiveIntegerField(default=1)
-    is_true = models.BooleanField(default=False)
+    answer_is_true = models.BooleanField(default=False)
 
 
     def __str__(self):
@@ -61,8 +61,7 @@ class Answer(models.Model):
     @property
     def is_correct(self):
         if self.question.question_type == 'MCQ':
-            return bool(self.selected_choice.is_correct) if self.selected_choice else False
+            return self.selected_choice.is_correct if self.selected_choice else False
         elif self.question.question_type == 'TF':
-            selected = bool(self.selected_choice.is_correct) if self.selected_choice else False
-            return selected == self.question.is_true
-        return None
+            return (self.selected_choice.is_correct if self.selected_choice else False) == self.question.answer_is_true
+        return False
