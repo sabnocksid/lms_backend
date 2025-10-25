@@ -13,7 +13,8 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Question
-        fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
+        # fields = ['id', 'text', 'question_type', 'marks', 'is_true', 'choices']
+        fields = ['id', 'text', 'question_type', 'marks', 'choices']
 
 
 
