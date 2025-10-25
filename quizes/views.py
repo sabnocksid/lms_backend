@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import Quiz, QuizAttempt, Answer, Question
+from .models import Quiz, QuizAttempt
 from .serializers import QuizSerializer, QuizDetailSerializer, QuizAttemptSerializer, QuizResultSerializer
 from gramafication.models import PointTransaction
 
