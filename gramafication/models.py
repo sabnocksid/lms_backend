@@ -107,7 +107,7 @@ class PointTransaction(models.Model):
 
 class CourseGamification(models.Model):
     learner = models.ForeignKey("LearnerProfile", on_delete=models.CASCADE, related_name="course_progress")
-    course = models.ForeignKey("Course", on_delete=models.CASCADE, related_name="gamification")
+    course = models.ForeignKey("courses.Course", on_delete=models.CASCADE, related_name="gamification")
     points_earned = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
     chapters_completed = models.PositiveIntegerField(default=0)
