@@ -13,7 +13,6 @@ XP_COURSE_COMPLETION = 25
 def process_course_gamification(user, course):
     learner = user.profile
 
-    # --- Chapters ---
     completed_chapters = ChapterProgress.objects.filter(
         user=user, chapter__lesson__course=course, completed=True
     )

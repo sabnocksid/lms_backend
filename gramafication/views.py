@@ -10,6 +10,8 @@ from .serializers import (
 )
 from rest_framework.parsers import MultiPartParser, FormParser
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
+from django.db.models import Count
+from .models import LearnerProfile, Course, Quiz
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -29,22 +31,36 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         return profile
 
     def get(self, request, *args, **kwargs):
-        if request.user.role != 'student':
+        user = request.user
+
+        if user.role in ['admin', 'teacher']:
+            total_courses = Course.objects.count()
+            total_quizzes = Quiz.objects.count()
+            total_students = LearnerProfile.objects.filter(user__role='student').count()
+
             return Response({
-                "full_name": request.user.full_name,
-                "role": request.user.role
+                "role": user.role,
+                "full_name": user.full_name,
+                "total_courses": total_courses,
+                "total_quizzes": total_quizzes,
+                "total_students": total_students,
             })
-        
+
         profile = self.get_object()
         profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
 
+        courses_completed = profile.courses.filter(status='completed').count() if hasattr(profile, 'courses') else 0
+        quizzes_attended = profile.quizzes.count() if hasattr(profile, 'quizzes') else 0
+
         return Response({
             "full_name": profile.full_name,
-            "profile_image": profile_image_url,  
+            "profile_image": profile_image_url,
             "points": profile.points,
             "xp": profile.xp,
             "rank": profile.rank,
-            "rank_position": profile.get_rank_position()
+            "rank_position": profile.get_rank_position(),
+            "courses_completed": courses_completed,
+            "quizzes_attended": quizzes_attended,
         })
 
 
