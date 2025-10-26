@@ -35,7 +35,6 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
 
-        # 🧠 Admin / Instructor Overview
         if user.role in ['admin', 'instructor']:
             total_courses = Course.objects.count()
             total_quizzes = Quiz.objects.count()
@@ -53,8 +52,9 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
 
         completed_courses = 0
-        courses = Course.objects.filter(enrolled_students=user)
-        for course in courses:
+        all_courses = Course.objects.all()  
+
+        for course in all_courses:
             total_chapters = Chapter.objects.filter(lesson__course=course).count()
             completed_chapters = ChapterProgress.objects.filter(
                 user=user, chapter__lesson__course=course, completed=True
@@ -75,6 +75,8 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             total_correct += sum(1 for a in answers if a.selected_choice and a.selected_choice.is_correct)
             total_incorrect += sum(1 for a in answers if a.selected_choice and not a.selected_choice.is_correct)
 
+        accuracy = (total_correct / total_questions_attempted * 100) if total_questions_attempted else 0
+
         return Response({
             "full_name": profile.full_name,
             "profile_image": profile_image_url,
@@ -87,6 +89,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             "total_questions_attempted": total_questions_attempted,
             "total_correct": total_correct,
             "total_incorrect": total_incorrect,
+            "accuracy": round(accuracy, 2),
         })
 
 
