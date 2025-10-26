@@ -12,6 +12,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from django.db.models import Count
 from .models import LearnerProfile, Course, Quiz
+from quizes.models import QuizProgress
+from lessons.models import Chapter, ChapterProgress
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -33,7 +35,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
 
-        if user.role in ['admin', 'teacher']:
+        if user.role in ['admin', 'instructor']:
             total_courses = Course.objects.count()
             total_quizzes = Quiz.objects.count()
             total_students = LearnerProfile.objects.filter(user__role='student').count()
@@ -49,8 +51,21 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         profile = self.get_object()
         profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
 
-        courses_completed = profile.courses.filter(status='completed').count() if hasattr(profile, 'courses') else 0
-        quizzes_attended = profile.quizzes.count() if hasattr(profile, 'quizzes') else 0
+        completed_courses = 0
+        total_quizzes_attended = 0
+
+        courses = Course.objects.filter(enrolled_students=user)
+        for course in courses:
+            total_chapters = Chapter.objects.filter(lesson__course=course).count()
+            completed_chapters = ChapterProgress.objects.filter(
+                user=user, chapter__lesson__course=course, completed=True
+            ).count()
+
+            if total_chapters > 0 and completed_chapters == total_chapters:
+                completed_courses += 1
+
+            quizzes_attended = QuizProgress.objects.filter(user=user, quiz__course=course).count()
+            total_quizzes_attended += quizzes_attended
 
         return Response({
             "full_name": profile.full_name,
@@ -59,8 +74,8 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             "xp": profile.xp,
             "rank": profile.rank,
             "rank_position": profile.get_rank_position(),
-            "courses_completed": courses_completed,
-            "quizzes_attended": quizzes_attended,
+            "courses_completed": completed_courses,
+            "quizzes_attended": total_quizzes_attended,
         })
 
 
