@@ -258,7 +258,7 @@ class QuizSummarySerializer(serializers.ModelSerializer):
         attempts_map = self.context.get("attempts_map", {})
         quiz_attempts = attempts_map.get(obj.id, [])
         result = []
-        for attempt in quiz_attempts:
+        for attempt in quiz_attempts:  
             result.append({
                 "attempt_id": attempt.id,
                 "completed_at": attempt.completed_at,
