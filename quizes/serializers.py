@@ -256,7 +256,7 @@ class QuizSummarySerializer(serializers.ModelSerializer):
 
     def get_attempts(self, obj):
         attempts_map = self.context.get("attempts_map", {})
-        quiz_attempts = attempts_map.get(obj.id, []) 
+        quiz_attempts = attempts_map.get(obj.id, [])
         result = []
         for attempt in quiz_attempts:
             result.append({
@@ -264,7 +264,13 @@ class QuizSummarySerializer(serializers.ModelSerializer):
                 "completed_at": attempt.completed_at,
                 "total_questions": obj.questions.count(),
                 "attempted": attempt.answers.count(),
-                "total_correct": sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct),
-                "total_incorrect": attempt.answers.count() - sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct),
+                "total_correct": sum(
+                    1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
+                ),
+                "total_incorrect": attempt.answers.count() - sum(
+                    1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
+                ),
             })
         return result
+
+
