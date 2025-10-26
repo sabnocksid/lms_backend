@@ -9,6 +9,7 @@ from .serializers import (
     QuizResultSerializer,
     UserAnswerSerializer
 )
+from gramafication.algorithm.gramafication_course import process_course_gamification
 
 
 class QuizCreateAPIView(generics.CreateAPIView):
@@ -49,3 +50,20 @@ class QuizAttemptSubmitAPIView(generics.CreateAPIView):
     queryset = QuizAttempt.objects.all()
     serializer_class = QuizAttemptSubmitSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attempt = serializer.save(user=request.user, submitted_at=timezone.now())
+
+        course = attempt.quiz.course
+        gamification_data = process_course_gamification(request.user, course)
+
+        response_data = {
+            "attempt_id": attempt.id,
+            "quiz_id": attempt.quiz.id,
+            "submitted_at": attempt.submitted_at,
+            "gamification": gamification_data
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
