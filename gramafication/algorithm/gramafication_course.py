@@ -11,8 +11,9 @@ POINTS_COURSE_COMPLETION = 50
 XP_COURSE_COMPLETION = 25
 
 def process_course_gamification(user, course):
-    learner = user.profile 
+    learner = user.profile
 
+    # --- Chapters ---
     completed_chapters = ChapterProgress.objects.filter(
         user=user, chapter__lesson__course=course, completed=True
     )
@@ -30,6 +31,7 @@ def process_course_gamification(user, course):
             chapter_points += POINTS_PER_CHAPTER
             chapter_xp += XP_PER_CHAPTER
 
+    # --- Quizzes ---
     quiz_attempts = QuizAttempt.objects.filter(user=user, quiz__course=course)
     correct_answers = 0
     quiz_points = 0
@@ -43,8 +45,10 @@ def process_course_gamification(user, course):
                 attempt_correct += 1
             elif question.question_type == "TF" and answer.selected_choice and getattr(question, "is_true", False) == answer.selected_choice.is_correct:
                 attempt_correct += 1
+
+        # --- Prevent duplicate points per attempt ---
         if attempt_correct > 0:
-            reason = f"Quiz correct answers: {attempt.quiz.id}"
+            reason = f"Quiz correct answers: attempt {attempt.id}"
             if not PointTransaction.objects.filter(learner=learner, reason=reason).exists():
                 points = attempt_correct * POINTS_PER_CORRECT_ANSWER
                 xp = attempt_correct * XP_PER_CORRECT_ANSWER
@@ -57,6 +61,7 @@ def process_course_gamification(user, course):
                 quiz_xp += xp
                 correct_answers += attempt_correct
 
+    # --- Course completion bonus ---
     total_chapters = Chapter.objects.filter(lesson__course=course).count()
     total_quizzes = course.quizzes.count()
     course_completed_bonus = False
@@ -73,6 +78,7 @@ def process_course_gamification(user, course):
             quiz_xp += XP_COURSE_COMPLETION
             course_completed_bonus = True
 
+    # --- Update learner XP and rank ---
     learner.xp += chapter_xp + quiz_xp
     learner.update_rank()
     learner.save(update_fields=["xp", "rank"])
