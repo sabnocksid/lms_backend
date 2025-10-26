@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import LearnerProfile, Badge, LearnerBadge, PointTransaction, CourseGamification
+from quizes.models import QuizAttempt
 from lessons.utils.upload_minio import get_presigned_url
 
 class BadgeSerializer(serializers.ModelSerializer):
@@ -53,6 +54,28 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
             return get_presigned_url(obj.profile_image, request=request)
         return None
 
+
+
+class QuizAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuizAttempt
+        fields = ["id", "quiz", "completed_at", "answers"]
+
+
+class CourseGamificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseGamification
+        fields = [
+            "points_earned",
+            "xp_earned",
+            "chapters_completed",
+            "total_chapters",
+            "quizzes_attempted",
+            "total_quizzes",
+            "correct_answers",
+            "course_completed",
+        ]
+        
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank_position = serializers.SerializerMethodField()

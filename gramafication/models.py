@@ -85,8 +85,9 @@ class LearnerBadge(models.Model):
         return f"{self.learner.user.username} earned {self.badge.name}"
 
 
+
 class PointTransaction(models.Model):
-    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name='transactions')
+    learner = models.ForeignKey("LearnerProfile", on_delete=models.CASCADE, related_name='transactions')
     points = models.IntegerField()
     reason = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -105,8 +106,8 @@ class PointTransaction(models.Model):
 
 
 class CourseGamification(models.Model):
-    learner = models.ForeignKey(LearnerProfile, on_delete=models.CASCADE, related_name="course_progress")
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="gamification")
+    learner = models.ForeignKey("LearnerProfile", on_delete=models.CASCADE, related_name="course_progress")
+    course = models.ForeignKey("Course", on_delete=models.CASCADE, related_name="gamification")
     points_earned = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
     chapters_completed = models.PositiveIntegerField(default=0)

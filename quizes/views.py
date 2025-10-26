@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 
 from django.utils import timezone
 from .models import Quiz, QuizAttempt
@@ -12,6 +13,8 @@ from .serializers import (
     QuizResultSerializer,
     UserAnswerSerializer
 )
+from gramafication.models import LearnerProfile, CourseGamification, PointTransaction
+from gramafication.serializers import CourseGamificationSerializer
 from gramafication.algorithm.gramafication_course import process_course_gamification
 
 
@@ -49,24 +52,58 @@ class QuizViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(results)
 
 
-class QuizAttemptSubmitAPIView(generics.CreateAPIView):
-    queryset = QuizAttempt.objects.all()
-    serializer_class = QuizAttemptSubmitSerializer
+class QuizAttemptView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        attempt = serializer.save(user=request.user, submitted_at=timezone.now())
+    def post(self, request, quiz_id):
+        user = request.user
+        learner = user.learner_profile
+        try:
+            quiz = Quiz.objects.get(id=quiz_id)
+        except Quiz.DoesNotExist:
+            return Response({"error": "Quiz not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        course = attempt.quiz.course
-        gamification_data = process_course_gamification(request.user, course)
+        # Get or create QuizAttempt
+        attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
 
-        response_data = {
+        # Award points only if not already awarded
+        existing_txn = PointTransaction.objects.filter(
+            learner=learner,
+            reason=f"Quiz attempt {attempt.id}"
+        ).exists()
+
+        if not existing_txn:
+            correct_answers = sum(
+                1 for ans in attempt.answers.all() 
+                if ans.selected_choice and ans.selected_choice.is_correct
+            )
+            points_earned = correct_answers * 10
+            xp_earned = correct_answers * 5
+
+            PointTransaction.objects.create(
+                learner=learner,
+                points=points_earned,
+                reason=f"Quiz attempt {attempt.id}"
+            )
+
+            course_progress, _ = CourseGamification.objects.get_or_create(
+                learner=learner,
+                course=quiz.course,
+                defaults={
+                    "total_chapters": quiz.course.chapter_count,
+                    "total_quizzes": quiz.course.quizzes.count(),
+                }
+            )
+            course_progress.points_earned += points_earned
+            course_progress.xp_earned += xp_earned
+            course_progress.quizzes_attempted += 1
+            course_progress.correct_answers += correct_answers
+            course_progress.save()
+
+        serializer = CourseGamificationSerializer(course_progress)
+        return Response({
             "attempt_id": attempt.id,
-            "quiz_id": attempt.quiz.id,
+            "quiz_id": quiz.id,
             "submitted_at": attempt.completed_at,
-            "gamification": gamification_data
-        }
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
+            "gamification": serializer.data
+        }, status=status.HTTP_201_CREATED)
