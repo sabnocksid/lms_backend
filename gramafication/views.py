@@ -78,6 +78,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         accuracy = (total_correct / total_questions_attempted * 100) if total_questions_attempted else 0
 
         return Response({
+            "role": user.role,
             "full_name": profile.full_name,
             "profile_image": profile_image_url,
             "points": profile.points,
