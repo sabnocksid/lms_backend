@@ -99,7 +99,7 @@ class QuizAttemptView(APIView):
                 learner=learner,
                 course=quiz.course,
                 defaults={
-                    "total_chapters": quiz.course.chapter_count,
+                    # "total_chapters": quiz.course.chapter_count,
                     "total_quizzes": quiz.course.quizzes.count(),
                 }
             )
