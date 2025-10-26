@@ -12,7 +12,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from django.db.models import Count
 from .models import LearnerProfile, Course, Quiz
-from quizes.models import QuizProgress
+from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 
 class LearnerProfileListView(generics.ListAPIView):
@@ -35,6 +35,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         user = request.user
 
+        # 🧠 Admin / Instructor Overview
         if user.role in ['admin', 'instructor']:
             total_courses = Course.objects.count()
             total_quizzes = Quiz.objects.count()
@@ -52,8 +53,6 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
 
         completed_courses = 0
-        total_quizzes_attended = 0
-
         courses = Course.objects.filter(enrolled_students=user)
         for course in courses:
             total_chapters = Chapter.objects.filter(lesson__course=course).count()
@@ -64,8 +63,17 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             if total_chapters > 0 and completed_chapters == total_chapters:
                 completed_courses += 1
 
-            quizzes_attended = QuizProgress.objects.filter(user=user, quiz__course=course).count()
-            total_quizzes_attended += quizzes_attended
+        quiz_attempts = QuizAttempt.objects.filter(user=user)
+        total_quizzes_attended = quiz_attempts.count()
+        total_correct = 0
+        total_incorrect = 0
+        total_questions_attempted = 0
+
+        for attempt in quiz_attempts.select_related('quiz').prefetch_related('answers__selected_choice'):
+            answers = attempt.answers.all()
+            total_questions_attempted += answers.count()
+            total_correct += sum(1 for a in answers if a.selected_choice and a.selected_choice.is_correct)
+            total_incorrect += sum(1 for a in answers if a.selected_choice and not a.selected_choice.is_correct)
 
         return Response({
             "full_name": profile.full_name,
@@ -76,6 +84,9 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             "rank_position": profile.get_rank_position(),
             "courses_completed": completed_courses,
             "quizzes_attended": total_quizzes_attended,
+            "total_questions_attempted": total_questions_attempted,
+            "total_correct": total_correct,
+            "total_incorrect": total_incorrect,
         })
 
 
