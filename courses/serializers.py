@@ -111,11 +111,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     lessons = LessonOverviewSerializer(many=True, read_only=True)
-    quizzes = serializers.SerializerMethodField()
+    quizzes = serializers.SerializerMethodField() 
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
-    question_count = serializers.SerializerMethodField()
+    question_count = serializers.SerializerMethodField() 
 
     class Meta:
         model = Course
@@ -163,27 +163,15 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     def get_chapter_count(self, obj):
         return sum(lesson.chapters.count() for lesson in obj.lessons.all())
 
-    def get_question_count(self, obj):
+    def get_question_count(self, obj): 
         return sum(quiz.questions.count() for quiz in obj.quizzes.all())
 
     def get_quizzes(self, obj):
         user = self.context.get("request").user
+        attempts = QuizAttempt.objects.filter(user=user, quiz__in=obj.quizzes.all()).order_by("quiz_id", "-completed_at")
+        attempts_map = {a.quiz.id: a for a in attempts}
 
-        attempts = QuizAttempt.objects.filter(
-            user=user,
-            quiz__in=obj.quizzes.all()
-        ).order_by("quiz_id", "-completed_at") 
-
-        attempts_map = {}
-        for attempt in attempts:
-            if attempt.quiz.id not in attempts_map:
-                attempts_map[attempt.quiz.id] = attempt
-
-        serializer = QuizSummarySerializer(
-            obj.quizzes.all(),
-            many=True,
-            context={**self.context, "attempts_map": attempts_map}
-        )
+        serializer = QuizSummarySerializer(obj.quizzes.all(), many=True, context={**self.context, "attempts_map": attempts_map})
         return serializer.data
 
 
