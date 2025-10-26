@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import LearnerProfile, Badge, LearnerBadge, PointTransaction, CourseGamification
 from quizes.models import QuizAttempt
 from lessons.utils.upload_minio import get_presigned_url
+from courses.models import Course
+from lessons.models import Chapter
+from lessons.models import ChapterProgress
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,16 +36,27 @@ class CourseGamificationSerializer(serializers.ModelSerializer):
 class LearnerProfileSerializer(serializers.ModelSerializer):
     earned_badges = LearnerBadgeSerializer(many=True, read_only=True)
     transactions = PointTransactionSerializer(many=True, read_only=True)
-    course_progress = CourseGamificationSerializer(many=True, read_only=True)
+    course_progress = serializers.SerializerMethodField()
     rank_position = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
 
     class Meta:
         model = LearnerProfile
         fields = [
-            "id", "user", "full_name", "profile_image", "date_of_birth",
-            "joined_date", "points", "xp", "level", "rank",
-            "earned_badges", "transactions", "course_progress", "rank_position"
+            "id",
+            "user",
+            "full_name",
+            "profile_image",
+            "date_of_birth",
+            "joined_date",
+            "points",
+            "xp",
+            "level",
+            "rank",
+            "earned_badges",
+            "transactions",
+            "course_progress",
+            "rank_position",
         ]
 
     def get_rank_position(self, obj):
@@ -53,6 +67,30 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             return get_presigned_url(obj.profile_image, request=request)
         return None
+
+    def get_course_progress(self, obj):
+
+        user = obj.user
+        courses = Course.objects.filter(enrolled_students=user)
+        result = []
+
+        for course in courses:
+            chapters = Chapter.objects.filter(lesson__course=course)
+            total_chapters = chapters.count()
+            completed_chapters = ChapterProgress.objects.filter(user=user, chapter__in=chapters, completed=True).count()
+
+            result.append({
+                "course_id": course.id,
+                "course_name": course.name,
+                "total_chapters": total_chapters,
+                "completed_chapters": completed_chapters,
+                "completion_percentage": (completed_chapters / total_chapters * 100) if total_chapters else 0,
+                "quizzes_attended": course.quizzes.filter(quizprogress__user=user).count(),
+                "total_quizzes": course.quizzes.count()
+            })
+
+        return result
+
 
 
 
@@ -75,7 +113,7 @@ class CourseGamificationSerializer(serializers.ModelSerializer):
             "correct_answers",
             "course_completed",
         ]
-        
+
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank_position = serializers.SerializerMethodField()
