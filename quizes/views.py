@@ -58,28 +58,30 @@ class QuizAttemptView(APIView):
     def post(self, request, quiz_id):
         user = request.user
         learner = user.learner_profile
+
         try:
             quiz = Quiz.objects.get(id=quiz_id)
         except Quiz.DoesNotExist:
             return Response({"error": "Quiz not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Get or create QuizAttempt
-        attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
+        serializer = QuizAttemptSubmitSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        attempt = serializer.save()
 
-        # Award points only if not already awarded
+        correct_answers = sum(
+            1 for ans in attempt.answers.all()
+            if ans.selected_choice and ans.selected_choice.is_correct
+        )
+
+        points_earned = correct_answers * 10
+        xp_earned = correct_answers * 5
+
         existing_txn = PointTransaction.objects.filter(
             learner=learner,
             reason=f"Quiz attempt {attempt.id}"
         ).exists()
 
         if not existing_txn:
-            correct_answers = sum(
-                1 for ans in attempt.answers.all() 
-                if ans.selected_choice and ans.selected_choice.is_correct
-            )
-            points_earned = correct_answers * 10
-            xp_earned = correct_answers * 5
-
             PointTransaction.objects.create(
                 learner=learner,
                 points=points_earned,
@@ -100,10 +102,17 @@ class QuizAttemptView(APIView):
             course_progress.correct_answers += correct_answers
             course_progress.save()
 
-        serializer = CourseGamificationSerializer(course_progress)
+        else:
+            course_progress = CourseGamification.objects.filter(learner=learner, course=quiz.course).first()
+
+        gamification_data = CourseGamificationSerializer(course_progress).data
+
         return Response({
             "attempt_id": attempt.id,
             "quiz_id": quiz.id,
             "submitted_at": attempt.completed_at,
-            "gamification": serializer.data
+            "correct_answers": correct_answers,
+            "points_earned": points_earned,
+            "xp_earned": xp_earned,
+            "gamification": gamification_data
         }, status=status.HTTP_201_CREATED)

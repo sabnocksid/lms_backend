@@ -7,6 +7,6 @@ router.register(r'quizzes', QuizViewSet, basename='quiz')
 
 urlpatterns = [
     path('quizzes/create/', QuizCreateAPIView.as_view(), name='quiz-create'),
-    path('attempts/', QuizAttemptView.as_view(), name='quiz-attempt'),
+    path('<int:quiz_id>/attempts/', QuizAttemptView.as_view(), name='quiz-attempt'),
     path('', include(router.urls)),
 ]

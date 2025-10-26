@@ -100,14 +100,14 @@ class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-        answers_data = validated_data.pop('answers')
         quiz = validated_data['quiz']
+        answers_data = validated_data.pop('answers')
 
         attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
         for answer_data in answers_data:
             Answer.objects.create(attempt=attempt, **answer_data)
         return attempt
-    
+
 
 class UserAnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)
