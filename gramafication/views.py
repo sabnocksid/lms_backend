@@ -62,45 +62,38 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
         )
         return profile
     
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
+
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
-        
-        serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
+        all_students = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
 
-        current_user = None
-        rank = None
+        top_10_serializer = LeaderboardSerializer(all_students[:10], many=True, context={"request": request})
 
-        if hasattr(request.user, 'learner_profile'):
-            try:
-                current_user = request.user.learner_profile
-                rank = current_user.get_rank_position() if current_user else None
-            except LearnerProfile.DoesNotExist:
-                current_user = None
-                rank = None
+        top_3_serializer = LeaderboardSerializer(all_students[:3], many=True, context={"request": request})
 
-        if request.user.role == 'student':
+        current_user = getattr(request.user, "learner_profile", None)
+
+        current_user_data = None
+        if current_user:
+            serializer = LeaderboardSerializer(current_user, context={"request": request})
+            current_user_data = serializer.data
+
+        if request.user.role == "student":
             return Response({
-                "leaderboard": serializer.data,
-                "current_user": {
-                    "id": current_user.id if current_user else None,
-                    "full_name": current_user.full_name if current_user else None,
-                    "profile_image": current_user.profile_image.url if current_user and current_user.profile_image else None,
-                    "points": current_user.points if current_user else None,
-                    "xp": current_user.xp if current_user else None,
-                    "rank": current_user.rank if current_user else None,
-                    "rank_position": rank
-                }
+                "leaderboard": top_10_serializer.data,
+                "current_user": current_user_data
             })
         else:
-            top_3_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
-            top_3_serializer = LeaderboardSerializer(top_3_learners, many=True, context={"request": request})
             return Response({
-                "leaderboard": serializer.data,  
+                "leaderboard": top_10_serializer.data,
                 "top_3_learners": top_3_serializer.data
             })
+
 
 
 

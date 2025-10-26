@@ -53,6 +53,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
             return get_presigned_url(obj.profile_image, request=request)
         return None
 
+
 class LeaderboardSerializer(serializers.ModelSerializer):
     rank_position = serializers.SerializerMethodField()
     profile_image = serializers.SerializerMethodField()
@@ -62,22 +63,24 @@ class LeaderboardSerializer(serializers.ModelSerializer):
         fields = ["id", "full_name", "profile_image", "points", "xp", "rank", "rank_position"]
 
     def get_rank_position(self, obj):
-        if not obj:
-            return None
-        all_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
-        current_rank = 0
-        last_points = None
-        rank_map = {}
-        for index, learner in enumerate(all_learners, start=1):
-            if learner.points != last_points:
-                current_rank = index
-            rank_map[learner.id] = current_rank
-            last_points = learner.points
-        return rank_map.get(obj.id, None)
+        if not hasattr(self, "_rank_map"):
+            all_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
+            current_rank = 0
+            last_points = None
+            rank_map = {}
+            for index, learner in enumerate(all_learners, start=1):
+                if learner.points != last_points:
+                    current_rank = index
+                rank_map[learner.id] = current_rank
+                last_points = learner.points
+            self._rank_map = rank_map
+
+        return self._rank_map.get(obj.id, None)
 
     def get_profile_image(self, obj):
-        if obj and obj.profile_image:
-            request = self.context.get("request")
+        request = self.context.get("request")
+        if obj.profile_image:
+            from your_project.utils import get_presigned_url  # adjust import
             return get_presigned_url(obj.profile_image, request=request)
         return None
 
