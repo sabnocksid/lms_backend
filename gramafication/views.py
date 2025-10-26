@@ -68,29 +68,40 @@ class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        all_students = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
+        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
+        top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
 
-        top_10_serializer = LeaderboardSerializer(all_students[:10], many=True, context={"request": request})
+        current_user = None
+        rank = None
 
-        top_3_serializer = LeaderboardSerializer(all_students[:3], many=True, context={"request": request})
+        if request.user.role == 'student':
+            current_user, _ = LearnerProfile.objects.get_or_create(
+                user=request.user,
+                defaults={"full_name": request.user.full_name}
+            )
+            rank = current_user.get_rank_position()
 
-        current_user = getattr(request.user, "learner_profile", None)
-
-        current_user_data = None
-        if current_user:
-            serializer = LeaderboardSerializer(current_user, context={"request": request})
-            current_user_data = serializer.data
-
-        if request.user.role == "student":
             return Response({
-                "leaderboard": top_10_serializer.data,
-                "current_user": current_user_data
+                "leaderboard": top_serializer.data,
+                "current_user": {
+                    "id": current_user.id,
+                    "full_name": current_user.full_name,
+                    "profile_image": get_presigned_url(current_user.profile_image, request=request) if current_user.profile_image else None,
+                    "points": current_user.points,
+                    "xp": current_user.xp,
+                    "rank": current_user.rank,
+                    "rank_position": rank
+                }
             })
+
         else:
+            top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
+            top_3_serializer = LeaderboardSerializer(top_3, many=True, context={"request": request})
             return Response({
-                "leaderboard": top_10_serializer.data,
+                "leaderboard": top_serializer.data,
                 "top_3_learners": top_3_serializer.data
             })
+
 
 
 
