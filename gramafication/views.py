@@ -62,9 +62,7 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
         )
         return profile
     
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions
+
 
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
