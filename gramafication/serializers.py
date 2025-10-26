@@ -80,7 +80,7 @@ class LeaderboardSerializer(serializers.ModelSerializer):
     def get_profile_image(self, obj):
         request = self.context.get("request")
         if obj.profile_image:
-            from your_project.utils import get_presigned_url  # adjust import
+            from lessons.utils.upload_minio import get_presigned_url 
             return get_presigned_url(obj.profile_image, request=request)
         return None
 
