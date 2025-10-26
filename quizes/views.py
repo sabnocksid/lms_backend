@@ -58,24 +58,20 @@ class QuizAttemptView(APIView):
 
     def post(self, request, quiz_id):
         user = request.user
-        # Ensure learner profile exists
         learner, _ = LearnerProfile.objects.get_or_create(
             user=user,
-            defaults={"full_name": user.get_full_name() or user.username}
+            defaults={"full_name": user.full_name or user.username}
         )
 
-        # Check quiz existence
         try:
             quiz = Quiz.objects.get(id=quiz_id)
         except Quiz.DoesNotExist:
             return Response({"error": "Quiz not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Validate submitted answers
         serializer = QuizAttemptSubmitSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        attempt = serializer.save()  # creates QuizAttempt and related Answers
+        attempt = serializer.save()  
 
-        # Calculate correct answers
         correct_answers = sum(
             1 for ans in attempt.answers.all()
             if ans.selected_choice and ans.selected_choice.is_correct
@@ -84,7 +80,6 @@ class QuizAttemptView(APIView):
         points_earned = correct_answers * 10
         xp_earned = correct_answers * 5
 
-        # Add transaction if not already created for this attempt
         existing_txn = PointTransaction.objects.filter(
             learner=learner,
             reason=f"Quiz attempt {attempt.id}"
@@ -97,7 +92,6 @@ class QuizAttemptView(APIView):
                 reason=f"Quiz attempt {attempt.id}"
             )
 
-            # Update or create course gamification progress
             course_progress, _ = CourseGamification.objects.get_or_create(
                 learner=learner,
                 course=quiz.course,
