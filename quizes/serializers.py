@@ -200,7 +200,7 @@ class QuizSummarySerializer(serializers.ModelSerializer):
     total_incorrect = serializers.SerializerMethodField()
     attempt_id = serializers.SerializerMethodField()
     completed_at = serializers.SerializerMethodField()
-    time_limit = serializers.IntegerField(read_only=True)  
+    time_limit = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Quiz
@@ -213,7 +213,7 @@ class QuizSummarySerializer(serializers.ModelSerializer):
             "total_incorrect",
             "attempt_id",
             "completed_at",
-            "time_limit",  
+            "time_limit",
         ]
 
     def get_total_questions(self, obj):
