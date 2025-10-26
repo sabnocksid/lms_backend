@@ -20,6 +20,8 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
+        if self.request.user.role != 'student':
+            return None
         profile, _ = LearnerProfile.objects.get_or_create(
             user=self.request.user,
             defaults={"full_name": self.request.user.full_name}
@@ -27,26 +29,24 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         return profile
 
     def get(self, request, *args, **kwargs):
-        profile = self.get_object() 
-        
-        if request.user.role == 'student':
-            profile_image_url = None
-            if profile.profile_image:
-                profile_image_url = get_presigned_url(profile.profile_image, request=request)
-
-            return Response({
-                "full_name": profile.full_name,
-                "profile_image": profile_image_url,  
-                "points": profile.points,
-                "xp": profile.xp,
-                "rank": profile.rank,
-                "rank_position": profile.get_rank_position()
-            })
-        else:
+        if request.user.role != 'student':
             return Response({
                 "full_name": request.user.full_name,
                 "role": request.user.role
             })
+        
+        profile = self.get_object()
+        profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
+
+        return Response({
+            "full_name": profile.full_name,
+            "profile_image": profile_image_url,  
+            "points": profile.points,
+            "xp": profile.xp,
+            "rank": profile.rank,
+            "rank_position": profile.get_rank_position()
+        })
+
 
 
 
