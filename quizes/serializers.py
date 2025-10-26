@@ -192,7 +192,7 @@ class QuizResultSerializer(serializers.ModelSerializer):
 
 
 from rest_framework import serializers
-from quizes.models import Quiz
+from quizes.models import Quiz, QuizAttempt
 
 class QuizSummarySerializer(serializers.ModelSerializer):
     total_questions = serializers.SerializerMethodField()
@@ -221,25 +221,42 @@ class QuizSummarySerializer(serializers.ModelSerializer):
         return obj.questions.count()
 
     def get_attempted(self, obj):
-        attempt = self.context.get("attempts_map", {}).get(obj.id)
-        return attempt.answers.count() if attempt else 0
+        user = self.context["request"].user
+        if user.role == "student":
+            attempt = self.context.get("attempts_map", {}).get(obj.id)
+            return attempt.answers.count() if attempt else 0
+        else:
+            return sum(a.answers.count() for a in QuizAttempt.objects.filter(quiz=obj))
 
     def get_total_correct(self, obj):
-        attempt = self.context.get("attempts_map", {}).get(obj.id)
-        if not attempt:
-            return 0
-        return sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct)
+        user = self.context["request"].user
+        if user.role == "student":
+            attempt = self.context.get("attempts_map", {}).get(obj.id)
+            if not attempt:
+                return 0
+            return sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct)
+        else:
+            total = 0
+            for attempt in QuizAttempt.objects.filter(quiz=obj):
+                total += sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct)
+            return total
 
     def get_total_incorrect(self, obj):
         return self.get_attempted(obj) - self.get_total_correct(obj)
 
     def get_attempt_id(self, obj):
-        attempt = self.context.get("attempts_map", {}).get(obj.id)
-        return attempt.id if attempt else None
+        user = self.context["request"].user
+        if user.role == "student":
+            attempt = self.context.get("attempts_map", {}).get(obj.id)
+            return attempt.id if attempt else None
+        return None 
 
     def get_completed_at(self, obj):
-        attempt = self.context.get("attempts_map", {}).get(obj.id)
-        return attempt.completed_at if attempt else None
+        user = self.context["request"].user
+        if user.role == "student":
+            attempt = self.context.get("attempts_map", {}).get(obj.id)
+            return attempt.completed_at if attempt else None
+        return None
 
 
 
