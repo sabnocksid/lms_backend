@@ -28,17 +28,21 @@ class QuizViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = QuizFullDetailSerializer(quiz, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'], url_path='result')
-    def result(self, request, pk=None):
+    @action(detail=True, methods=['get'], url_path='results')
+    def results(self, request, pk=None):
         quiz = self.get_object()
-        attempt_id = request.query_params.get('attempt_id')
+        user = request.user
 
-        attempt = QuizAttempt.objects.filter(id=attempt_id, quiz=quiz, user=request.user).first()
-        if not attempt:
-            return Response({'detail': 'Attempt not found'}, status=404)
+        attempts = QuizAttempt.objects.filter(quiz=quiz, user=user).order_by('-completed_at')
+        if not attempts.exists():
+            return Response({'detail': 'No attempts found'}, status=404)
 
-        serializer = QuizResultSerializer(quiz, context={'attempt': attempt})
-        return Response(serializer.data)
+        results = [
+            QuizResultSerializer(quiz, context={'attempt': attempt}).data
+            for attempt in attempts
+        ]
+
+        return Response(results)
 
 
 class QuizAttemptSubmitAPIView(generics.CreateAPIView):
