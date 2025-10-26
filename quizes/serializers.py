@@ -96,12 +96,13 @@ class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = QuizAttempt
-        fields = ['quiz', 'answers']
+        fields = ['answers']
 
     def create(self, validated_data):
         user = self.context['request'].user
-        quiz = validated_data['quiz']
         answers_data = validated_data.pop('answers')
+        quiz_id = self.context['view'].kwargs.get('quiz_id')
+        quiz = Quiz.objects.get(id=quiz_id)
 
         attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
         for answer_data in answers_data:
