@@ -68,7 +68,10 @@ class QuizAttemptView(APIView):
         except Quiz.DoesNotExist:
             return Response({"error": "Quiz not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = QuizAttemptSubmitSerializer(data=request.data, context={'request': request})
+        serializer = QuizAttemptSubmitSerializer(
+            data=request.data,
+            context={'request': request, 'view': self}
+        )
         serializer.is_valid(raise_exception=True)
         attempt = serializer.save()  
 
