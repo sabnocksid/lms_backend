@@ -126,6 +126,9 @@ class UserAnswerSerializer(serializers.ModelSerializer):
         return obj.is_correct
 
 
+from rest_framework import serializers
+from quizes.models import Quiz, QuizAttempt
+
 class QuizResultSerializer(serializers.ModelSerializer):
     total_questions = serializers.SerializerMethodField()
     attempted = serializers.SerializerMethodField()
@@ -172,12 +175,65 @@ class QuizResultSerializer(serializers.ModelSerializer):
         results = []
         if not attempt:
             return results
+
         for ans in attempt.answers.all():
-            results.append({
-                'question_id': ans.question.id,
-                'question_text': ans.question.text,
-                'selected_choice': getattr(ans.selected_choice, 'text', None),
-                'is_correct': getattr(ans.selected_choice, 'is_correct', False),
-                'text_answer': ans.text_answer
-            })
+            if ans.selected_choice or ans.text_answer:
+                results.append({
+                    'question_id': ans.question.id,
+                    'question_text': ans.question.text,
+                    'selected_choice': getattr(ans.selected_choice, 'text', None),
+                    'is_correct': getattr(ans.selected_choice, 'is_correct', False),
+                    'text_answer': ans.text_answer
+                })
         return results
+
+
+
+
+from rest_framework import serializers
+from quizes.models import Quiz
+
+class QuizSummarySerializer(serializers.ModelSerializer):
+    total_questions = serializers.SerializerMethodField()
+    attempted = serializers.SerializerMethodField()
+    total_correct = serializers.SerializerMethodField()
+    total_incorrect = serializers.SerializerMethodField()
+    attempt_id = serializers.SerializerMethodField()
+    completed_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Quiz
+        fields = [
+            "id",
+            "title",
+            "total_questions",
+            "attempted",
+            "total_correct",
+            "total_incorrect",
+            "attempt_id",
+            "completed_at",
+        ]
+
+    def get_total_questions(self, obj):
+        return obj.questions.count()
+
+    def get_attempted(self, obj):
+        attempt = self.context.get("attempts_map", {}).get(obj.id)
+        return attempt.answers.count() if attempt else 0
+
+    def get_total_correct(self, obj):
+        attempt = self.context.get("attempts_map", {}).get(obj.id)
+        if not attempt:
+            return 0
+        return sum(1 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct)
+
+    def get_total_incorrect(self, obj):
+        return self.get_attempted(obj) - self.get_total_correct(obj)
+
+    def get_attempt_id(self, obj):
+        attempt = self.context.get("attempts_map", {}).get(obj.id)
+        return attempt.id if attempt else None
+
+    def get_completed_at(self, obj):
+        attempt = self.context.get("attempts_map", {}).get(obj.id)
+        return attempt.completed_at if attempt else None

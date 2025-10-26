@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
+from quizes.models import QuizAttempt
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer, LessonOverviewSerializer
-from quizes.serializers import QuizDetailSerializer
+from quizes.serializers import QuizDetailSerializer, QuizSummarySerializer
 from lessons.models import ChapterProgress
 
 
@@ -110,7 +111,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     lessons = LessonOverviewSerializer(many=True, read_only=True)
-    quizzes = QuizDetailSerializer(many=True, read_only=True)
+    quizzes = serializers.SerializerMethodField() 
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
@@ -160,12 +161,19 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         return total_completion_rate / total_lessons if total_lessons > 0 else 0
 
     def get_chapter_count(self, obj):
-        total_chapters = sum(lesson.chapters.count() for lesson in obj.lessons.all())
-        return total_chapters
+        return sum(lesson.chapters.count() for lesson in obj.lessons.all())
 
     def get_question_count(self, obj): 
-        total_questions = sum(quiz.questions.count() for quiz in obj.quizzes.all())
-        return total_questions
+        return sum(quiz.questions.count() for quiz in obj.quizzes.all())
+
+    def get_quizzes(self, obj):
+        user = self.context.get("request").user
+        attempts = QuizAttempt.objects.filter(user=user, quiz__in=obj.quizzes.all()).order_by("quiz_id", "-completed_at")
+        attempts_map = {a.quiz.id: a for a in attempts}
+
+        serializer = QuizSummarySerializer(obj.quizzes.all(), many=True, context={**self.context, "attempts_map": attempts_map})
+        return serializer.data
+
 
 
 
