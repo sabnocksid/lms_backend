@@ -69,7 +69,6 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
         return None
 
     def get_course_progress(self, obj):
-
         user = obj.user
         courses = Course.objects.filter(enrolled_students=user)
         result = []
@@ -77,7 +76,14 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
         for course in courses:
             chapters = Chapter.objects.filter(lesson__course=course)
             total_chapters = chapters.count()
-            completed_chapters = ChapterProgress.objects.filter(user=user, chapter__in=chapters, completed=True).count()
+            completed_chapters = ChapterProgress.objects.filter(
+                user=user, chapter__in=chapters, completed=True
+            ).count()
+
+            total_quizzes = course.quizzes.count()
+            quizzes_attended = course.quizzes.filter(
+                quizprogress__user=user
+            ).count()
 
             result.append({
                 "course_id": course.id,
@@ -85,11 +91,12 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
                 "total_chapters": total_chapters,
                 "completed_chapters": completed_chapters,
                 "completion_percentage": (completed_chapters / total_chapters * 100) if total_chapters else 0,
-                "quizzes_attended": course.quizzes.filter(quizprogress__user=user).count(),
-                "total_quizzes": course.quizzes.count()
+                "quizzes_attended": quizzes_attended,
+                "total_quizzes": total_quizzes
             })
 
         return result
+
 
 
 
