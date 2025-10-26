@@ -63,7 +63,7 @@ class QuizAttemptSubmitAPIView(generics.CreateAPIView):
         response_data = {
             "attempt_id": attempt.id,
             "quiz_id": attempt.quiz.id,
-            "submitted_at": attempt.submitted_at,
+            "submitted_at": attempt.completed_at,
             "gamification": gamification_data
         }
 
