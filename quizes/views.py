@@ -66,7 +66,14 @@ class QuizAttemptView(APIView):
         try:
             quiz = Quiz.objects.get(id=quiz_id)
         except Quiz.DoesNotExist:
-            return Response({"error": "Quiz not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Quiz not found"}, status=404)
+
+        existing_attempt = QuizAttempt.objects.filter(user=user, quiz=quiz).first()
+        if existing_attempt:
+            return Response({
+                "error": "You have already attempted this quiz",
+                "attempt_id": existing_attempt.id
+            }, status=400)
 
         serializer = QuizAttemptSubmitSerializer(
             data=request.data,
@@ -83,37 +90,24 @@ class QuizAttemptView(APIView):
         points_earned = correct_answers * 10
         xp_earned = correct_answers * 5
 
-        existing_txn = PointTransaction.objects.filter(
+        PointTransaction.objects.create(
             learner=learner,
-            reason=f"Quiz attempt {attempt.id}"
-        ).exists()
+            points=points_earned,
+            reason=f"Quiz attempt for quiz {quiz.id}"
+        )
 
-        if not existing_txn:
-            PointTransaction.objects.create(
-                learner=learner,
-                points=points_earned,
-                reason=f"Quiz attempt {attempt.id}"
-            )
-
-            course_progress, _ = CourseGamification.objects.get_or_create(
-                learner=learner,
-                course=quiz.course,
-                defaults={
-                    # "total_chapters": quiz.course.chapter_count,
-                    "total_quizzes": quiz.course.quizzes.count(),
-                }
-            )
-
-            course_progress.points_earned += points_earned
-            course_progress.xp_earned += xp_earned
-            course_progress.quizzes_attempted += 1
-            course_progress.correct_answers += correct_answers
-            course_progress.save()
-
-        else:
-            course_progress = CourseGamification.objects.filter(
-                learner=learner, course=quiz.course
-            ).first()
+        course_progress, _ = CourseGamification.objects.get_or_create(
+            learner=learner,
+            course=quiz.course,
+            defaults={
+                "total_quizzes": quiz.course.quizzes.count(),
+            }
+        )
+        course_progress.points_earned += points_earned
+        course_progress.xp_earned += xp_earned
+        course_progress.quizzes_attempted += 1
+        course_progress.correct_answers += correct_answers
+        course_progress.save()
 
         gamification_data = CourseGamificationSerializer(course_progress).data
 
@@ -125,4 +119,5 @@ class QuizAttemptView(APIView):
             "points_earned": points_earned,
             "xp_earned": xp_earned,
             "gamification": gamification_data
-        }, status=status.HTTP_201_CREATED)
+        }, status=201)
+
