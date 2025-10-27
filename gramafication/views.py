@@ -163,7 +163,6 @@ class CourseGamificationView(APIView):
         serializer = CourseGamificationSerializer(course_gamification)
         return Response(serializer.data)
 
-
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -171,11 +170,7 @@ class DashboardView(APIView):
         user = request.user
 
 
-        welcome_data = {
-            "full_name": user.full_name,
-            "role": user.role
-        }
-
+        welcome_data = {"full_name": user.full_name, "role": user.role}
         stats_box_data = None
         profile = None
         profile_image_url = None
@@ -199,7 +194,6 @@ class DashboardView(APIView):
                 "rank_position": profile.get_rank_position(),
                 "profile_image": profile_image_url
             })
-
 
             completed_courses = 0
             for course in Course.objects.all():
@@ -236,7 +230,6 @@ class DashboardView(APIView):
 
         top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
         top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
-
         leaderboard_data = {"leaderboard": top_serializer.data}
 
         if user.role == "student":
@@ -256,16 +249,18 @@ class DashboardView(APIView):
 
 
         if user.role == "student":
-            transactions = PointTransaction.objects.filter(user=user).order_by('-created_at')[:10]
+            transactions = PointTransaction.objects.filter(
+                learner__user=user
+            ).order_by('-created_at')[:10]
         elif user.role == "instructor":
             courses = Course.objects.filter(instructor=user)
-            transactions = PointTransaction.objects.filter(course__in=courses).order_by('-created_at')[:10]
-        else:  
+            transactions = PointTransaction.objects.filter(
+                learner__course__in=courses
+            ).order_by('-created_at')[:10]
+        else:  # admin
             transactions = PointTransaction.objects.all().order_by('-created_at')[:10]
 
-        from .serializers import PointTransactionSerializer
         transactions_data = PointTransactionSerializer(transactions, many=True).data
-
 
         dashboard_response = {
             "welcome_box": welcome_data,
