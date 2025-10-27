@@ -14,6 +14,7 @@ from django.db.models import Count
 from .models import LearnerProfile, Course, Quiz
 from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
+from .serializers import DashboardSerializer, LeaderboardSerializer
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -161,3 +162,101 @@ class CourseGamificationView(APIView):
         course_gamification = get_object_or_404(CourseGamification, learner=learner, course_id=course_id)
         serializer = CourseGamificationSerializer(course_gamification)
         return Response(serializer.data)
+
+
+class DashboardView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+
+        welcome_data = {
+            "full_name": user.full_name,
+            "role": user.role
+        }
+
+        if user.role in ["admin", "instructor"]:
+            welcome_data.update({
+                "total_courses": Course.objects.count(),
+                "total_quizzes": Quiz.objects.count(),
+                "total_students": LearnerProfile.objects.filter(user__role='student').count()
+            })
+        elif user.role == "student":
+            profile, _ = LearnerProfile.objects.get_or_create(
+                user=user,
+                defaults={"full_name": user.full_name}
+            )
+            profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
+            welcome_data.update({
+                "points": profile.points,
+                "xp": profile.xp,
+                "rank": profile.rank,
+                "rank_position": profile.get_rank_position(),
+                "profile_image": profile_image_url
+            })
+
+            completed_courses = 0
+            for course in Course.objects.all():
+                total_chapters = Chapter.objects.filter(lesson__course=course).count()
+                completed_chapters = ChapterProgress.objects.filter(
+                    user=user, chapter__lesson__course=course, completed=True
+                ).count()
+                if total_chapters > 0 and completed_chapters == total_chapters:
+                    completed_courses += 1
+
+            quiz_attempts = QuizAttempt.objects.filter(user=user)
+            total_quizzes_attended = quiz_attempts.count()
+            total_correct = sum(
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
+                for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
+            )
+            total_incorrect = sum(
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
+                for a in attempt.answers.all() if a.selected_choice and not a.selected_choice.is_correct
+            )
+            total_questions_attempted = total_correct + total_incorrect
+            accuracy = (total_correct / total_questions_attempted * 100) if total_questions_attempted else 0
+
+            stats_box_data = {
+                "courses_completed": completed_courses,
+                "quizzes_attended": total_quizzes_attended,
+                "total_questions_attempted": total_questions_attempted,
+                "total_correct": total_correct,
+                "total_incorrect": total_incorrect,
+                "accuracy": round(accuracy, 2)
+            }
+        else:
+            return Response({"detail": "Invalid role"}, status=403)
+
+
+        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
+        top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
+
+        leaderboard_data = {"leaderboard": top_serializer.data}
+
+        if user.role == "student":
+            leaderboard_data["current_user"] = {
+                "id": profile.id,
+                "full_name": profile.full_name,
+                "profile_image": profile_image_url,
+                "points": profile.points,
+                "xp": profile.xp,
+                "rank": profile.rank,
+                "rank_position": profile.get_rank_position()
+            }
+        else:
+            top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
+            top_3_serializer = LeaderboardSerializer(top_3, many=True, context={"request": request})
+            leaderboard_data["top_3_learners"] = top_3_serializer.data
+
+
+        dashboard_response = {
+            "welcome_box": welcome_data,
+            "leaderboard": leaderboard_data
+        }
+
+        if user.role == "student":
+            dashboard_response["stats_box"] = stats_box_data
+
+        return Response(dashboard_response)

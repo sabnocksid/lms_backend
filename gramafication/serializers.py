@@ -148,3 +148,66 @@ class LeaderboardSerializer(serializers.ModelSerializer):
             return get_presigned_url(obj.profile_image, request=request)
         return None
 
+
+
+
+
+
+#  for dashboard response combined in one
+
+class WelcomeBoxSerializer(serializers.Serializer):
+    full_name = serializers.CharField()
+    role = serializers.CharField()
+    profile_image = serializers.SerializerMethodField()
+    points = serializers.IntegerField(required=False)
+    xp = serializers.IntegerField(required=False)
+    rank = serializers.CharField(required=False)
+    rank_position = serializers.IntegerField(required=False)
+    total_courses = serializers.IntegerField(required=False)
+    total_quizzes = serializers.IntegerField(required=False)
+    total_students = serializers.IntegerField(required=False)
+
+    def get_profile_image(self, obj):
+        request = self.context.get("request")
+        if getattr(obj, "profile_image", None) and request:
+            return get_presigned_url(obj.profile_image, request=request)
+        return None
+
+
+class StatsBoxSerializer(serializers.Serializer):
+    courses_completed = serializers.IntegerField()
+    quizzes_attended = serializers.IntegerField()
+    total_questions_attempted = serializers.IntegerField()
+    total_correct = serializers.IntegerField()
+    total_incorrect = serializers.IntegerField()
+    accuracy = serializers.FloatField()
+
+
+class LeaderboardSerializer(serializers.ModelSerializer):
+    rank_position = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LearnerProfile
+        fields = ["id", "full_name", "points", "xp", "rank", "rank_position", "profile_image"]
+
+    def get_rank_position(self, obj):
+        return obj.get_rank_position() if obj else None
+
+    def get_profile_image(self, obj):
+        request = self.context.get("request")
+        if obj.profile_image and request:
+            return get_presigned_url(obj.profile_image, request=request)
+        return None
+
+
+class LeaderboardSectionSerializer(serializers.Serializer):
+    leaderboard = LeaderboardSerializer(many=True)
+    current_user = serializers.DictField(required=False)
+    top_3_learners = LeaderboardSerializer(many=True, required=False)
+
+
+class DashboardSerializer(serializers.Serializer):
+    welcome_box = WelcomeBoxSerializer()
+    stats_box = StatsBoxSerializer(required=False)  
+    leaderboard = LeaderboardSectionSerializer()

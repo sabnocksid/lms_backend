@@ -5,6 +5,7 @@ from .views import (
     LearnerProfileUpdateView,
     LeaderboardView,
     CourseGamificationView,
+    DashboardView
 )
 
 urlpatterns = [
@@ -12,6 +13,7 @@ urlpatterns = [
 
     path("learners/", LearnerProfileListView.as_view(), name="learner-profile-list"),
     path("learners/me/", LearnerProfileDetailView.as_view(), name="learner-profile-detail"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
 
     path("course/<int:course_id>/progress/", CourseGamificationView.as_view(), name="course-gamification-progress"),
