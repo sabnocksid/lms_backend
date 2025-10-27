@@ -15,7 +15,7 @@ from .models import LearnerProfile, Course, Quiz
 from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 from .serializers import DashboardSerializer, LeaderboardSerializer, PointTransactionSerializer
-from courses.serializers import CoursePreviewSerializer
+from courses.serializers import CourseSimpleSerializer
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -275,7 +275,7 @@ class DashboardView(APIView):
             transactions = PointTransaction.objects.filter(
                 learner__course__in=courses
             ).select_related("learner__user").order_by('-created_at')[:5]
-        else: 
+        else:  
             transactions = PointTransaction.objects.select_related(
                 "learner__user"
             ).order_by('-created_at')[:5]
@@ -289,17 +289,27 @@ class DashboardView(APIView):
             transactions_data.append(data)
 
         latest_courses = Course.objects.order_by('-date_added')[:5]
-        course_serializer = CoursePreviewSerializer(latest_courses, many=True, context={"request": request})
+        course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
+
+        most_rated_courses = Course.objects.annotate(
+            average_rating=Avg('ratings__rating')
+        ).order_by('-average_rating')[:5]
+        most_rated_course_serializer = CourseSimpleSerializer(
+            most_rated_courses, many=True, context={"request": request}
+        )
+        most_rated_courses_data = most_rated_course_serializer.data
 
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
             "recent_activities": transactions_data,
-            "latest_courses": latest_courses_data 
+            "latest_courses": latest_courses_data,
+            "most_rated_courses": most_rated_courses_data
         }
 
         if stats_box_data:
             dashboard_response["stats_box"] = stats_box_data
 
         return Response(dashboard_response)
+

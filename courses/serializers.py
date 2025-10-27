@@ -101,6 +101,32 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
                     total_completed_chapters += 1
 
         return (total_completed_chapters / total_chapters) * 100 if total_chapters > 0 else 0
+    
+
+
+class CourseSimpleSerializer(serializers.ModelSerializer):
+    categories = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "name",
+            "thumbnail",
+            "average_rating",
+            "categories",
+        ]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(str(obj.thumbnail), request=request)
+        return None
+
+    def get_categories(self, obj):
+        return [category.name for category in obj.categories.all()]
 
 
 
