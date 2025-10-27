@@ -17,6 +17,7 @@ from lessons.models import Chapter, ChapterProgress
 from .serializers import DashboardSerializer, LeaderboardSerializer, PointTransactionSerializer
 from courses.serializers import CourseSimpleSerializer
 from django.db.models import Avg
+
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
     serializer_class = LearnerProfileSerializer
@@ -308,7 +309,7 @@ class DashboardView(APIView):
         )
         most_rated_courses_data = most_rated_course_serializer.data
 
-        # Prepare the final response
+        # final response
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
