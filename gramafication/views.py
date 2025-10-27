@@ -16,7 +16,7 @@ from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 from .serializers import DashboardSerializer, LeaderboardSerializer, PointTransactionSerializer
 from courses.serializers import CourseSimpleSerializer
-
+from django.db.models import Avg
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
     serializer_class = LearnerProfileSerializer
