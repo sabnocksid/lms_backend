@@ -15,6 +15,7 @@ from .models import LearnerProfile, Course, Quiz
 from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 from .serializers import DashboardSerializer, LeaderboardSerializer, PointTransactionSerializer
+from courses.serializers import CoursePreviewSerializer
 
 class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
@@ -274,7 +275,7 @@ class DashboardView(APIView):
             transactions = PointTransaction.objects.filter(
                 learner__course__in=courses
             ).select_related("learner__user").order_by('-created_at')[:5]
-        else:  # admin
+        else: 
             transactions = PointTransaction.objects.select_related(
                 "learner__user"
             ).order_by('-created_at')[:5]
@@ -287,10 +288,15 @@ class DashboardView(APIView):
                 data["reason"] = f"{t.reason} by {learner_name}"
             transactions_data.append(data)
 
+        latest_courses = Course.objects.order_by('-created_at')[:5]
+        course_serializer = CoursePreviewSerializer(latest_courses, many=True, context={"request": request})
+        latest_courses_data = course_serializer.data
+
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
             "recent_activities": transactions_data,
+            "latest_courses": latest_courses_data 
         }
 
         if stats_box_data:
