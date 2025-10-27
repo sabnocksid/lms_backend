@@ -174,6 +174,7 @@ class DashboardView(APIView):
         profile = None
         profile_image_url = None
 
+        # Admin/Instructor view
         if user.role in ["admin", "instructor"]:
             welcome_data.update({
                 "total_courses": Course.objects.count(),
@@ -181,6 +182,7 @@ class DashboardView(APIView):
                 "total_students": LearnerProfile.objects.filter(user__role='student').count()
             })
 
+        # Student view
         elif user.role == "student":
             profile, _ = LearnerProfile.objects.get_or_create(
                 user=user,
@@ -239,6 +241,7 @@ class DashboardView(APIView):
         else:
             return Response({"detail": "Invalid role"}, status=403)
 
+        # Get Top Learners for leaderboard
         top_learners = LearnerProfile.objects.filter(
             user__role='student'
         ).order_by("-points", "full_name")[:10]
@@ -248,6 +251,7 @@ class DashboardView(APIView):
 
         leaderboard_data = {"leaderboard": top_serializer.data}
 
+        # Add current user's data for student role
         if user.role == "student":
             leaderboard_data["current_user"] = {
                 "id": profile.id,
@@ -266,6 +270,7 @@ class DashboardView(APIView):
                 top_3, many=True, context={"request": request}
             ).data
 
+        # Get Recent Point Transactions
         if user.role == "student":
             transactions = PointTransaction.objects.filter(
                 learner__user=user
@@ -275,7 +280,7 @@ class DashboardView(APIView):
             transactions = PointTransaction.objects.filter(
                 learner__course__in=courses
             ).select_related("learner__user").order_by('-created_at')[:5]
-        else:  
+        else:  # admin
             transactions = PointTransaction.objects.select_related(
                 "learner__user"
             ).order_by('-created_at')[:5]
@@ -288,18 +293,19 @@ class DashboardView(APIView):
                 data["reason"] = f"{t.reason} by {learner_name}"
             transactions_data.append(data)
 
+        # Get the Latest 5 Courses
         latest_courses = Course.objects.order_by('-date_added')[:5]
         course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
 
-        most_rated_courses = Course.objects.annotate(
-            average_rating=Avg('ratings__rating')
-        ).order_by('-average_rating')[:5]
+        # Get the Most Rated Courses (Using the `average_rating` property)
+        most_rated_courses = Course.objects.filter(is_published=True).order_by('-average_rating')[:5]
         most_rated_course_serializer = CourseSimpleSerializer(
             most_rated_courses, many=True, context={"request": request}
         )
         most_rated_courses_data = most_rated_course_serializer.data
 
+        # Prepare the final response
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
@@ -312,4 +318,3 @@ class DashboardView(APIView):
             dashboard_response["stats_box"] = stats_box_data
 
         return Response(dashboard_response)
-
