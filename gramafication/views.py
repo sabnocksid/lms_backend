@@ -288,7 +288,7 @@ class DashboardView(APIView):
                 data["reason"] = f"{t.reason} by {learner_name}"
             transactions_data.append(data)
 
-        latest_courses = Course.objects.order_by('-created_at')[:5]
+        latest_courses = Course.objects.order_by('-date_added')[:5]
         course_serializer = CoursePreviewSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
 
