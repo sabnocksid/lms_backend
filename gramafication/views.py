@@ -298,8 +298,11 @@ class DashboardView(APIView):
         course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
 
-        # Get the Most Rated Courses (Using the `average_rating` property)
-        most_rated_courses = Course.objects.filter(is_published=True).order_by('-average_rating')[:5]
+        # Get the Most Rated Courses (Using the `average_rating` property and annotate with Avg)
+        most_rated_courses = Course.objects.filter(is_published=True) \
+            .annotate(average_rating=Avg('ratings__points')) \
+            .order_by('-average_rating')[:5]
+        
         most_rated_course_serializer = CourseSimpleSerializer(
             most_rated_courses, many=True, context={"request": request}
         )
