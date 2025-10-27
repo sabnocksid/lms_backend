@@ -168,8 +168,6 @@ class DashboardView(APIView):
 
     def get(self, request):
         user = request.user
-
-
         welcome_data = {"full_name": user.full_name, "role": user.role}
         stats_box_data = None
         profile = None
@@ -181,12 +179,18 @@ class DashboardView(APIView):
                 "total_quizzes": Quiz.objects.count(),
                 "total_students": LearnerProfile.objects.filter(user__role='student').count()
             })
+
         elif user.role == "student":
             profile, _ = LearnerProfile.objects.get_or_create(
                 user=user,
                 defaults={"full_name": user.full_name}
             )
-            profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
+
+            profile_image_url = (
+                get_presigned_url(profile.profile_image, request=request)
+                if profile.profile_image else None
+            )
+
             welcome_data.update({
                 "points": profile.points,
                 "xp": profile.xp,
@@ -207,15 +211,20 @@ class DashboardView(APIView):
             quiz_attempts = QuizAttempt.objects.filter(user=user)
             total_quizzes_attended = quiz_attempts.count()
             total_correct = sum(
-                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
-                for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice')
+                for a in attempt.answers.all()
+                if a.selected_choice and a.selected_choice.is_correct
             )
             total_incorrect = sum(
-                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
-                for a in attempt.answers.all() if a.selected_choice and not a.selected_choice.is_correct
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice')
+                for a in attempt.answers.all()
+                if a.selected_choice and not a.selected_choice.is_correct
             )
             total_questions_attempted = total_correct + total_incorrect
-            accuracy = (total_correct / total_questions_attempted * 100) if total_questions_attempted else 0
+            accuracy = (
+                total_correct / total_questions_attempted * 100
+                if total_questions_attempted else 0
+            )
 
             stats_box_data = {
                 "courses_completed": completed_courses,
@@ -225,11 +234,17 @@ class DashboardView(APIView):
                 "total_incorrect": total_incorrect,
                 "accuracy": round(accuracy, 2)
             }
+
         else:
             return Response({"detail": "Invalid role"}, status=403)
 
-        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
-        top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
+        top_learners = LearnerProfile.objects.filter(
+            user__role='student'
+        ).order_by("-points", "full_name")[:10]
+        top_serializer = LeaderboardSerializer(
+            top_learners, many=True, context={"request": request}
+        )
+
         leaderboard_data = {"leaderboard": top_serializer.data}
 
         if user.role == "student":
@@ -240,32 +255,42 @@ class DashboardView(APIView):
                 "points": profile.points,
                 "xp": profile.xp,
                 "rank": profile.rank,
-                "rank_position": profile.get_rank_position()
+                "rank_position": profile.get_rank_position(),
             }
         else:
-            top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
-            top_3_serializer = LeaderboardSerializer(top_3, many=True, context={"request": request})
-            leaderboard_data["top_3_learners"] = top_3_serializer.data
-
+            top_3 = LearnerProfile.objects.filter(
+                user__role='student'
+            ).order_by("-points", "full_name")[:3]
+            leaderboard_data["top_3_learners"] = LeaderboardSerializer(
+                top_3, many=True, context={"request": request}
+            ).data
 
         if user.role == "student":
             transactions = PointTransaction.objects.filter(
                 learner__user=user
-            ).order_by('-created_at')[:10]
+            ).order_by('-created_at')[:5]
         elif user.role == "instructor":
             courses = Course.objects.filter(instructor=user)
             transactions = PointTransaction.objects.filter(
                 learner__course__in=courses
-            ).order_by('-created_at')[:10]
+            ).select_related("learner__user").order_by('-created_at')[:5]
         else:  # admin
-            transactions = PointTransaction.objects.all().order_by('-created_at')[:10]
+            transactions = PointTransaction.objects.select_related(
+                "learner__user"
+            ).order_by('-created_at')[:5]
 
-        transactions_data = PointTransactionSerializer(transactions, many=True).data
+        transactions_data = []
+        for t in transactions:
+            data = PointTransactionSerializer(t).data
+            if user.role in ["admin", "instructor"]:
+                learner_name = t.learner.full_name if t.learner else "Unknown"
+                data["reason"] = f"{t.reason} by {learner_name}"
+            transactions_data.append(data)
 
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
-            "recent_activities": transactions_data
+            "recent_activities": transactions_data,
         }
 
         if stats_box_data:
