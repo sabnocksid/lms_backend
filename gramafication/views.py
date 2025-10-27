@@ -165,7 +165,7 @@ class CourseGamificationView(APIView):
         serializer = CourseGamificationSerializer(course_gamification)
         return Response(serializer.data)
 
-from django.db.models import Avg
+
 
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -301,7 +301,7 @@ class DashboardView(APIView):
         course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
 
-        #  Most Rated Courses using annotate (Avg)
+        # Most Rated Courses using Rating model
         most_rated_courses = Course.objects.filter(is_published=True) \
             .annotate(average_rating=Avg('ratings__points')) \
             .order_by('-average_rating')[:5]
@@ -311,7 +311,7 @@ class DashboardView(APIView):
         )
         most_rated_courses_data = most_rated_course_serializer.data
 
-        #  final response
+        # Final response
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
