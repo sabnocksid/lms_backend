@@ -192,6 +192,7 @@ class DashboardView(APIView):
                 defaults={"full_name": user.full_name}
             )
 
+            # Get the presigned URL for the profile image (if exists)
             profile_image_url = (
                 get_presigned_url(profile.profile_image, request=request)
                 if profile.profile_image else None
@@ -205,6 +206,7 @@ class DashboardView(APIView):
                 "profile_image": profile_image_url
             })
 
+            # Calculate statistics for the student
             completed_courses = 0
             for course in Course.objects.all():
                 total_chapters = Chapter.objects.filter(lesson__course=course).count()
@@ -214,6 +216,7 @@ class DashboardView(APIView):
                 if total_chapters > 0 and completed_chapters == total_chapters:
                     completed_courses += 1
 
+            # Quiz statistics
             quiz_attempts = QuizAttempt.objects.filter(user=user)
             total_quizzes_attended = quiz_attempts.count()
             total_correct = sum(
