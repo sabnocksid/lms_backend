@@ -301,23 +301,12 @@ class DashboardView(APIView):
         course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
         latest_courses_data = course_serializer.data
 
-        # Most Rated Courses using Rating model
-        most_rated_courses = Course.objects.filter(is_published=True) \
-            .annotate(average_rating=Avg('ratings__points')) \
-            .order_by('-average_rating')[:5]
-        
-        most_rated_course_serializer = CourseSimpleSerializer(
-            most_rated_courses, many=True, context={"request": request}
-        )
-        most_rated_courses_data = most_rated_course_serializer.data
-
         # Final response
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
             "recent_activities": transactions_data,
-            "latest_courses": latest_courses_data,
-            "most_rated_courses": most_rated_courses_data
+            "latest_courses": latest_courses_data
         }
 
         if stats_box_data:
