@@ -2,7 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import LearnerProfile, CourseGamification
+from .models import LearnerProfile, CourseGamification, PointTransaction
 from .serializers import (
     LearnerProfileSerializer,
     LeaderboardSerializer,
@@ -11,7 +11,7 @@ from .serializers import (
 from rest_framework.parsers import MultiPartParser, FormParser
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from django.db.models import Count
-from .models import LearnerProfile, Course, Quiz, PointTransaction
+from .models import LearnerProfile, Course, Quiz
 from quizes.models import QuizAttempt
 from lessons.models import Chapter, ChapterProgress
 from .serializers import DashboardSerializer, LeaderboardSerializer, PointTransactionSerializer
@@ -176,12 +176,17 @@ class DashboardView(APIView):
             "role": user.role
         }
 
-
         stats_box_data = None
         profile = None
         profile_image_url = None
 
-        if user.role == "student":
+        if user.role in ["admin", "instructor"]:
+            welcome_data.update({
+                "total_courses": Course.objects.count(),
+                "total_quizzes": Quiz.objects.count(),
+                "total_students": LearnerProfile.objects.filter(user__role='student').count()
+            })
+        elif user.role == "student":
             profile, _ = LearnerProfile.objects.get_or_create(
                 user=user,
                 defaults={"full_name": user.full_name}
@@ -198,7 +203,7 @@ class DashboardView(APIView):
 
             completed_courses = 0
             for course in Course.objects.all():
-                total_chapters = course.lesson_set.aggregate(total=Count('chapter'))['total'] or 0
+                total_chapters = Chapter.objects.filter(lesson__course=course).count()
                 completed_chapters = ChapterProgress.objects.filter(
                     user=user, chapter__lesson__course=course, completed=True
                 ).count()
@@ -208,11 +213,11 @@ class DashboardView(APIView):
             quiz_attempts = QuizAttempt.objects.filter(user=user)
             total_quizzes_attended = quiz_attempts.count()
             total_correct = sum(
-                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice')
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
                 for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
             )
             total_incorrect = sum(
-                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice')
+                1 for attempt in quiz_attempts.prefetch_related('answers__selected_choice') 
                 for a in attempt.answers.all() if a.selected_choice and not a.selected_choice.is_correct
             )
             total_questions_attempted = total_correct + total_incorrect
@@ -226,7 +231,8 @@ class DashboardView(APIView):
                 "total_incorrect": total_incorrect,
                 "accuracy": round(accuracy, 2)
             }
-
+        else:
+            return Response({"detail": "Invalid role"}, status=403)
 
         top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
         top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
@@ -254,9 +260,10 @@ class DashboardView(APIView):
         elif user.role == "instructor":
             courses = Course.objects.filter(instructor=user)
             transactions = PointTransaction.objects.filter(course__in=courses).order_by('-created_at')[:10]
-        else:  # admin
+        else:  
             transactions = PointTransaction.objects.all().order_by('-created_at')[:10]
 
+        from .serializers import PointTransactionSerializer
         transactions_data = PointTransactionSerializer(transactions, many=True).data
 
 
