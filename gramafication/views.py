@@ -258,17 +258,11 @@ class DashboardView(APIView):
 
                 performance_trend.append({
                     "date": str(day),
-                    "score": performance_score
+                    "performance_score": performance_score,
                     "course_engagement": round(course_engagement, 2),
                     "quiz_activity": round(quiz_activity, 2),
                     "accuracy_today": round(accuracy_today, 2)
                 })
-
-            performance_trend.reverse()
-
-            stats_box_data = {
-                "overall_performance_last_30_days": performance_trend
-            }
 
         # student dashboard
         elif user.role == "student":
