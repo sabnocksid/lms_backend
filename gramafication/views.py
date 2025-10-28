@@ -167,6 +167,9 @@ class CourseGamificationView(APIView):
 
 
 
+from datetime import timedelta
+from django.utils import timezone
+
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -177,7 +180,7 @@ class DashboardView(APIView):
         profile = None
         profile_image_url = None
 
-        # Admin/Instructor view
+        # admin and instructor dashboard
         if user.role in ["admin", "instructor"]:
             welcome_data.update({
                 "total_courses": Course.objects.count(),
@@ -185,14 +188,91 @@ class DashboardView(APIView):
                 "total_students": LearnerProfile.objects.filter(user__role='student').count()
             })
 
-        # Student view
+            # -performance trend over last 30 days
+            performance_trend = []
+            today = timezone.now().date()
+
+            # Get relevant students
+            if user.role == "admin":
+                students = LearnerProfile.objects.filter(user__role="student")
+            else:  # instructor
+                instructor_courses = Course.objects.filter(instructor=user)
+                students = LearnerProfile.objects.filter(
+                    chapterprogress__chapter__lesson__course__in=instructor_courses
+                ).distinct()
+
+            total_chapters = Chapter.objects.count()
+            total_quizzes = Quiz.objects.count()
+
+            for i in range(30):
+                day = today - timedelta(days=i)
+                next_day = day + timedelta(days=1)
+
+                # All chapter completions from those students that day
+                chapters_completed_today = ChapterProgress.objects.filter(
+                    user__in=[s.user for s in students],
+                    completed=True,
+                    updated_at__gte=day,
+                    updated_at__lt=next_day
+                ).count()
+
+                course_engagement = (
+                    chapters_completed_today / total_chapters if total_chapters > 0 else 0
+                )
+
+                # all attepmt of that day
+                quiz_attempts_today = QuizAttempt.objects.filter(
+                    user__in=[s.user for s in students],
+                    created_at__gte=day,
+                    created_at__lt=next_day
+                )
+
+                quizzes_attempted = quiz_attempts_today.count()
+                quiz_activity = (
+                    quizzes_attempted / total_quizzes if total_quizzes > 0 else 0
+                )
+
+                # Accuracy for the day (avg)
+                total_correct_today = sum(
+                    1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
+                    for a in attempt.answers.all()
+                    if a.selected_choice and a.selected_choice.is_correct
+                )
+                total_incorrect_today = sum(
+                    1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
+                    for a in attempt.answers.all()
+                    if a.selected_choice and not a.selected_choice.is_correct
+                )
+                total_attempted_today = total_correct_today + total_incorrect_today
+                accuracy_today = (
+                    total_correct_today / total_attempted_today if total_attempted_today > 0 else 0
+                )
+
+                performance_score = round(
+                    (0.4 * course_engagement) +
+                    (0.3 * quiz_activity) +
+                    (0.3 * accuracy_today), 2
+                )
+
+                performance_trend.append({
+                    "date": str(day),
+                    "score": performance_score
+                })
+
+            performance_trend.reverse()
+
+            stats_box_data = {
+                "overall_performance_last_30_days": performance_trend
+            }
+
+        # student dashboard
         elif user.role == "student":
             profile, _ = LearnerProfile.objects.get_or_create(
                 user=user,
                 defaults={"full_name": user.full_name}
             )
 
-            # Get the presigned URL for the profile image (if exists)
+            # Get presigned URL for profile image
             profile_image_url = (
                 get_presigned_url(profile.profile_image, request=request)
                 if profile.profile_image else None
@@ -206,7 +286,7 @@ class DashboardView(APIView):
                 "profile_image": profile_image_url
             })
 
-            # Calculate statistics for the student
+            # course completion stats
             completed_courses = 0
             for course in Course.objects.all():
                 total_chapters = Chapter.objects.filter(lesson__course=course).count()
@@ -216,7 +296,7 @@ class DashboardView(APIView):
                 if total_chapters > 0 and completed_chapters == total_chapters:
                     completed_courses += 1
 
-            # Quiz statistics
+            # quiz stats
             quiz_attempts = QuizAttempt.objects.filter(user=user)
             total_quizzes_attended = quiz_attempts.count()
             total_correct = sum(
@@ -244,10 +324,72 @@ class DashboardView(APIView):
                 "accuracy": round(accuracy, 2)
             }
 
+            # performance trend over last 30 days
+            performance_trend = []
+            today = timezone.now().date()
+
+            for i in range(30):
+                day = today - timedelta(days=i)
+                next_day = day + timedelta(days=1)
+
+                # Chapters completed that day
+                chapters_completed_today = ChapterProgress.objects.filter(
+                    user=user,
+                    completed=True,
+                    updated_at__gte=day,
+                    updated_at__lt=next_day
+                ).count()
+                total_chapters = Chapter.objects.count()
+                course_engagement = (
+                    chapters_completed_today / total_chapters if total_chapters > 0 else 0
+                )
+
+                # quiz attempts that day
+                quiz_attempts_today = QuizAttempt.objects.filter(
+                    user=user,
+                    created_at__gte=day,
+                    created_at__lt=next_day
+                )
+                quizzes_attempted = quiz_attempts_today.count()
+                total_quizzes = Quiz.objects.count()
+                quiz_activity = (
+                    quizzes_attempted / total_quizzes if total_quizzes > 0 else 0
+                )
+
+                # accuracy for a day
+                total_correct_today = sum(
+                    1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
+                    for a in attempt.answers.all()
+                    if a.selected_choice and a.selected_choice.is_correct
+                )
+                total_incorrect_today = sum(
+                    1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
+                    for a in attempt.answers.all()
+                    if a.selected_choice and not a.selected_choice.is_correct
+                )
+                total_attempted_today = total_correct_today + total_incorrect_today
+                accuracy_today = (
+                    total_correct_today / total_attempted_today if total_attempted_today > 0 else 0
+                )
+
+                performance_score = round(
+                    (0.4 * course_engagement) +
+                    (0.3 * quiz_activity) +
+                    (0.3 * accuracy_today), 2
+                )
+
+                performance_trend.append({
+                    "date": str(day),
+                    "score": performance_score
+                })
+
+            performance_trend.reverse()
+            stats_box_data["performance_last_30_days"] = performance_trend
+
         else:
             return Response({"detail": "Invalid role"}, status=403)
 
-        # Get Top Learners for leaderboard
+        # leaderboard
         top_learners = LearnerProfile.objects.filter(
             user__role='student'
         ).order_by("-points", "full_name")[:10]
@@ -257,7 +399,6 @@ class DashboardView(APIView):
 
         leaderboard_data = {"leaderboard": top_serializer.data}
 
-        # Add current user's data for student role
         if user.role == "student":
             leaderboard_data["current_user"] = {
                 "id": profile.id,
@@ -276,7 +417,7 @@ class DashboardView(APIView):
                 top_3, many=True, context={"request": request}
             ).data
 
-        # Get Recent Point Transactions
+        # recent activities
         if user.role == "student":
             transactions = PointTransaction.objects.filter(
                 learner__user=user
@@ -286,7 +427,7 @@ class DashboardView(APIView):
             transactions = PointTransaction.objects.filter(
                 learner__course__in=courses
             ).select_related("learner__user").order_by('-created_at')[:5]
-        else:  # admin
+        else:  
             transactions = PointTransaction.objects.select_related(
                 "learner__user"
             ).order_by('-created_at')[:5]
@@ -299,17 +440,19 @@ class DashboardView(APIView):
                 data["reason"] = f"{t.reason} by {learner_name}"
             transactions_data.append(data)
 
-        # Get the Latest 5 Courses
+        # latest courses
         latest_courses = Course.objects.order_by('-date_added')[:5]
-        course_serializer = CourseSimpleSerializer(latest_courses, many=True, context={"request": request})
+        course_serializer = CourseSimpleSerializer(
+            latest_courses, many=True, context={"request": request}
+        )
         latest_courses_data = course_serializer.data
 
-        # Final response
+        # final dashboard response
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
             "recent_activities": transactions_data,
-            "latest_courses": latest_courses_data
+            "latest_courses": latest_courses_data,
         }
 
         if stats_box_data:
