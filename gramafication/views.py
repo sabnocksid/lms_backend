@@ -223,8 +223,8 @@ class DashboardView(APIView):
                 # all attepmt of that day
                 quiz_attempts_today = QuizAttempt.objects.filter(
                     user__in=[s.user for s in students],
-                    created_at__gte=day,
-                    created_at__lt=next_day
+                    completed_at__gte=day,
+                    completed_at__lt=next_day
                 )
 
                 quizzes_attempted = quiz_attempts_today.count()
