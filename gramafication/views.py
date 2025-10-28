@@ -373,15 +373,11 @@ class DashboardView(APIView):
                 )
 
                 performance_score = round(
-                    (0.4 * course_engagement) +
-                    (0.3 * quiz_activity) +
-                    (0.3 * accuracy_today), 2
+                    min(1.0, (0.4 * course_engagement) + (0.3 * quiz_activity) + (0.3 * accuracy_today)), 2
                 )
 
-                performance_trend.append({
-                    "date": str(day),
-                    "score": performance_score
-                })
+                raw_score = (0.4 * course_engagement) + (0.3 * quiz_activity) + (0.3 * accuracy_today)
+                performance_score = round(max(0, min(1.0, raw_score)), 2)
 
             performance_trend.reverse()
             stats_box_data["performance_last_30_days"] = performance_trend
