@@ -166,17 +166,17 @@ class CourseGamificationView(APIView):
         return Response(serializer.data)
 
 
-
 from datetime import timedelta
 from django.utils import timezone
-import datetime
 import nepali_datetime
-from courses.serializers import CoursePreviewSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
 from django.db.models import Count, Q, F, FloatField, ExpressionWrapper
-from collections import defaultdict
-from datetime import timedelta, datetime
-from django.db.models import Count, F, FloatField, ExpressionWrapper, Q
-
+from courses.models import Course, Chapter, ChapterProgress
+from quizes.models import Quiz, QuizAttempt
+from courses.serializers import CoursePreviewSerializer, CourseSimpleSerializer
+from quizes.serializers import LeaderboardSerializer, PointTransactionSerializer
 
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -188,17 +188,15 @@ class DashboardView(APIView):
         profile = None
         profile_image_url = None
 
-        today = timezone.now().date()
+        today = timezone.localdate()  # Ensure datetime.date
 
         if user.role in ["admin", "instructor"]:
-            # --- Welcome Box ---
             welcome_data.update({
                 "total_courses": Course.objects.count(),
                 "total_quizzes": Quiz.objects.count(),
                 "total_students": LearnerProfile.objects.filter(user__role='student').count()
             })
 
-            # --- Students scope ---
             if user.role == "admin":
                 students = LearnerProfile.objects.filter(user__role="student")
             else:
@@ -210,33 +208,33 @@ class DashboardView(APIView):
             total_chapters = Chapter.objects.count()
             total_quizzes = Quiz.objects.count()
 
-            # --- Daily performance trend (last 30 days) ---
             performance_trend = []
+
             for i in range(30):
                 day = today - timedelta(days=i)
                 next_day = day + timedelta(days=1)
-                nepali_date = nepali_datetime.date.from_datetime_date(datetime(day.year, day.month, day.day))
+                nepali_date = nepali_datetime.date.from_datetime_date(day)
                 bs_date = nepali_date.strftime('%Y-%m-%d')
 
-                # Chapter completion ratio
+                # Daily chapter completions
                 chapters_completed_today = ChapterProgress.objects.filter(
                     user__in=[s.user for s in students],
                     completed=True,
                     completed_at__gte=day,
                     completed_at__lt=next_day
                 ).count()
-                course_engagement = chapters_completed_today / total_chapters if total_chapters > 0 else 0
+                course_engagement = chapters_completed_today / total_chapters if total_chapters else 0
 
-                # Quiz activity ratio
+                # Daily quiz attempts
                 quiz_attempts_today = QuizAttempt.objects.filter(
                     user__in=[s.user for s in students],
                     completed_at__gte=day,
                     completed_at__lt=next_day
                 )
                 quizzes_attempted = quiz_attempts_today.count()
-                quiz_activity = quizzes_attempted / total_quizzes if total_quizzes > 0 else 0
+                quiz_activity = quizzes_attempted / total_quizzes if total_quizzes else 0
 
-                # Accuracy
+                # Accuracy calculation
                 total_correct_today = sum(
                     1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
                     for a in attempt.answers.all() if a.selected_choice and a.selected_choice.is_correct
@@ -246,7 +244,7 @@ class DashboardView(APIView):
                     for a in attempt.answers.all() if a.selected_choice and not a.selected_choice.is_correct
                 )
                 total_attempted_today = total_correct_today + total_incorrect_today
-                accuracy_today = total_correct_today / total_attempted_today if total_attempted_today > 0 else 0
+                accuracy_today = total_correct_today / total_attempted_today if total_attempted_today else 0
 
                 performance_score = round(
                     (0.4 * course_engagement) + (0.3 * quiz_activity) + (0.3 * accuracy_today), 2
@@ -261,14 +259,12 @@ class DashboardView(APIView):
                     "accuracy_today": round(accuracy_today, 2)
                 })
 
-            performance_trend.reverse()
-
-            # --- Overall performance last 30 days (for admin/instructor) ---
-            overall_performance_last_30_days = performance_trend  # same as daily aggregated data
-            stats_box_data = {"performance_last_30_days": overall_performance_last_30_days}
+            # Stats box for admin/instructor: aggregated over all students
+            stats_box_data = {
+                "performance_last_30_days": list(reversed(performance_trend))
+            }
 
         elif user.role == "student":
-            # --- Profile ---
             profile, _ = LearnerProfile.objects.get_or_create(
                 user=user,
                 defaults={"full_name": user.full_name}
@@ -319,12 +315,13 @@ class DashboardView(APIView):
                 "accuracy": round(accuracy, 2)
             }
 
-            # --- Performance last 30 days ---
+            # --- Performance Trend ---
             performance_trend = []
+
             for i in range(30):
                 day = today - timedelta(days=i)
                 next_day = day + timedelta(days=1)
-                nepali_date = nepali_datetime.date.from_datetime_date(datetime(day.year, day.month, day.day))
+                nepali_date = nepali_datetime.date.from_datetime_date(day)
                 bs_date = nepali_date.strftime('%Y-%m-%d')
 
                 chapters_completed_today = ChapterProgress.objects.filter(
@@ -332,14 +329,15 @@ class DashboardView(APIView):
                     completed_at__gte=day, completed_at__lt=next_day
                 ).count()
                 total_chapters = Chapter.objects.count()
-                course_engagement = chapters_completed_today / total_chapters if total_chapters > 0 else 0
+                course_engagement = chapters_completed_today / total_chapters if total_chapters else 0
 
                 quiz_attempts_today = QuizAttempt.objects.filter(
-                    user=user, completed_at__gte=day, completed_at__lt=next_day
+                    user=user, completed_at__gte=day,
+                    completed_at__lt=next_day
                 )
                 quizzes_attempted = quiz_attempts_today.count()
                 total_quizzes = Quiz.objects.count()
-                quiz_activity = quizzes_attempted / total_quizzes if total_quizzes > 0 else 0
+                quiz_activity = quizzes_attempted / total_quizzes if total_quizzes else 0
 
                 total_correct_today = sum(
                     1 for attempt in quiz_attempts_today.prefetch_related("answers__selected_choice")
@@ -350,7 +348,7 @@ class DashboardView(APIView):
                     for a in attempt.answers.all() if a.selected_choice and not a.selected_choice.is_correct
                 )
                 total_attempted_today = total_correct_today + total_incorrect_today
-                accuracy_today = total_correct_today / total_attempted_today if total_attempted_today > 0 else 0
+                accuracy_today = total_correct_today / total_attempted_today if total_attempted_today else 0
 
                 raw_score = (0.4 * course_engagement) + (0.3 * quiz_activity) + (0.3 * accuracy_today)
                 performance_score = round(max(0, min(1.0, raw_score)), 2)
@@ -388,7 +386,7 @@ class DashboardView(APIView):
             top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
             leaderboard_data["top_3_learners"] = LeaderboardSerializer(top_3, many=True, context={"request": request}).data
 
-        # --- Recent Transactions ---
+        # --- Recent Activities ---
         if user.role == "student":
             transactions = PointTransaction.objects.filter(learner__user=user).order_by('-created_at')[:5]
         elif user.role == "instructor":
@@ -405,11 +403,9 @@ class DashboardView(APIView):
                 data["reason"] = f"{t.reason} by {learner_name}"
             transactions_data.append(data)
 
-        # --- Latest Courses ---
         latest_courses = Course.objects.order_by('-date_added')[:5]
         latest_courses_data = CourseSimpleSerializer(latest_courses, many=True, context={"request": request}).data
 
-        # --- Continue Watching (student only) ---
         continue_watching_data = []
         if user.role == "student":
             continue_watching_courses = (
@@ -439,7 +435,6 @@ class DashboardView(APIView):
                 continue_watching_courses, many=True, context={"request": request}
             ).data
 
-        # --- Dashboard Response ---
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
