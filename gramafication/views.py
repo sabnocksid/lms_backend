@@ -173,10 +173,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions
 from django.db.models import Count, Q, F, FloatField, ExpressionWrapper
-from courses.models import Course, Chapter, ChapterProgress
-from quizes.models import Quiz, QuizAttempt
 from courses.serializers import CoursePreviewSerializer, CourseSimpleSerializer
-from quizes.serializers import LeaderboardSerializer, PointTransactionSerializer
 
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
