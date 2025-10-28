@@ -209,6 +209,10 @@ class DashboardView(APIView):
             for i in range(30):
                 day = today - timedelta(days=i)
                 next_day = day + timedelta(days=1)
+                
+                nepali_date = nepali_datetime.date.from_datetime_date(datetime.date(day.year, day.month, day.day))  
+                bs_date = nepali_date.strftime('%Y-%m-%d') 
+
 
                 # All chapter completions from those students that day
                 chapters_completed_today = ChapterProgress.objects.filter(
@@ -258,6 +262,7 @@ class DashboardView(APIView):
 
                 performance_trend.append({
                     "date": str(day),
+                    "bs_date": bs_date,
                     "performance_score": performance_score,
                     "course_engagement": round(course_engagement, 2),
                     "quiz_activity": round(quiz_activity, 2),
@@ -381,6 +386,9 @@ class DashboardView(APIView):
                     "date": str(day),
                     "bs_date": bs_date,
                     "score": performance_score
+                    "course_engagement": round(course_engagement, 2),
+                    "quiz_activity": round(quiz_activity, 2),
+                    "accuracy_today": round(accuracy_today, 2)
                 })
 
             performance_trend.reverse()
