@@ -436,6 +436,6 @@ class DashboardView(APIView):
             dashboard_response["stats_box"] = stats_box_data
 
         if continue_watching_data:
-            dashboard_response["continue_watching"] = continue_watching_data
+            dashboard_response["continue_watching"] = continue_watching_courses
 
         return Response(dashboard_response)
