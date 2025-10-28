@@ -169,7 +169,7 @@ class CourseGamificationView(APIView):
 
 from datetime import timedelta
 from django.utils import timezone
-from nepali_datetime import datetime as nepali_datetime
+from nepali_datetime import NepaliDate
 
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -333,8 +333,8 @@ class DashboardView(APIView):
                 day = today - timedelta(days=i)
                 next_day = day + timedelta(days=1)
 
-                nepali_date = nepali_datetime.from_ad(day.year, day.month, day.day)
-                bs_date = nepali_date.strftime('%Y-%m-%d')
+                nepali_date = NepaliDate.from_ad(day.year, day.month, day.day)  
+                bs_date = nepali_date.strftime('%Y-%m-%d') 
 
                 # Chapters completed that day
                 chapters_completed_today = ChapterProgress.objects.filter(
