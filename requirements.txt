@@ -23,6 +23,8 @@ boto3
 pycryptodome
 cryptography>=42.0.0
 
+nepali-date>=0.1.1
+
 # Celery & Redis
 celery>=5.5.0
 redis>=5.0.0
