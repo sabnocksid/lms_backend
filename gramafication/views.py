@@ -212,8 +212,8 @@ class DashboardView(APIView):
                 chapters_completed_today = ChapterProgress.objects.filter(
                     user__in=[s.user for s in students],
                     completed=True,
-                    updated_at__gte=day,
-                    updated_at__lt=next_day
+                    completed_at__gte=day,
+                    completed_at__lt=next_day
                 ).count()
 
                 course_engagement = (
@@ -336,8 +336,8 @@ class DashboardView(APIView):
                 chapters_completed_today = ChapterProgress.objects.filter(
                     user=user,
                     completed=True,
-                    updated_at__gte=day,
-                    updated_at__lt=next_day
+                    completed_at__gte=day,
+                    completed_at__lt=next_day
                 ).count()
                 total_chapters = Chapter.objects.count()
                 course_engagement = (
