@@ -406,8 +406,11 @@ class DashboardView(APIView):
                 .annotate(
                     total_chapters=Count("lessons__chapters", distinct=True),
                     completed_chapters=Count(
-                        "lessons__chapters__progress",
-                        filter=Q(lessons__chapters__progress__user=user, lessons__chapters__progress__completed=True),
+                        "lessons__chapters__user_progress",
+                        filter=Q(
+                            lessons__chapters__user_progress__user=user,
+                            lessons__chapters__user_progress__completed=True
+                        ),
                         distinct=True,
                     ),
                 )
@@ -420,10 +423,6 @@ class DashboardView(APIView):
                 .filter(completion_percentage__lt=100, completion_percentage__gt=0)
                 .order_by("-completion_percentage")[:5]
             )
-
-            continue_watching_data = CoursePreviewSerializer(
-                continue_watching_courses, many=True, context={"request": request}
-            ).data
 
 
         dashboard_response = {
