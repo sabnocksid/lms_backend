@@ -424,6 +424,10 @@ class DashboardView(APIView):
                 .order_by("-completion_percentage")[:5]
             )
 
+            continue_watching_data = CoursePreviewSerializer(
+                continue_watching_courses, many=True, context={"request": request}
+            ).data
+
 
         dashboard_response = {
             "welcome_box": welcome_data,
@@ -436,6 +440,6 @@ class DashboardView(APIView):
             dashboard_response["stats_box"] = stats_box_data
 
         if continue_watching_data:
-            dashboard_response["continue_watching"] = continue_watching_courses
+            dashboard_response["continue_watching"] = continue_watching_data
 
         return Response(dashboard_response)
