@@ -185,7 +185,7 @@ class DashboardView(APIView):
         profile = None
         profile_image_url = None
 
-        today = timezone.localdate()  # Ensure datetime.date
+        today = timezone.localdate()  
 
         if user.role in ["admin", "instructor"]:
             welcome_data.update({
@@ -196,6 +196,7 @@ class DashboardView(APIView):
 
             if user.role == "admin":
                 students = LearnerProfile.objects.filter(user__role="student")
+                student_count = students.count()
             else:
                 instructor_courses = Course.objects.filter(instructor=user)
                 students = LearnerProfile.objects.filter(
@@ -246,6 +247,7 @@ class DashboardView(APIView):
                 performance_score = round(
                     (0.4 * course_engagement) + (0.3 * quiz_activity) + (0.3 * accuracy_today), 2
                 )
+                avg_perf_score =  performance_score / student_count if student_count else 0
 
                 performance_trend.append({
                     "date": str(day),
@@ -253,7 +255,8 @@ class DashboardView(APIView):
                     "performance_score": performance_score,
                     "course_engagement": round(course_engagement, 2),
                     "quiz_activity": round(quiz_activity, 2),
-                    "accuracy_today": round(accuracy_today, 2)
+                    "accuracy_today": round(accuracy_today, 2),
+                    "score": round(avg_perf_score, 2),
                 })
 
             # Stats box for admin/instructor: aggregated over all students
