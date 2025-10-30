@@ -257,6 +257,7 @@ class DashboardView(APIView):
                     "quiz_activity": round(quiz_activity, 2),
                     "accuracy_today": round(accuracy_today, 2),
                     "score": round(avg_perf_score, 2),
+                    "student_count": student_count
                 })
 
             # Stats box for admin/instructor: aggregated over all students
