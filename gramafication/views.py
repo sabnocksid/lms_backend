@@ -442,7 +442,7 @@ class DashboardView(APIView):
         )
 
         highest_rated_courses_data = []
-        serializer = CoursePreviewSerializer(top_rated_courses, many=True, context={"request": request})
+        serializer = CourseSimpleSerializer(top_rated_courses, many=True, context={"request": request})
 
         for course, data in zip(top_rated_courses, serializer.data):
             data["average_rating"] = round(course.avg_rating or 0, 2)
