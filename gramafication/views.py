@@ -435,11 +435,25 @@ class DashboardView(APIView):
                 continue_watching_courses, many=True, context={"request": request}
             ).data
 
+        top_rated_courses = (
+            Course.objects
+            .annotate(avg_rating=Avg('ratings__points'))
+            .order_by('-avg_rating', '-date_added')[:5]
+        )
+
+        highest_rated_courses_data = []
+        serializer = CoursePreviewSerializer(top_rated_courses, many=True, context={"request": request})
+
+        for course, data in zip(top_rated_courses, serializer.data):
+            data["average_rating"] = round(course.avg_rating or 0, 2)
+            highest_rated_courses_data.append(data)
+
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
             "recent_activities": transactions_data,
             "latest_courses": latest_courses_data,
+            "highest_rated_courses": highest_rated_courses_data
         }
 
         if stats_box_data:
