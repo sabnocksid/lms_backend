@@ -1,35 +1,39 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate, get_user_model
-from .models import CustomUser, KYC
+from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-import base64
-from django.conf import settings
+from django.core.signing import TimestampSigner
+from .models import CustomUser
+from .tasks import send_verification_email
 
-
-User = get_user_model()
-
-
+# Register Serializer
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'full_name', 'password', 'role']
+        fields = ['email', 'full_name', 'password']
 
     def create(self, validated_data):
         password = validated_data.pop('password')
+        validated_data['role'] = 'student'
+
         user = CustomUser.objects.create_user(password=password, **validated_data)
+
+        signer = TimestampSigner()
+        token = signer.sign(user.pk)
+        verify_url = f"http://localhost:3000/verify-email?token={token}"
+        send_verification_email.delay(user.email, verify_url)
+
         return user
 
-
-
+# User Serializer
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=6)
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'kyc_verified', 'password']
-        read_only_fields = ['id', 'kyc_verified']
+        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'password']
+        read_only_fields = ['id']
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
@@ -48,8 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
-
+# Login Serializer
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -57,10 +60,6 @@ class LoginSerializer(serializers.Serializer):
     refresh = serializers.CharField(read_only=True)
     full_name = serializers.CharField(read_only=True)
     role = serializers.CharField(read_only=True)
-    kyc_verified = serializers.SerializerMethodField(read_only=True)
-
-    def get_kyc_verified(self, user):
-        return hasattr(user, "kyc") and user.kyc.approved_at is not None
 
     def validate(self, data):
         email = data.get("email")
@@ -71,13 +70,12 @@ class LoginSerializer(serializers.Serializer):
 
         user = authenticate(
             request=self.context.get("request"),
-            username=email,
+            email=email,
             password=password
         )
 
         if not user:
-            raise serializers.ValidationError("Invalid credentials.")
-
+            raise serializers.ValidationError("Incorrect email or password.")
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
 
@@ -86,61 +84,33 @@ class LoginSerializer(serializers.Serializer):
         data["access"] = str(refresh.access_token)
         data["full_name"] = user.full_name
         data["role"] = user.role
-        data["kyc_verified"] = self.get_kyc_verified(user)
         data["user"] = user
-
         return data
+    
 
 
-class SimpleUserSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    email = serializers.EmailField()
-    full_name = serializers.CharField()
-    role = serializers.CharField()
 
-class KYCSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(read_only=True)
-    document_file = serializers.FileField(write_only=True)
-    document_name = serializers.CharField(read_only=True)
-    document_url = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
-    approved_at = serializers.DateTimeField(read_only=True)
-    submitted_at = serializers.DateTimeField(read_only=True)
+class UserRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'full_name']
+        read_only_fields = ['id']
+
+
+#serializers to create admin and instructor 
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    role = serializers.ChoiceField(choices=[('instructor', 'Instructor'), ('admin', 'Admin')])
 
     class Meta:
-        model = KYC
-        fields = [
-            "id",
-            "user",
-            "document_type",
-            "document_number",
-            "document_file",
-            "document_name",
-            "document_url",
-            "status",
-            "approved_at",
-            "submitted_at"
-        ]
-
-    def get_status(self, obj):
-        return "Approved" if obj.approved_at else "Pending"
-
-    def get_document_url(self, obj):
-        if obj.document_file:
-            return obj.document_file.url  
-        return None
+        model = CustomUser
+        fields = ['email', 'full_name', 'password', 'role', 'is_active']
+        read_only_fields = ['is_active']
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        if not request or not request.user.is_authenticated:
-            raise serializers.ValidationError("Authentication required to submit KYC.")
-
-        if KYC.objects.filter(user=request.user).exists():
-            raise serializers.ValidationError("You have already submitted KYC.")
-
-        file = validated_data.pop("document_file")
-        validated_data["user"] = request.user
-        validated_data["document_name"] = file.name
-        validated_data["document_file"] = file  
-
-        return super().create(validated_data)
+        password = validated_data.pop('password')
+        user = CustomUser.objects.create_user(password=password, **validated_data)
+        user.is_active = True  
+        user.save(update_fields=['is_active'])
+        return user
+    

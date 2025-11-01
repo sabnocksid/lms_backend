@@ -1,34 +1,148 @@
 from rest_framework import serializers
 from .models import Course, Category, Rating
+from quizes.models import QuizAttempt
+from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
+from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer, LessonOverviewSerializer
+from quizes.serializers import QuizDetailSerializer, QuizSummarySerializer
+from lessons.models import ChapterProgress
 
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
-        fields = ["id", "name", "slug", "description"]  
+        fields = ["id", "name", "slug", "description"]
 
 
 class CoursePreviewSerializer(serializers.ModelSerializer):
-    categories = CategorySerializer(many=True, read_only=True)  
-    instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  
+    categories = CategorySerializer(many=True, read_only=True)
+    instructor = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+    thumbnail = serializers.SerializerMethodField()
+    quizzes_count = serializers.SerializerMethodField()
+    lessons_count = serializers.SerializerMethodField()
+    chapters_count = serializers.SerializerMethodField()
+    completion_percentage = serializers.SerializerMethodField()
+    # lessons = LessonWithProgressSerializer(many=True, read_only=True)  
+
     class Meta:
         model = Course
         fields = [
             "id",
             "name",
             "thumbnail",
-            "average_rating", 
-            "instructor_name",
+            "average_rating",
+            "instructor",
             "categories",
-            "date_added"
+            "date_added",
+            "quizzes_count",
+            "lessons_count",
+            "chapters_count",
+            "completion_percentage",
+            # "lessons",  
         ]
-        read_only_fields = fields
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(str(obj.thumbnail), request=request)
+        return None
+
+    def get_instructor(self, obj):
+        instructor = obj.instructor
+        if not instructor:
+            return None
+
+        name = (
+            getattr(instructor, "full_name", None)
+            or getattr(instructor, "first_name", None)
+            or getattr(instructor, "email", None)
+            or "Unknown Instructor"
+        )
+
+        instructor_data = {
+            "id": instructor.id,
+            "name": name,
+        }
+
+        profile = getattr(instructor, "learner_profile", None)
+        if profile and getattr(profile, "profile_image", None):
+            request = self.context.get("request")
+            instructor_data["profile_image"] = get_presigned_url(
+                str(profile.profile_image), request=request
+            )
+        else:
+            instructor_data["profile_image"] = None
+
+        return instructor_data
+
+    def get_quizzes_count(self, obj):
+        return obj.quizzes.count()
+
+    def get_lessons_count(self, obj):
+        return obj.lessons.count()
+    
+    def get_chapters_count(self, obj):
+        total_chapters = 0
+        for lesson in obj.lessons.all():
+            total_chapters += lesson.chapters.count()
+        return total_chapters
+
+    def get_completion_percentage(self, obj):
+        total_chapters = self.get_chapters_count(obj)  
+        if total_chapters == 0:
+            return 0
+
+        total_completed_chapters = 0
+
+        for lesson in obj.lessons.all():
+            for chapter in lesson.chapters.all():
+                progress, _ = ChapterProgress.objects.get_or_create(user=self.context.get('request').user, chapter=chapter)
+                if progress.completed:
+                    total_completed_chapters += 1
+
+        return (total_completed_chapters / total_chapters) * 100 if total_chapters > 0 else 0
+    
+
+
+class CourseSimpleSerializer(serializers.ModelSerializer):
+    categories = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Course
+        fields = [
+            "id",
+            "name",
+            "thumbnail",
+            "average_rating",
+            "categories",
+        ]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(str(obj.thumbnail), request=request)
+        return None
+
+    def get_categories(self, obj):
+        return [category.name for category in obj.categories.all()]
+
+
+
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
-    instructor_name = serializers.CharField(source="instructor.username", read_only=True)
-    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)  
+    instructor_name = serializers.CharField(source="instructor.fullname", read_only=True)
+    instructor = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
+    thumbnail = serializers.SerializerMethodField()
+    lessons = LessonOverviewSerializer(many=True, read_only=True)
+    quizzes = serializers.SerializerMethodField()
+    lesson_count = serializers.SerializerMethodField()
+    lesson_completion_rate = serializers.SerializerMethodField()
+    chapter_count = serializers.SerializerMethodField()
+    question_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -39,19 +153,99 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "thumbnail",
             "date_added",
             "instructor_name",
+            "instructor",
             "categories",
             "price",
             "is_published",
             "duration",
-            "average_rating",  
+            "average_rating",
+            "lessons",
+            "quizzes",
+            "lesson_count",
+            "lesson_completion_rate",
+            "chapter_count",
+            "question_count",
         ]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(str(obj.thumbnail), request=request)
+        return None
+
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
+    
+    def get_instructor(self, obj):
+        instructor = obj.instructor
+        if not instructor:
+            return None
+
+        name = (
+            getattr(instructor, "full_name", None)
+            or getattr(instructor, "first_name", None)
+            or getattr(instructor, "email", None)
+            or "Unknown Instructor"
+        )
+
+        instructor_data = {
+            "id": instructor.id,
+            "name": name,
+        }
+
+        return instructor_data 
+
+    def get_lesson_completion_rate(self, obj):
+        total_lessons = obj.lessons.count()
+        if total_lessons == 0:
+            return 0
+
+        total_completion_rate = 0
+        for lesson in obj.lessons.all():
+            lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
+            total_completion_rate += lesson_serializer.data.get("lesson_completion_rate", 0)
+
+        return total_completion_rate / total_lessons if total_lessons > 0 else 0
+
+    def get_chapter_count(self, obj):
+        return sum(lesson.chapters.count() for lesson in obj.lessons.all())
+
+    def get_question_count(self, obj):
+        return sum(quiz.questions.count() for quiz in obj.quizzes.all())
+
+    def get_quizzes(self, obj):
+        user = self.context.get("request").user
+
+        attempts = QuizAttempt.objects.filter(
+            user=user,
+            quiz__in=obj.quizzes.all()
+        ).order_by("quiz_id", "-completed_at")
+
+        attempts_map = {}
+        for attempt in attempts:
+            if attempt.quiz.id not in attempts_map:
+                attempts_map[attempt.quiz.id] = attempt
+
+        serializer = QuizSummarySerializer(
+            obj.quizzes.all(),
+            many=True,
+            context={**self.context, "attempts_map": attempts_map}
+        )
+        return serializer.data
+
+
+
+
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Category.objects.all(),
-        source="categories"
+        source="categories",
+        required=False,
     )
+    thumbnail_file = serializers.FileField(write_only=True, required=False)
+    thumbnail = serializers.SerializerMethodField() 
 
     class Meta:
         model = Course
@@ -60,21 +254,57 @@ class CourseCreateUpdateSerializer(serializers.ModelSerializer):
             "name",
             "instructor",
             "description",
-            "thumbnail",
+            "thumbnail_file",  
+            "thumbnail",      
             "category_ids",
             "price",
             "is_published",
             "duration",
         ]
-        extra_kwargs = {
-            "thumbnail": {"required": False, "allow_null": True}
-        }
+        read_only_fields = ["thumbnail"]
+
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get("request")
+            return get_presigned_url(str(obj.thumbnail), request=request)
+        return None
+
+    def create(self, validated_data):
+        file_obj = validated_data.pop("thumbnail_file", None)
+        categories = validated_data.pop("categories", [])
+
+        course = Course.objects.create(**validated_data)
+
+        if categories:
+            course.categories.set(categories)
+
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
+            if not key:
+                raise serializers.ValidationError({"thumbnail_file": "Upload failed!"})
+            course.thumbnail = key
+            course.save()
+
+        return course
 
     def update(self, instance, validated_data):
-        if "thumbnail" in validated_data and validated_data["thumbnail"] is None:
-            validated_data.pop("thumbnail")
-        return super().update(instance, validated_data)
+        file_obj = validated_data.pop("thumbnail_file", None)
+        categories = validated_data.pop("categories", None)
 
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if categories is not None:
+            instance.categories.set(categories)
+
+        if file_obj:
+            key = upload_file_to_minio(file_obj, f"courses/thumbnails/{file_obj.name}")
+            if not key:
+                raise serializers.ValidationError({"thumbnail_file": "Upload failed!"})
+            instance.thumbnail = key
+
+        instance.save()
+        return instance
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -84,7 +314,7 @@ class RatingSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def create(self, validated_data):
-        user = self.context['request'].user
+        user = self.context["request"].user
         course = validated_data.get("course")
         if not course:
             raise serializers.ValidationError({"course": "Course must be provided"})

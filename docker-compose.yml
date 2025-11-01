@@ -1,9 +1,11 @@
-version: "3.9"
+version: '3.9'
 
 services:
+  # Django Web Server
   web:
     build: .
     container_name: lms_app
+    command: python manage.py runserver 0.0.0.0:8001
     ports:
       - "8001:8001"
     env_file:
@@ -11,10 +13,47 @@ services:
     depends_on:
       - db
       - minio
+      - redis
     volumes:
       - .:/app
     entrypoint: ["/entrypoint.sh"]
 
+  # Celery Worker
+  lms_celery:
+    build: .
+    container_name: lms_celery
+    command: celery -A root worker -l info
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    entrypoint: ["/entrypoint.sh"]
+
+  # Celery Beat
+  lms_celery_beat:
+    build: .
+    container_name: lms_celery_beat
+    command: celery -A root beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - .:/app
+    entrypoint: ["/entrypoint.sh"]
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  # PostgreSQL
   db:
     image: postgres:15
     container_name: lms_db
@@ -27,18 +66,31 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # MinIO
   minio:
     image: minio/minio
     container_name: minio
     ports:
-      - "9000:9000" 
-      - "9001:9001"  
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
 
 volumes:
   pgdata:

@@ -1,17 +1,13 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
+from django.core.signing import BadSignature, SignatureExpired, TimestampSigner
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.generics import GenericAPIView, RetrieveAPIView
+from rest_framework.generics import RetrieveUpdateDestroyAPIView, GenericAPIView
 from rest_framework.views import APIView
-from django.db.models import Q
-from django.utils import timezone
-from rest_framework import serializers
-
-from .models import CustomUser, KYC
-from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, KYCSerializer
-
-
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import viewsets
+from .models import CustomUser
+from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer, AdminUserCreateSerializer
 
 # Register
 class RegisterView(generics.CreateAPIView):
@@ -29,24 +25,21 @@ class LoginView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
 
-        kyc_verified = bool(getattr(user, "kyc", None) and user.kyc.approved_at)
-
         return Response({
             "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
-            "kyc_verified": kyc_verified,
             "access": serializer.validated_data["access"],
             "refresh": serializer.validated_data["refresh"]
         }, status=status.HTTP_200_OK)
 
-
-
+# Pagination for users
 class UserPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 100
 
+# List Users (Admin Only)
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -65,7 +58,8 @@ class UserListView(generics.ListAPIView):
             )
         return queryset
 
-class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+# User Detail (Admin Only)
+class UserDetailView(RetrieveUpdateDestroyAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -76,71 +70,65 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": "Deleted successfully"}, status=status.HTTP_200_OK)
 
 
+class VerifyEmailView(APIView):
+    permission_classes = [AllowAny] 
 
-class KYCSubmitView(generics.CreateAPIView):
-    queryset = KYC.objects.all()
-    serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated]  
+    def get(self, request):
+        token = request.query_params.get('token')
+        if not token:
+            return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        serializer.save()
-
-
-# Admin: View all KYC submissions
-class KYCPageNumberPagination(PageNumberPagination):
-    page_size = 10  
-    page_size_query_param = 'page_size' 
-    max_page_size = 100
-
-class KYCListView(generics.ListAPIView):
-    queryset = KYC.objects.all().order_by('-submitted_at')
-    serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
-    pagination_class = KYCPageNumberPagination 
-
-class KYCApproveView(generics.UpdateAPIView):
-    queryset = KYC.objects.all()
-    serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def patch(self, request, *args, **kwargs):
-        kyc = self.get_object()
-        if kyc.approved_at:
-            return Response({"detail": "Already approved"}, status=status.HTTP_400_BAD_REQUEST)
-
-        kyc.approved_at = timezone.now()
-        kyc.save()
-
-        user = kyc.user
-        user.kyc_verified = True
-        user.save()
-
-        return Response({"detail": f"KYC for {user.email} approved successfully"}, status=status.HTTP_200_OK)
-
-
-# Approve KYC (Admin)
-class KYCApproveView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def post(self, request, pk):
+        signer = TimestampSigner()
         try:
-            kyc = KYC.objects.get(pk=pk)
-        except KYC.DoesNotExist:
-            return Response({"error": "KYC not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        kyc.approved_at = timezone.now()
-        kyc.save()
-        
-        user = kyc.user
-        user.kyc_verified = True
-        user.save()
-        
-        return Response({"message": f"KYC for {user.email} approved."}, status=status.HTTP_200_OK)
+            user_id = signer.unsign(token, max_age=60*60*24)  
+            user = CustomUser.objects.get(pk=user_id)
+            user.is_active = True
+            user.save()
+            return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
 
-# Retrieve KYC Status (User)
-class KYCStatusView(RetrieveAPIView):
-    serializer_class = KYCSerializer
-    permission_classes = [IsAuthenticated]
+        except SignatureExpired:
+            return Response({"error": "Verification link expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_object(self):
-        return KYC.objects.get(user=self.request.user)
+        except (BadSignature, CustomUser.DoesNotExist):
+            return Response({"error": "Invalid verification token."}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+class UserRoleViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = UserRoleSerializer
+    queryset = CustomUser.objects.all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        role = self.request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+        return queryset
+    
+
+
+class AdminUserCreateView(generics.CreateAPIView):
+    serializer_class = AdminUserCreateSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = CustomUser.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        role = serializer.validated_data.get("role")
+        
+        extra_fields = {}
+        if role == "admin":
+            extra_fields["is_staff"] = True
+            extra_fields["is_active"] = True
+        
+        user = serializer.save(**extra_fields)
+        
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active
+        }, status=status.HTTP_201_CREATED)

@@ -1,27 +1,31 @@
 #!/bin/sh
 set -e
 
+# Wait for Postgres
 echo "⏳ Waiting for Postgres..."
 while ! nc -z db 5432; do
   sleep 1
 done
 echo "✅ Postgres is up"
 
-echo "📦 Applying Django migrations..."
-python manage.py migrate --noinput
+# Only run migrations & collectstatic for Django web
+if [ "$1" = "runserver" ] || [ "$1" = "gunicorn" ]; then
+  echo "📦 Applying Django migrations..."
+  python manage.py migrate --noinput
 
-echo "🗂 Collecting static files..."
-python manage.py collectstatic --noinput
+  echo "🗂 Collecting static files..."
+  python manage.py collectstatic --noinput
 
-echo "☁️ Configuring MinIO..."
-mc alias set local $MY_S3_ENDPOINT_URL $MY_ACCESS_KEY_ID $MY_SECRET_KEY
+  if [ -n "$MY_S3_ENDPOINT_URL" ] && [ -n "$MY_ACCESS_KEY_ID" ] && [ -n "$MY_SECRET_KEY" ] && [ -n "$MY_BUCKET_NAME" ]; then
+    echo "☁️ Configuring MinIO..."
+    mc alias set local "$MY_S3_ENDPOINT_URL" "$MY_ACCESS_KEY_ID" "$MY_SECRET_KEY"
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"/lessons/videos
+    mc mb --ignore-existing local/"$MY_BUCKET_NAME"/lessons/materials
+    echo "✅ MinIO setup complete"
+  fi
+fi
 
-mc mb --ignore-existing local/$MY_BUCKET_NAME
-
-mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/videos
-mc mb --ignore-existing local/$MY_BUCKET_NAME/lessons/materials
-
-echo "✅ MinIO setup complete"
-
-echo "🚀 Starting Django server..."
-python manage.py runserver 0.0.0.0:8001
+# If Celery worker or beat, no migrations / static needed, just start
+echo "🚀 Starting: $@"
+exec "$@"

@@ -1,16 +1,25 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
-    RegisterView, LoginView, UserListView, UserDetailView,
-    KYCSubmitView, KYCListView, KYCApproveView, KYCStatusView
+    RegisterView,
+    LoginView,
+    UserListView,
+    UserDetailView,
+    VerifyEmailView,
+    UserRoleViewSet,
+    AdminUserCreateView
 )
+
+router = DefaultRouter()
+router.register(r'role', UserRoleViewSet, basename='userrole')
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", LoginView.as_view(), name="login"),
     path("users/", UserListView.as_view(), name="users-list"),
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
-    path("kyc/submit/", KYCSubmitView.as_view(), name="kyc-submit"),
-    path("kyc/status/", KYCStatusView.as_view(), name="kyc-status"),
-    path("kyc/all/", KYCListView.as_view(), name="kyc-list"),          
-    path("kyc/approve/<int:pk>/", KYCApproveView.as_view(), name="kyc-approve"),  
+    path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
+    path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
+    
+    path("", include(router.urls)),
 ]

@@ -1,8 +1,8 @@
-from django.db.models import Avg
+from django.db.models import Avg, Q
 from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend, FilterSet, NumberFilter
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, ChoiceFilter
 from .models import Category, Course, Rating
 from .serializers import (
     CategorySerializer,
@@ -15,17 +15,15 @@ from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
 
 
-class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-
-
 class CourseFilter(FilterSet):
-    min_rating = NumberFilter(field_name='avg_rating', lookup_expr='gte', label='Min Rating')
-    max_rating = NumberFilter(field_name='avg_rating', lookup_expr='lte', label='Max Rating')
+    RATING_CHOICES = [
+        ('1', '1-2'),
+        ('2', '2-3'),
+        ('3', '3-4'),
+        ('4', '4-5'),
+        ('5', '5'),
+    ]
+    rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES, label="Rating Range")
 
     class Meta:
         model = Course
@@ -38,9 +36,30 @@ class CourseFilter(FilterSet):
             "duration": ["exact", "gte", "lte"],
         }
 
+    def filter_rating_range(self, queryset, name, value):
+        queryset = queryset.annotate(avg_rating=Avg('ratings__points'))
+
+        if value == '1':
+            return queryset.filter(avg_rating__gte=1, avg_rating__lt=2)
+        elif value == '2':
+            return queryset.filter(avg_rating__gte=2, avg_rating__lt=3)
+        elif value == '3':
+            return queryset.filter(avg_rating__gte=3, avg_rating__lt=4)
+        elif value == '4':
+            return queryset.filter(avg_rating__gte=4, avg_rating__lt=5)
+        elif value == '5':
+            return queryset.filter(avg_rating__gte=5)
+        return queryset
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
 
 class CourseViewSet(viewsets.ModelViewSet):
-    queryset = Course.objects.all()  
+    queryset = Course.objects.all()
     permission_classes = [IsInstructorOrAdminOrReadOnly]
     pagination_class = CoursePagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
