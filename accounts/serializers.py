@@ -87,3 +87,12 @@ class LoginSerializer(serializers.Serializer):
         data["role"] = user.role
         data["user"] = user
         return data
+    
+
+
+
+class UserRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'full_name', 'email', 'role', 'is_active']
+        read_only_fields = ['id']

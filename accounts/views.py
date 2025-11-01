@@ -5,9 +5,9 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, GenericAPIView
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-
+from rest_framework import viewsets
 from .models import CustomUser
-from .serializers import RegisterSerializer, UserSerializer, LoginSerializer
+from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer
 
 # Register
 class RegisterView(generics.CreateAPIView):
@@ -91,3 +91,16 @@ class VerifyEmailView(APIView):
 
         except (BadSignature, CustomUser.DoesNotExist):
             return Response({"error": "Invalid verification token."}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+class UserRoleViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = UserRoleSerializer
+    queryset = CustomUser.objects.all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        role = self.request.query_params.get('role')
+        if role:
+            queryset = queryset.filter(role=role)
+        return queryset
