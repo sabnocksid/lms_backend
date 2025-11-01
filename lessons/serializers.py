@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Lesson, Chapter,  ChapterProgress
 from courses.models import Course
+from accounts.models import CustomUser
 
 from .utils.upload_minio import (
     upload_file_to_minio,
@@ -283,7 +284,7 @@ class LessonOverviewSerializer(serializers.ModelSerializer):
 
         total_completion_percent = 0
         student_count = 0
-        students = User.objects.filter(groups__name="Student") 
+        students = CustomUsers.objects.filter(groups__name="Student") 
         for student in students:
             completed_chapters = 0
             for chapter in chapters:
