@@ -284,7 +284,7 @@ class LessonOverviewSerializer(serializers.ModelSerializer):
 
         total_completion_percent = 0
         student_count = 0
-        students = CustomUsers.objects.filter(groups__name="Student") 
+        students = CustomUser.objects.filter(groups__name="Student") 
         for student in students:
             completed_chapters = 0
             for chapter in chapters:
