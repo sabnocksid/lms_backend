@@ -174,6 +174,8 @@ from rest_framework.response import Response
 from rest_framework import permissions
 from django.db.models import Count, Q, F, FloatField, ExpressionWrapper
 from courses.serializers import CoursePreviewSerializer, CourseSimpleSerializer
+from django.db.models import Case, When, Value
+
 
 class DashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -423,8 +425,12 @@ class DashboardView(APIView):
                 )
                 .annotate(
                     completion_percentage=ExpressionWrapper(
-                        100 * F("completed_chapters") / F("total_chapters"),
-                        output_field=FloatField(),
+                        Case(
+                            When(total_chapters=0, then=Value(0.0)),
+                            default=100 * F("completed_chapters") / F("total_chapters"),
+                            output_field=FloatField()
+                        ),
+                        output_field=FloatField()
                     )
                 )
                 .filter(completion_percentage__lt=100, completion_percentage__gt=0)
