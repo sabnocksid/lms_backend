@@ -175,6 +175,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_lesson_count(self, obj):
         return obj.lessons.count()
+    
+    def get_instructor(self, obj):
+        instructor = obj.instructor
+        if not instructor:
+            return None
 
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
