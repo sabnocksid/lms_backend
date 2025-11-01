@@ -53,6 +53,66 @@ class QuizCreateSerializer(serializers.ModelSerializer):
             for choice_data in choices:
                 Choice.objects.create(question=question, **choice_data)
         return quiz
+    
+
+class QuizUpdateSerializer(serializers.ModelSerializer):
+    questions = QuestionCreateSerializer(many=True)
+
+    class Meta:
+        model = Quiz
+        fields = ['course', 'title', 'description', 'time_limit', 'questions']
+
+    def update(self, instance, validated_data):
+        questions_data = validated_data.pop('questions', [])
+
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.time_limit = validated_data.get('time_limit', instance.time_limit)
+        instance.save()
+
+        existing_questions = {q.id: q for q in instance.questions.all()}
+
+        sent_question_ids = [q.get('id') for q in questions_data if q.get('id')]
+
+        for q_id, question in existing_questions.items():
+            if q_id not in sent_question_ids:
+                question.delete()
+
+        for question_data in questions_data:
+            choices_data = question_data.pop('choices', [])
+
+            q_id = question_data.get('id')
+            if q_id and q_id in existing_questions:
+                question = existing_questions[q_id]
+                question.text = question_data.get('text', question.text)
+                question.question_type = question_data.get('question_type', question.question_type)
+                question.marks = question_data.get('marks', question.marks)
+                question.save()
+
+                existing_choices = {c.id: c for c in question.choices.all()}
+                sent_choice_ids = [c.get('id') for c in choices_data if c.get('id')]
+
+                for c_id, choice in existing_choices.items():
+                    if c_id not in sent_choice_ids:
+                        choice.delete()
+
+                for choice_data in choices_data:
+                    c_id = choice_data.get('id')
+                    if c_id and c_id in existing_choices:
+                        choice = existing_choices[c_id]
+                        choice.text = choice_data.get('text', choice.text)
+                        choice.is_correct = choice_data.get('is_correct', choice.is_correct)
+                        choice.save()
+                    else:
+                        Choice.objects.create(question=question, **choice_data)
+
+            else:
+                new_question = Question.objects.create(quiz=instance, **question_data)
+                for choice_data in choices_data:
+                    Choice.objects.create(question=new_question, **choice_data)
+
+        return instance
+
 
 
 class QuestionBasicSerializer(serializers.ModelSerializer):

@@ -11,7 +11,8 @@ from .serializers import (
     QuizFullDetailSerializer,  
     QuizAttemptSubmitSerializer,
     QuizResultSerializer,
-    UserAnswerSerializer
+    UserAnswerSerializer,
+    QuizUpdateSerializer
 )
 from gramafication.models import LearnerProfile, CourseGamification, PointTransaction
 from gramafication.serializers import CourseGamificationSerializer
@@ -23,6 +24,24 @@ class QuizCreateAPIView(generics.CreateAPIView):
     serializer_class = QuizCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
+class QuizUpdateAPIView(generics.UpdateAPIView):
+    queryset = Quiz.objects.all()
+    serializer_class = QuizUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"  
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+
+class QuizDeleteAPIView(generics.DestroyAPIView):
+    queryset = Quiz.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"
 
 class QuizViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Quiz.objects.all()
