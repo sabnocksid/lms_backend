@@ -11,16 +11,17 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'full_name', 'password', 'role']
+        fields = ['email', 'full_name', 'password']  
 
     def create(self, validated_data):
-        password = validated_data.pop('password')
+        password = validated_data.pop("password")
+        validated_data["role"] = "student"
+
         user = CustomUser.objects.create_user(password=password, **validated_data)
 
         signer = TimestampSigner()
         token = signer.sign(user.pk)
         verify_url = f"http://localhost:3000/verify-email?token={token}"
-
         send_verification_email.delay(user.email, verify_url)
 
         return user
