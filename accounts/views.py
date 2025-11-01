@@ -115,7 +115,16 @@ class AdminUserCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        
+        role = serializer.validated_data.get("role")
+        
+        extra_fields = {}
+        if role == "admin":
+            extra_fields["is_staff"] = True
+            extra_fields["is_active"] = True
+        
+        user = serializer.save(**extra_fields)
+        
         return Response({
             "id": user.id,
             "email": user.email,
