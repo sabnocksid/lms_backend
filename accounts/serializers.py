@@ -108,6 +108,8 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        validated_data['is_active'] = True
         user = CustomUser.objects.create_user(password=password, **validated_data)
+        user.is_active = True  
+        user.save(update_fields=['is_active'])
         return user
+    
