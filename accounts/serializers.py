@@ -11,12 +11,15 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'full_name', 'password']  
+        fields = ['email', 'full_name', 'password'] 
 
     def create(self, validated_data):
         password = validated_data.pop('password')
 
         user = CustomUser.objects.create_user(password=password, role='student', **validated_data)
+
+        if hasattr(user, 'learner_profile'):
+            user.learner_profile.save()  
 
         signer = TimestampSigner()
         token = signer.sign(user.pk)
