@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import viewsets
 from .models import CustomUser
-from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer
+from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer, AdminUserCreateSerializer
 
 # Register
 class RegisterView(generics.CreateAPIView):
@@ -104,3 +104,22 @@ class UserRoleViewSet(viewsets.ReadOnlyModelViewSet):
         if role:
             queryset = queryset.filter(role=role)
         return queryset
+    
+
+
+class AdminUserCreateView(generics.CreateAPIView):
+    serializer_class = AdminUserCreateSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    queryset = CustomUser.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "is_active": user.is_active
+        }, status=status.HTTP_201_CREATED)

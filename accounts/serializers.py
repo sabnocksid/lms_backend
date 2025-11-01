@@ -77,8 +77,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Incorrect email or password.")
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
-        # if not user.is_email_verified:
-        #     raise serializers.ValidationError("Email is not verified.")
 
         refresh = RefreshToken.for_user(user)
         data["refresh"] = str(refresh)
@@ -96,3 +94,20 @@ class UserRoleSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'full_name']
         read_only_fields = ['id']
+
+
+#serializers to create admin and instructor 
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    role = serializers.ChoiceField(choices=[('instructor', 'Instructor'), ('admin', 'Admin')])
+
+    class Meta:
+        model = CustomUser
+        fields = ['email', 'full_name', 'password', 'role', 'is_active']
+        read_only_fields = ['is_active']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        validated_data['is_active'] = True
+        user = CustomUser.objects.create_user(password=password, **validated_data)
+        return user
