@@ -5,7 +5,7 @@ from gramafication.models import LearnerProfile
 
 @receiver(post_save, sender=CustomUser)
 def create_learner_profile(sender, instance, created, **kwargs):
-    if created and instance.role == 'student' and not instance.learner_profile:
+    if created and instance.role == 'student':
         profile = LearnerProfile.objects.create(
             user=instance,
             full_name=instance.full_name
