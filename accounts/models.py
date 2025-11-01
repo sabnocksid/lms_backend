@@ -1,7 +1,6 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
-from gramafication.models import LearnerProfile
 
 ROLE_CHOICES = (
     ('admin', 'Admin'),
@@ -20,7 +19,7 @@ class CustomUserManager(BaseUserManager):
         if not user.encryption_key:
             user.encryption_key = uuid.uuid4().hex
 
-        user.is_active = False  # default for registration
+        user.is_active = False
         user.save(using=self._db)
         return user
 
@@ -40,13 +39,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
     encryption_key = models.CharField(max_length=64, editable=False)
-    
-    learner_profile = models.OneToOneField(
-        'gramafication.LearnerProfile',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name', 'role']
