@@ -103,11 +103,36 @@ class PointTransaction(models.Model):
     def __str__(self):
         sign = "+" if self.points >= 0 else "-"
         return f"{sign}{abs(self.points)} pts - {self.learner.user.username}"
+    
+
+class Enrollment(models.Model):
+    learner = models.ForeignKey(
+        LearnerProfile,
+        on_delete=models.CASCADE,
+        related_name="enrollments"
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="enrollments"
+    )
+    date_enrolled = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True) 
+    completed = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("learner", "course")
+
+    def __str__(self):
+        return f"{self.learner.full_name} enrolled in {self.course.name}"
 
 
 class CourseGamification(models.Model):
-    learner = models.ForeignKey("LearnerProfile", on_delete=models.CASCADE, related_name="course_progress")
-    course = models.ForeignKey("courses.Course", on_delete=models.CASCADE, related_name="gamification")
+    enrollment = models.OneToOneField(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name="gamification"
+    )
     points_earned = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
     chapters_completed = models.PositiveIntegerField(default=0)
@@ -118,8 +143,5 @@ class CourseGamification(models.Model):
     course_completed = models.BooleanField(default=False)
     last_updated = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together = ("learner", "course")
-
     def __str__(self):
-        return f"{self.learner.user.username} - {self.course.title}"
+        return f"{self.enrollment.learner.full_name} - {self.enrollment.course.name}"

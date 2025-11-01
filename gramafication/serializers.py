@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import LearnerProfile, Badge, LearnerBadge, PointTransaction, CourseGamification
+from .models import LearnerProfile, Badge, LearnerBadge, PointTransaction, CourseGamification, Enrollment
 from quizes.models import QuizAttempt
 from lessons.utils.upload_minio import get_presigned_url
 from courses.models import Course
@@ -69,21 +69,19 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
         return None
 
     def get_course_progress(self, obj):
-        user = obj.user
-        courses = Course.objects.filter(enrolled_students=user)
         result = []
-
-        for course in courses:
-            chapters = Chapter.objects.filter(lesson__course=course)
-            total_chapters = chapters.count()
-            completed_chapters = ChapterProgress.objects.filter(
-                user=user, chapter__in=chapters, completed=True
-            ).count()
-
-            total_quizzes = course.quizzes.count()
-            quizzes_attended = course.quizzes.filter(
-                quizprogress__user=user
-            ).count()
+        enrollments = obj.enrollments.select_related('course').prefetch_related('gamification')
+        
+        for enrollment in enrollments:
+            gamification = getattr(enrollment, 'gamification', None)
+            course = enrollment.course
+            total_chapters = gamification.total_chapters if gamification else course.lessons.count()
+            completed_chapters = gamification.chapters_completed if gamification else 0
+            total_quizzes = gamification.total_quizzes if gamification else course.quizzes.count()
+            quizzes_attended = gamification.quizzes_attempted if gamification else 0
+            points_earned = gamification.points_earned if gamification else 0
+            xp_earned = gamification.xp_earned if gamification else 0
+            course_completed = gamification.course_completed if gamification else False
 
             result.append({
                 "course_id": course.id,
@@ -92,9 +90,12 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
                 "completed_chapters": completed_chapters,
                 "completion_percentage": (completed_chapters / total_chapters * 100) if total_chapters else 0,
                 "quizzes_attended": quizzes_attended,
-                "total_quizzes": total_quizzes
+                "total_quizzes": total_quizzes,
+                "points_earned": points_earned,
+                "xp_earned": xp_earned,
+                "course_completed": course_completed,
+                "last_updated": gamification.last_updated if gamification else None,
             })
-
         return result
 
 
@@ -108,9 +109,14 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
 
 
 class CourseGamificationSerializer(serializers.ModelSerializer):
+    course_id = serializers.IntegerField(source="enrollment.course.id", read_only=True)
+    course_name = serializers.CharField(source="enrollment.course.name", read_only=True)
+
     class Meta:
         model = CourseGamification
         fields = [
+            "course_id",
+            "course_name",
             "points_earned",
             "xp_earned",
             "chapters_completed",
@@ -119,6 +125,7 @@ class CourseGamificationSerializer(serializers.ModelSerializer):
             "total_quizzes",
             "correct_answers",
             "course_completed",
+            "last_updated",
         ]
 
 
@@ -211,3 +218,14 @@ class DashboardSerializer(serializers.Serializer):
     welcome_box = WelcomeBoxSerializer()
     stats_box = StatsBoxSerializer(required=False)  
     leaderboard = LeaderboardSectionSerializer()
+
+
+class EnrollmentSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source="course.name", read_only=True)
+    course_id = serializers.IntegerField(source="course.id", read_only=True)
+    date_enrolled = serializers.DateTimeField(read_only=True)
+    course_completed = serializers.BooleanField(source="completed", read_only=True)
+    
+    class Meta:
+        model = Enrollment
+        fields = ["id", "course_id", "course_name", "date_enrolled", "course_completed", "is_active"]
