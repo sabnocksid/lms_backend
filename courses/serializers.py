@@ -134,6 +134,7 @@ class CourseSimpleSerializer(serializers.ModelSerializer):
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     instructor_name = serializers.CharField(source="instructor.fullname", read_only=True)
+    instructor = serializers.SerializerMethodField()
     average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     lessons = LessonOverviewSerializer(many=True, read_only=True)
@@ -152,6 +153,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "thumbnail",
             "date_added",
             "instructor_name",
+            "instructor",
             "categories",
             "price",
             "is_published",
