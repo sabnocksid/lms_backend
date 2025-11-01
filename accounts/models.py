@@ -20,7 +20,7 @@ class CustomUserManager(BaseUserManager):
         if not user.encryption_key:
             user.encryption_key = uuid.uuid4().hex
 
-        user.is_active = False
+        user.is_active = False  # default for registration
         user.save(using=self._db)
         return user
 
@@ -28,7 +28,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('role', 'admin')
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)  
+        extra_fields.setdefault('is_active', True)
         return self.create_user(email, password, **extra_fields)
 
 
@@ -41,7 +41,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     encryption_key = models.CharField(max_length=64, editable=False)
     
-    learner_profile = models.OneToOneField('gramafication.LearnerProfile', on_delete=models.CASCADE, null=True, blank=True)
+    learner_profile = models.OneToOneField(
+        'gramafication.LearnerProfile',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name', 'role']
@@ -52,6 +57,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def save(self, *args, **kwargs):
-        if self.role == 'student' and not self.learner_profile:
-            self.learner_profile = LearnerProfile.objects.create(user=self)
+        if not self.encryption_key:
+            self.encryption_key = uuid.uuid4().hex
         super().save(*args, **kwargs)

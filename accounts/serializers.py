@@ -11,11 +11,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ['email', 'full_name', 'password']  
+        fields = ['email', 'full_name', 'password']
 
     def create(self, validated_data):
-        password = validated_data.pop("password")
-        validated_data["role"] = "student"
+        password = validated_data.pop('password')
+        validated_data['role'] = 'student'
 
         user = CustomUser.objects.create_user(password=password, **validated_data)
 
