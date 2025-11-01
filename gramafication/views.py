@@ -467,43 +467,45 @@ class DashboardView(APIView):
 
 
 
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions
 from rest_framework.response import Response
-from .models import Enrollment, Course, LearnerProfile
+from rest_framework import status
+from .models import Enrollment, LearnerProfile, Course, CourseGamification
 from .serializers import EnrollmentSerializer
 
-class EnrollCourseAPIView(generics.CreateAPIView):
-    serializer_class = EnrollmentSerializer
+class EnrollCourseView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
+    def post(self, request, course_id):
         user = request.user
-        learner_profile = user.profile
-
-        course_id = request.data.get("course_id")
-        if not course_id:
-            return Response({"detail": "course_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        profile = getattr(user, 'profile', None)
+        if not profile:
+            return Response({"detail": "LearnerProfile not found"}, status=400)
 
         try:
             course = Course.objects.get(id=course_id)
         except Course.DoesNotExist:
-            return Response({"detail": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Course not found"}, status=404)
 
         enrollment, created = Enrollment.objects.get_or_create(
-            learner=learner_profile,
+            learner=profile,
             course=course
         )
 
-        if not created:
-            return Response({"detail": "Already enrolled"}, status=status.HTTP_200_OK)
+        if created:
+            CourseGamification.objects.create(enrollment=enrollment)
+        
+        serializer = EnrollmentSerializer(enrollment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
-        serializer = self.get_serializer(enrollment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
-class UserEnrollmentsAPIView(generics.ListAPIView):
+class MyEnrollmentsView(generics.ListAPIView):
     serializer_class = EnrollmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Enrollment.objects.filter(learner=self.request.user.profile).order_by("-date_enrolled")
+        user = self.request.user
+        profile = getattr(user, 'profile', None)
+        if not profile:
+            return Enrollment.objects.none()
+        return Enrollment.objects.filter(learner=profile)

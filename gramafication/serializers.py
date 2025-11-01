@@ -221,11 +221,25 @@ class DashboardSerializer(serializers.Serializer):
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
-    course_name = serializers.CharField(source="course.name", read_only=True)
-    course_id = serializers.IntegerField(source="course.id", read_only=True)
-    date_enrolled = serializers.DateTimeField(read_only=True)
-    course_completed = serializers.BooleanField(source="completed", read_only=True)
-    
+    course_title = serializers.CharField(source='course.title', read_only=True)
+    gamification = serializers.SerializerMethodField()
+
     class Meta:
         model = Enrollment
-        fields = ["id", "course_id", "course_name", "date_enrolled", "course_completed", "is_active"]
+        fields = ['id', 'course', 'course_title', 'date_enrolled', 'is_active', 'completed', 'gamification']
+
+    def get_gamification(self, obj):
+        gam = getattr(obj, 'gamification', None)
+        if gam:
+            return {
+                "points_earned": gam.points_earned,
+                "xp_earned": gam.xp_earned,
+                "chapters_completed": gam.chapters_completed,
+                "total_chapters": gam.total_chapters,
+                "quizzes_attempted": gam.quizzes_attempted,
+                "total_quizzes": gam.total_quizzes,
+                "correct_answers": gam.correct_answers,
+                "course_completed": gam.course_completed,
+                "last_updated": gam.last_updated,
+            }
+        return None
