@@ -267,21 +267,34 @@ class LessonOverviewSerializer(serializers.ModelSerializer):
 
     def get_lesson_completion_rate(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            chapters = obj.chapters.all()
-            total_chapters = chapters.count()
-            completed_chapters = 0
+        chapters = obj.chapters.all()
+        total_chapters = chapters.count()
 
+        if total_chapters == 0:
+            return 0
+
+        if request and request.user.is_authenticated and not request.user.is_staff and not request.user.groups.filter(name__in=["Instructor"]).exists():
+            completed_chapters = 0
             for chapter in chapters:
                 progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=chapter)
                 if progress.completed:
                     completed_chapters += 1
-
-            if total_chapters == 0:
-                return 0
             return (completed_chapters / total_chapters) * 100
-        
-        return 0
+
+        total_completion_percent = 0
+        student_count = 0
+        students = User.objects.filter(groups__name="Student") 
+        for student in students:
+            completed_chapters = 0
+            for chapter in chapters:
+                progress, _ = ChapterProgress.objects.get_or_create(user=student, chapter=chapter)
+                if progress.completed:
+                    completed_chapters += 1
+            total_completion_percent += (completed_chapters / total_chapters) * 100
+            student_count += 1
+
+        return total_completion_percent / student_count if student_count > 0 else 0
+
 
     def get_chapter_count(self, obj):
         return obj.chapters.count()

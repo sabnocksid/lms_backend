@@ -237,9 +237,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
 
 
-
-
-
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
     category_ids = serializers.PrimaryKeyRelatedField(
         many=True,
