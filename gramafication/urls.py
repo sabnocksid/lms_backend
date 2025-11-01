@@ -6,8 +6,8 @@ from .views import (
     LeaderboardView,
     CourseGamificationView,
     DashboardView,
-    EnrollCourseAPIView,
-    UserEnrollmentsAPIView
+    EnrollCourseView, 
+    MyEnrollmentsView
 )
 
 urlpatterns = [
@@ -17,8 +17,8 @@ urlpatterns = [
     path("learners/me/", LearnerProfileDetailView.as_view(), name="learner-profile-detail"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
-    path("enroll/", EnrollCourseAPIView.as_view(), name="enroll-course"),
-    path("my-enrollments/", UserEnrollmentsAPIView.as_view(), name="user-enrollments"),
+    path("enroll/", EnrollCourseView.as_view(), name="enroll-course"),
+    path("my-enrollments/", MyEnrollmentsView.as_view(), name="user-enrollments"),
 
     path("course/<int:course_id>/progress/", CourseGamificationView.as_view(), name="course-gamification-progress"),
 ]
