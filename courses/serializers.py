@@ -133,17 +133,16 @@ class CourseSimpleSerializer(serializers.ModelSerializer):
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
-    instructor_name = serializers.CharField(source="instructor.full_name", read_only=True)
+    instructor_name = serializers.CharField(source="instructor.fullname", read_only=True)
     instructor = serializers.SerializerMethodField()
+    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
     thumbnail = serializers.SerializerMethodField()
     lessons = LessonOverviewSerializer(many=True, read_only=True)
     quizzes = serializers.SerializerMethodField()
-
     lesson_count = serializers.SerializerMethodField()
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     question_count = serializers.SerializerMethodField()
-    average_rating = serializers.DecimalField(max_digits=3, decimal_places=2, read_only=True)
 
     class Meta:
         model = Course
@@ -174,40 +173,39 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
+    
     def get_instructor(self, obj):
         instructor = obj.instructor
         if not instructor:
             return None
-        name = getattr(instructor, "full_name", None) or getattr(instructor, "email", None) or "Unknown Instructor"
-        return {"id": instructor.id, "name": name}
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        user = self.context.get("request").user
+        name = (
+            getattr(instructor, "full_name", None)
+            or getattr(instructor, "first_name", None)
+            or getattr(instructor, "email", None)
+            or "Unknown Instructor"
+        )
 
-        if getattr(user, "role", None) in ["admin", "instructor"]:
-            minimal_fields = [
-                "id",
-                "name",
-                "lessons",
-                "quizzes",
-            ]
-            data = {key: data[key] for key in minimal_fields}
+        instructor_data = {
+            "id": instructor.id,
+            "name": name,
+        }
 
-        return data
+        return instructor_data 
 
-    def get_lesson_count(self, obj):
-        return obj.lessons.count()
-    
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
         if total_lessons == 0:
             return 0
-        total_completion_rate = sum(
-            LessonWithProgressSerializer(lesson, context=self.context).data.get("lesson_completion_rate", 0)
-            for lesson in obj.lessons.all()
-        )
-        return total_completion_rate / total_lessons
+
+        total_completion_rate = 0
+        for lesson in obj.lessons.all():
+            lesson_serializer = LessonWithProgressSerializer(lesson, context=self.context)
+            total_completion_rate += lesson_serializer.data.get("lesson_completion_rate", 0)
+
+        return total_completion_rate / total_lessons if total_lessons > 0 else 0
 
     def get_chapter_count(self, obj):
         return sum(lesson.chapters.count() for lesson in obj.lessons.all())
@@ -217,7 +215,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_quizzes(self, obj):
         user = self.context.get("request").user
-        attempts = QuizAttempt.objects.filter(user=user, quiz__in=obj.quizzes.all()).order_by("quiz_id", "-completed_at")
+
+        attempts = QuizAttempt.objects.filter(
+            user=user,
+            quiz__in=obj.quizzes.all()
+        ).order_by("quiz_id", "-completed_at")
 
         attempts_map = {}
         for attempt in attempts:
@@ -230,6 +232,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             context={**self.context, "attempts_map": attempts_map}
         )
         return serializer.data
+
 
 
 
