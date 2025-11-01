@@ -84,6 +84,52 @@ class ChapterSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+from django.db.models import Count
+
+class ChapterWithViewCountSerializer(serializers.ModelSerializer):
+    video = serializers.SerializerMethodField(read_only=True)
+    material = serializers.SerializerMethodField(read_only=True)
+    progress = serializers.SerializerMethodField(read_only=True)
+    view_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Chapter
+        fields = [
+            "id",
+            "lesson",
+            "title",
+            "video",
+            "material",
+            "progress",
+            "view_count"
+        ]
+        read_only_fields = ['video', 'material', 'progress', 'view_count']
+
+    def get_video(self, obj):
+        if obj.video:
+            request = self.context.get("request")
+            return get_presigned_url(obj.video, request=request)
+        return None
+
+    def get_material(self, obj):
+        if obj.material:
+            request = self.context.get("request")
+            return get_presigned_url(obj.material, request=request)
+        return None
+
+    def get_progress(self, obj):
+        progress = ChapterProgress.objects.filter(chapter=obj).aggregate(
+            completed=Count('id', filter=ChapterProgress.objects.filter(completed=True)),
+            total=Count('id')
+        )
+        return {
+            "completed": progress["completed"],
+            "total": progress["total"]
+        }
+
+    def get_view_count(self, obj):
+        return ChapterProgress.objects.filter(chapter=obj, completed=True).count()
 
     
 

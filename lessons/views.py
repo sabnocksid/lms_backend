@@ -11,6 +11,7 @@ from .serializers import (
     LessonWithProgressSerializer,
     ChapterSerializer,
     ChapterProgressSerializer,
+    ChapterWithViewCountSerializer
 )
 
 from gramafication.algorithm.gramafication_course import process_course_gamification
@@ -72,7 +73,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
 
 
 class ChapterByLessonView(generics.ListAPIView):
-    serializer_class = ChapterSerializer
+    serializer_class = ChapterWithViewCountSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):

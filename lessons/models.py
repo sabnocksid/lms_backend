@@ -49,3 +49,7 @@ class ChapterProgress(models.Model):
         self.completed = True
         self.completed_at = timezone.now()
         self.save()
+        
+    @property
+    def view_count(self):
+        return ChapterProgress.objects.filter(chapter=self.chapter, completed=True).count()
