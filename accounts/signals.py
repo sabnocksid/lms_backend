@@ -10,8 +10,3 @@ def create_learner_profile(sender, instance, created, **kwargs):
             user=instance,
             full_name=instance.full_name
         )
-
-@receiver(post_save, sender=CustomUser)
-def save_learner_profile(sender, instance, **kwargs):
-    if instance.role == 'student' and hasattr(instance, 'learner_profile'):
-        instance.learner_profile.save()
