@@ -181,6 +181,18 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         if not instructor:
             return None
 
+        name = (
+            getattr(instructor, "full_name", None)
+            or getattr(instructor, "first_name", None)
+            or getattr(instructor, "email", None)
+            or "Unknown Instructor"
+        )
+
+        instructor_data = {
+            "id": instructor.id,
+            "name": name,
+        }
+
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
         if total_lessons == 0:
