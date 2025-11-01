@@ -193,6 +193,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "name": name,
         }
 
+        return instructor_data 
+
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
         if total_lessons == 0:
