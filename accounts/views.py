@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import viewsets
 from .models import CustomUser
+from django.db.models import Q
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer, AdminUserCreateSerializer
 
 # Register
