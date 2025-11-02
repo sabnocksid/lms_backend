@@ -100,7 +100,10 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
     
 from lessons.utils.upload_minio import upload_file_to_minio
 
+
 class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
+    profile_image_file = serializers.FileField(required=False, write_only=True)
+
     class Meta:
         model = LearnerProfile
         fields = ["full_name", "profile_image", "date_of_birth", "profile_image_file"]
@@ -112,7 +115,7 @@ class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
 
         if profile_image_file:
-            file_name = f"learners/profile_images/{profile_image_file.name}"  
+            file_name = f"learners/profile_images/{profile_image_file.name}"
 
             file_url = upload_file_to_minio(profile_image_file, file_name)
 
