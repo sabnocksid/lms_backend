@@ -65,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
                 learner_profile_data = LearnerProfileSummarySerializer(learner_profile).data
                 representation['learner_profile'] = learner_profile_data
         
-        return representation
+        return representation 
 
 # Login Serializer
 class LoginSerializer(serializers.Serializer):
