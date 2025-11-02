@@ -7,7 +7,8 @@ from .views import (
     UserDetailView,
     VerifyEmailView,
     UserRoleViewSet,
-    AdminUserCreateView
+    AdminUserCreateView,
+    UserUpdateAPIView
 )
 
 router = DefaultRouter()
@@ -18,6 +19,7 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("users/", UserListView.as_view(), name="users-list"),
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
+    path("users/<int:pk>/", UserUpdateAPIView.as_view(), name="user-update"),
     path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
     
