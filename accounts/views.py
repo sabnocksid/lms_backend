@@ -139,40 +139,66 @@ from rest_framework import permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth.hashers import make_password
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.exceptions import ObjectDoesNotExist
 
 class UserUpdateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def patch(self, request, *args, **kwargs):
-        user = request.user
-        user_id = kwargs.get('user_id')  
-        instance = CustomUser.objects.get(id=user_id)
+        user_id = kwargs.get('user_id')
+        try:
+            instance = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if instance.role == 'student':
+            if user != instance:
+                if 'is_active' in request.data:
+                    current_is_active = instance.is_active
+                    instance.is_active = not current_is_active
+                else:
+                    return Response(
+                        {"detail": "Only 'is_active' field can be updated for students."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                request.data = {'is_active': instance.is_active}
+            else:
+                if user.role != 'admin':
+                    return Response(
+                        {"detail": "Admin privileges required to update student profiles."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+        
+        elif instance.role == 'instructor':
+            if user != instance: 
+                return Response(
+                    {"detail": "Only instructors can update their own name and email."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-        if user.role == 'admin':
-            if 'password' in request.data:
-                password = request.data.get('password')
-                if password:
-                    instance.set_password(password)
-                    request.data['password'] = instance.password 
-        elif user.role == 'instructor':
-            allowed_fields = ['full_name', 'email', 'password']
+            allowed_fields = ['full_name', 'email']
             filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
             
             if len(filtered_data) != len(request.data):
                 return Response(
-                    {"detail": "Only 'full_name', 'email', and 'password' can be updated for instructors."},
+                    {"detail": "Only 'full_name' and 'email' can be updated for instructors."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            request.data = filtered_data  
+            request.data = filtered_data 
 
-        else:
-            return Response(
-                {"detail": "Unauthorized to update user."},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if 'password' in request.data:
+            password = request.data.get('password')
+            if password:
+                instance.set_password(password)
+                request.data['password'] = instance.password  
 
         serializer = UserSerializer(instance, data=request.data, partial=True)
-
+        
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
