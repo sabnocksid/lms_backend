@@ -197,6 +197,24 @@ class UserUpdateAPIView(APIView):
             
             request_data = filtered_data
 
+        elif instance.role == 'admin':
+            if user != instance and user.role != 'admin':  
+                return Response(
+                    {"detail": "Only admins can update admin profiles."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            allowed_fields = ['full_name', 'email', 'password', 'is_active', 'role']
+            filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
+            
+            if len(filtered_data) != len(request.data):
+                return Response(
+                    {"detail": "Only 'full_name', 'email', 'password', 'is_active', and 'role' can be updated for admins."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            request_data = filtered_data
+
         if 'password' in request.data:
             password = request.data.get('password')
             if password:
