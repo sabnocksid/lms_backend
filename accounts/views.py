@@ -148,6 +148,7 @@ class UserUpdateAPIView(APIView):
 
     def patch(self, request, *args, **kwargs):
         user_id = kwargs.get('user_id')
+        
         try:
             instance = CustomUser.objects.get(id=user_id)
         except CustomUser.DoesNotExist:
@@ -155,27 +156,29 @@ class UserUpdateAPIView(APIView):
                 {"detail": "User not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        user = request.user
         
         if instance.role == 'student':
             if user != instance:
                 if 'is_active' in request.data:
                     current_is_active = instance.is_active
                     instance.is_active = not current_is_active
+                    request.data = {'is_active': instance.is_active}
                 else:
                     return Response(
                         {"detail": "Only 'is_active' field can be updated for students."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                request.data = {'is_active': instance.is_active}
             else:
                 if user.role != 'admin':
                     return Response(
                         {"detail": "Admin privileges required to update student profiles."},
                         status=status.HTTP_403_FORBIDDEN
                     )
-        
+
         elif instance.role == 'instructor':
-            if user != instance: 
+            if user != instance:
                 return Response(
                     {"detail": "Only instructors can update their own name and email."},
                     status=status.HTTP_403_FORBIDDEN
@@ -189,7 +192,7 @@ class UserUpdateAPIView(APIView):
                     {"detail": "Only 'full_name' and 'email' can be updated for instructors."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            request.data = filtered_data 
+            request.data = filtered_data  
 
         if 'password' in request.data:
             password = request.data.get('password')
@@ -201,6 +204,6 @@ class UserUpdateAPIView(APIView):
         
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data)  
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
