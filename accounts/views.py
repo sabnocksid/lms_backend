@@ -194,14 +194,15 @@ class UserUpdateAPIView(APIView):
                     {"detail": "Only 'full_name', 'email', 'role', and 'is_active' can be updated for instructors."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            request.data = filtered_data
+            
+            request_data = filtered_data
 
         if 'password' in request.data:
             password = request.data.get('password')
             if password:
                 instance.set_password(password)
 
-        serializer = UserSerializer(instance, data=request.data, partial=True)
+        serializer = UserSerializer(instance, data=request_data, partial=True)
         
         if serializer.is_valid():
             serializer.save()
