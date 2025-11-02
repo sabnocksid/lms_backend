@@ -15,7 +15,7 @@ urlpatterns = [
     path("learners/me/update/", LearnerProfileUpdateView.as_view(), name="learner-profile-update"),
 
     path("learners/", LearnerProfileListView.as_view(), name="learner-profile-list"),
-    path("engagements/", PointTransactionPagination.as_view(), name="learner-profile-list"),
+    path("engagements/", PointTransactionPagination.as_view(), name="engaements"),
     path("learners/me/", LearnerProfileDetailView.as_view(), name="learner-profile-detail"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
