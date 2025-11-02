@@ -198,12 +198,12 @@ class UserUpdateAPIView(APIView):
             password = request.data.get('password')
             if password:
                 instance.set_password(password)
-                request.data['password'] = instance.password  
+                request.data['password'] = instance.password 
 
         serializer = UserSerializer(instance, data=request.data, partial=True)
         
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)  
+            return Response(serializer.data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
