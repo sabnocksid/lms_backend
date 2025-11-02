@@ -182,12 +182,12 @@ class UserUpdateAPIView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-            allowed_fields = ['full_name', 'email']
+            allowed_fields = ['full_name', 'email', 'is_active']
             filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
             
             if len(filtered_data) != len(request.data):
                 return Response(
-                    {"detail": "Only 'full_name' and 'email' can be updated for instructors."},
+                    {"detail": "Only 'full_name', 'email', and 'is_active' can be updated for instructors."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             request.data = filtered_data  
@@ -204,3 +204,4 @@ class UserUpdateAPIView(APIView):
             return Response(serializer.data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
