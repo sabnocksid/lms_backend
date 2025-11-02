@@ -98,7 +98,7 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
             })
         return result
     
-from lessons.utils import upload_file_to_minio
+from lessons.utils.upload_minio import upload_file_to_minio
 
 class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
