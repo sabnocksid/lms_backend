@@ -97,10 +97,10 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         })
 
 
-
+from .serializers import LearnerProfileUpdateSerializer
 
 class LearnerProfileUpdateView(generics.UpdateAPIView):
-    serializer_class = LearnerProfileSerializer
+    serializer_class = LearnerProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 

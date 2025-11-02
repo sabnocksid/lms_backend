@@ -97,6 +97,33 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
                 "last_updated": gamification.last_updated if gamification else None,
             })
         return result
+    
+from lessons.utils import upload_file_to_minio
+
+class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LearnerProfile
+        fields = ["full_name", "profile_image", "date_of_birth", "profile_image_file"]
+
+    def update(self, instance, validated_data):
+        profile_image_file = validated_data.pop("profile_image_file", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if profile_image_file:
+            file_name = f"learners/profile_images/{profile_image_file.name}"  
+
+            file_url = upload_file_to_minio(profile_image_file, file_name)
+
+            if not file_url:
+                raise serializers.ValidationError({"profile_image_file": "Upload failed!"})
+
+            instance.profile_image = file_url
+
+        instance.save()
+
+        return instance
 
 
 
