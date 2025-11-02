@@ -147,50 +147,32 @@ class UserUpdateAPIView(APIView):
         user = request.user
         user_id = kwargs.get('user_id')  
         instance = CustomUser.objects.get(id=user_id)
-        
-        if instance.role == 'student':
-            if user != instance:
-                if 'is_active' in request.data:
-                    current_is_active = instance.is_active
-                    instance.is_active = not current_is_active
-                else:
-                    return Response(
-                        {"detail": "Only 'is_active' field can be updated for students."},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                request.data = {'is_active': instance.is_active}
-            else:
-                if user.role != 'admin':
-                    return Response(
-                        {"detail": "Admin privileges required to update student profiles."},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
-        
-        elif instance.role == 'instructor':
-            if user != instance: 
-                return Response(
-                    {"detail": "Only instructors can update their own name and email."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
 
-            allowed_fields = ['full_name', 'email']
+        if user.role == 'admin':
+            if 'password' in request.data:
+                password = request.data.get('password')
+                if password:
+                    instance.set_password(password)
+                    request.data['password'] = instance.password 
+        elif user.role == 'instructor':
+            allowed_fields = ['full_name', 'email', 'password']
             filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
             
             if len(filtered_data) != len(request.data):
                 return Response(
-                    {"detail": "Only 'full_name' and 'email' can be updated for instructors."},
+                    {"detail": "Only 'full_name', 'email', and 'password' can be updated for instructors."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            request.data = filtered_data 
+            request.data = filtered_data  
 
-        if 'password' in request.data:
-            password = request.data.get('password')
-            if password:
-                instance.set_password(password)
-                request.data['password'] = instance.password  
+        else:
+            return Response(
+                {"detail": "Unauthorized to update user."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         serializer = UserSerializer(instance, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
