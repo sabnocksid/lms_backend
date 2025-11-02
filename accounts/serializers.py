@@ -27,12 +27,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 # User Serializer
+from gramafication.models import LearnerProfile
+from gramafication.serializers import LearnerProfileSummarySerializer
+
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=6)
+    learner_profile = LearnerProfileSummarySerializer(read_only=True) 
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'password']
+        fields = ['id', 'email', 'full_name', 'role', 'is_active', 'password', 'learner_profile']
         read_only_fields = ['id']
 
     def create(self, validated_data):
@@ -51,6 +55,17 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        if instance.role == 'student':
+            learner_profile = LearnerProfile.objects.filter(user=instance).first()
+            if learner_profile:
+                learner_profile_data = LearnerProfileSummarySerializer(learner_profile).data
+                representation['learner_profile'] = learner_profile_data
+        
+        return representation
 
 # Login Serializer
 class LoginSerializer(serializers.Serializer):
