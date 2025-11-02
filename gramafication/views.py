@@ -515,3 +515,34 @@ class MyEnrollmentsView(generics.ListAPIView):
         if not profile:
             return Enrollment.objects.none()
         return Enrollment.objects.filter(learner=profile)
+
+
+
+
+
+
+from django.core.paginator import Paginator
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
+
+from .models import PointTransaction
+from .serializers import DetailedPointTransactionSerializer
+
+class PointTransactionPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size'
+    max_page_size = 100  
+
+@api_view(['GET'])
+def point_transactions_view(request):
+
+    transactions = PointTransaction.objects.all().order_by('-created_at')
+
+    paginator = PointTransactionPagination()
+    result_page = paginator.paginate_queryset(transactions, request)
+
+    serializer = DetailedPointTransactionSerializer(result_page, many=True)
+
+    return paginator.get_paginated_response(serializer.data)

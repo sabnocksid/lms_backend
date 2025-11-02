@@ -22,6 +22,8 @@ class PointTransactionSerializer(serializers.ModelSerializer):
         model = PointTransaction
         fields = ["id", "points", "reason", "created_at"]
 
+
+
 class CourseGamificationSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.title', read_only=True)
     
@@ -48,6 +50,15 @@ class LearnerProfileSummarySerializer(serializers.ModelSerializer):
         return None
 
 
+
+
+class DetailedPointTransactionSerializer(serializers.ModelSerializer):
+    learner_profile = LearnerProfileSummarySerializer(source='learner')
+
+    class Meta:
+        model = PointTransaction
+        fields = ["id", "points", "reason", "created_at", "learner_profile"]
+        
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
     earned_badges = LearnerBadgeSerializer(many=True, read_only=True)
