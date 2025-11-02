@@ -162,9 +162,7 @@ class UserUpdateAPIView(APIView):
         if instance.role == 'student':
             if user != instance:
                 if 'is_active' in request.data:
-                    current_is_active = instance.is_active
-                    instance.is_active = not current_is_active
-                    request.data = {'is_active': instance.is_active}
+                    instance.is_active = not instance.is_active
                 else:
                     return Response(
                         {"detail": "Only 'is_active' field can be updated for students."},
@@ -198,7 +196,6 @@ class UserUpdateAPIView(APIView):
             password = request.data.get('password')
             if password:
                 instance.set_password(password)
-                request.data['password'] = instance.password 
 
         serializer = UserSerializer(instance, data=request.data, partial=True)
         
