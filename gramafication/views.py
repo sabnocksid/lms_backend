@@ -111,55 +111,88 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
         )
         return profile
     
-
+from django.core.cache import cache
 
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")
+        all_learners = LearnerProfile.objects.filter(user__role='student').order_by('-points', 'full_name')
 
-        rank = 1
-        for learner in learners:
-            learner.previous_rank = learner.current_rank
-            learner.current_rank = rank
-            learner.save(update_fields=['previous_rank', 'current_rank'])
-            rank += 1
+        rank_map = {}
+        last_points = None
+        current_rank = 0
+        for index, learner in enumerate(all_learners, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
 
-        top_learners = learners[:10]
-        top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
+        previous_ranks = cache.get('previous_ranks', {})
 
-        current_user = None
-        rank_difference = None
+        leaderboard_data = []
+        for learner in all_learners[:10]: 
+            prev_rank = previous_ranks.get(str(learner.id))
+            curr_rank = rank_map.get(learner.id)
+
+            if prev_rank:
+                rank_diff = prev_rank - curr_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+                else:
+                    rank_status = "same"
+            else:
+                rank_diff = 0
+                rank_status = "new"
+
+            leaderboard_data.append({
+                "id": learner.id,
+                "full_name": learner.full_name,
+                "profile_image": get_presigned_url(learner.profile_image, request=request)
+                if learner.profile_image else None,
+                "points": learner.points,
+                "xp": learner.xp,
+                "rank": learner.rank,
+                "rank_position": curr_rank,
+                "rank_difference": rank_diff,
+                "rank_status": rank_status,
+            })
+
+        cache.set('previous_ranks', {str(l.id): rank_map[l.id] for l in all_learners}, timeout=3600)
 
         if request.user.role == 'student':
             current_user = LearnerProfile.objects.get(user=request.user)
-            rank_difference = None
-            if current_user.previous_rank:
-                rank_difference = current_user.previous_rank - current_user.current_rank  # positive = moved up, negative = moved down
+            current_rank = rank_map.get(current_user.id)
+            previous_rank = previous_ranks.get(str(current_user.id))
+            rank_diff = 0
+            rank_status = "same"
+
+            if previous_rank:
+                rank_diff = previous_rank - current_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
 
             return Response({
-                "leaderboard": top_serializer.data,
+                "leaderboard": leaderboard_data,
                 "current_user": {
                     "id": current_user.id,
                     "full_name": current_user.full_name,
                     "profile_image": get_presigned_url(current_user.profile_image, request=request)
-                        if current_user.profile_image else None,
+                    if current_user.profile_image else None,
                     "points": current_user.points,
                     "xp": current_user.xp,
-                    "rank": current_user.current_rank,
-                    "previous_rank": current_user.previous_rank,
-                    "rank_difference": rank_difference,
+                    "rank": current_user.rank,
+                    "rank_position": current_rank,
+                    "rank_difference": rank_diff,
+                    "rank_status": rank_status,
                 }
             })
 
-        else:
-            top_3 = learners[:3]
-            top_3_serializer = LeaderboardSerializer(top_3, many=True, context={"request": request})
-            return Response({
-                "leaderboard": top_serializer.data,
-                "top_3_learners": top_3_serializer.data
-            })
+        return Response({"leaderboard": leaderboard_data})
 
 
 
