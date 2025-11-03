@@ -127,6 +127,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'root.wsgi.application'
 
 
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "leaderboard_cache",
+    }
+}
+
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=14),
