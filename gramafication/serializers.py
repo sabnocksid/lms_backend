@@ -53,16 +53,11 @@ class LearnerProfileSummarySerializer(serializers.ModelSerializer):
 
 
 class DetailedPointTransactionSerializer(serializers.ModelSerializer):
-    learner_profile = serializers.SerializerMethodField()
+    learner_profile = LearnerProfileSummarySerializer(source='learner')
 
     class Meta:
         model = PointTransaction
         fields = ["id", "points", "reason", "created_at", "learner_profile"]
-
-    def get_learner_profile(self, obj):
-
-        learner_data = LeaderboardSerializer(obj.learner, context=self.context).data
-        return learner_data
         
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
