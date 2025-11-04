@@ -1,126 +1,139 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.utils import timezone
-from .models import DiscussionThread, DiscussionPost
+from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from .models import DiscussionThread, DiscussionPost
 
 User = get_user_model()
 
 class DiscussionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"discussion_{self.room_name}"
-
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_group_name = f'discussion_{self.room_name}'
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Notify others that a user joined
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "user_event",
-                "event": "join",
-                "username": self.scope["user"].username if self.scope["user"].is_authenticated else "Anonymous",
-            }
-        )
+        await self.send(json.dumps({
+            "type": "system",
+            "message": f"Joined thread {self.room_name}"
+        }))
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
-
-        # Notify others that a user left
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "user_event",
-                "event": "leave",
-                "username": self.scope["user"].username if self.scope["user"].is_authenticated else "Anonymous",
-            }
-        )
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):
         data = json.loads(text_data)
-        event_type = data.get("type")
+        action = data.get("type")
 
-        if event_type == "message":
-            await self.handle_message(data)
-        elif event_type == "history":
-            await self.handle_history(data)
-        elif event_type == "user_event":
-            await self.handle_user_event(data)
-        else:
-            await self.send(json.dumps({"error": "Invalid event type"}))
+        if action == "message":
+            await self.create_message(data)
+        elif action == "edit":
+            await self.edit_message(data)
+        elif action == "delete":
+            await self.delete_message(data)
+        elif action == "history":
+            await self.load_history()
 
-    async def handle_message(self, data):
-        message = data.get("message")
-        username = self.scope["user"].username if self.scope["user"].is_authenticated else "Anonymous"
-        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Optional: persist message if thread exists
-        try:
-            thread = await self.get_thread(self.room_name)
-            if thread and self.scope["user"].is_authenticated:
-                await self.save_message(thread, self.scope["user"], message)
-        except Exception as e:
-            print("Message save failed:", e)
+    async def create_message(self, data):
+        thread = await self.get_thread(self.room_name)
+        user = self.scope["user"]
+        if not user.is_authenticated:
+            return await self.send_error("Auth required to post")
 
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-                "message": message,
-                "username": username,
-                "timestamp": timestamp,
-            }
-        )
+        message = await self.save_post(thread, user, data.get("content"), data.get("parent"))
+        payload = {
+            "type": "new_message",
+            "message": message
+        }
+        await self.channel_layer.group_send(self.room_group_name, payload)
 
-    async def handle_history(self, data):
+    async def edit_message(self, data):
+        post_id = data.get("post_id")
+        content = data.get("content")
+        message = await self.update_post(post_id, self.scope["user"], content)
+
+        await self.channel_layer.group_send(self.room_group_name, {
+            "type": "update_message",
+            "message": message
+        })
+
+    async def delete_message(self, data):
+        post_id = data.get("post_id")
+        await self.remove_post(post_id, self.scope["user"])
+        await self.channel_layer.group_send(self.room_group_name, {
+            "type": "delete_message",
+            "post_id": post_id
+        })
+
+    async def load_history(self):
+        thread = await self.get_thread(self.room_name)
+        messages = await self.get_thread_messages(thread)
         await self.send(json.dumps({
             "type": "history",
-            "messages": [],
+            "messages": messages
         }))
 
-    async def handle_user_event(self, data):
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "user_event",
-                "event": data.get("event"),
-                "username": data.get("username"),
-            }
-        )
 
-    async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "message",
-            "message": event["message"],
-            "username": event["username"],
-            "timestamp": event["timestamp"],
-        }))
+    @database_sync_to_async
+    def get_thread(self, room_name):
+        return DiscussionThread.objects.filter(pk=room_name).first()
 
-    async def user_event(self, event):
-        await self.send(json.dumps({
-            "type": "user_event",
-            "event": event["event"],
-            "username": event["username"],
-        }))
-
-    @staticmethod
-    async def get_thread(thread_id):
-        try:
-            return await DiscussionThread.objects.aget(pk=int(thread_id))
-        except Exception:
-            return None
-
-    @staticmethod
-    async def save_message(thread, user, content):
-        await DiscussionPost.objects.acreate(
+    @database_sync_to_async
+    def save_post(self, thread, user, content, parent_id=None):
+        parent = DiscussionPost.objects.filter(pk=parent_id).first() if parent_id else None
+        post = DiscussionPost.objects.create(
             thread=thread,
             creator=user,
-            content=content
+            content=content,
+            parent=parent
         )
+        return {
+            "id": post.id,
+            "creator": user.username,
+            "content": content,
+            "parent": parent_id,
+            "created_at": post.created_at.isoformat(),
+        }
+
+    @database_sync_to_async
+    def update_post(self, post_id, user, content):
+        post = DiscussionPost.objects.get(pk=post_id, creator=user)
+        post.content = content
+        post.save()
+        return {
+            "id": post.id,
+            "creator": user.username,
+            "content": post.content,
+            "updated": True,
+        }
+
+    @database_sync_to_async
+    def remove_post(self, post_id, user):
+        DiscussionPost.objects.filter(pk=post_id, creator=user).delete()
+
+    @database_sync_to_async
+    def get_thread_messages(self, thread):
+        posts = DiscussionPost.objects.filter(thread=thread).select_related("creator").order_by("created_at")
+        return [
+            {
+                "id": post.id,
+                "creator": post.creator.username,
+                "content": post.content,
+                "parent": post.parent_id,
+                "created_at": post.created_at.isoformat(),
+            } for post in posts
+        ]
+
+
+    async def new_message(self, event):
+        await self.send(json.dumps(event))
+
+    async def update_message(self, event):
+        await self.send(json.dumps(event))
+
+    async def delete_message(self, event):
+        await self.send(json.dumps(event))
+
+    async def send_error(self, message):
+        await self.send(json.dumps({"type": "error", "message": message}))
