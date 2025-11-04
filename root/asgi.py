@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "root.settings")
 
 django.setup()
 
-from discussion.routing import routing as discussion_routing
+from discussion import routing as discussion_routing
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
