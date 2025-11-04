@@ -193,6 +193,96 @@ class LeaderboardView(APIView):
             })
 
         return Response({"leaderboard": leaderboard_data})
+    
+
+
+class FullLeaderboardView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        all_learners = LearnerProfile.objects.filter(
+            user__role='student'
+        ).order_by('-points', 'full_name')
+
+        rank_map = {}
+        last_points = None
+        current_rank = 0
+
+        for index, learner in enumerate(all_learners, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
+
+        previous_ranks = cache.get('previous_ranks', {})
+
+        leaderboard_data = []
+        for learner in all_learners:
+            prev_rank = previous_ranks.get(str(learner.id))
+            curr_rank = rank_map.get(learner.id)
+
+            if prev_rank:
+                rank_diff = prev_rank - curr_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+                else:
+                    rank_status = "same"
+            else:
+                rank_diff = 0
+                rank_status = "new"
+
+            leaderboard_data.append({
+                "id": learner.id,
+                "full_name": learner.full_name,
+                "profile_image": get_presigned_url(learner.profile_image, request=request)
+                if learner.profile_image else None,
+                "points": learner.points,
+                "xp": learner.xp,
+                "rank": getattr(learner, 'rank', None),
+                "rank_position": curr_rank,
+                "rank_difference": rank_diff,
+                "rank_status": rank_status,
+            })
+
+        cache.set(
+            'previous_ranks',
+            {str(l.id): rank_map[l.id] for l in all_learners},
+            timeout=3600
+        )
+
+        if request.user.role == 'student':
+            current_user = LearnerProfile.objects.get(user=request.user)
+            current_rank = rank_map.get(current_user.id)
+            previous_rank = previous_ranks.get(str(current_user.id))
+            rank_diff = 0
+            rank_status = "same"
+
+            if previous_rank:
+                rank_diff = previous_rank - current_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+
+            return Response({
+                "leaderboard": leaderboard_data,
+                "current_user": {
+                    "id": current_user.id,
+                    "full_name": current_user.full_name,
+                    "profile_image": get_presigned_url(current_user.profile_image, request=request)
+                    if current_user.profile_image else None,
+                    "points": current_user.points,
+                    "xp": current_user.xp,
+                    "rank": getattr(current_user, 'rank', None),
+                    "rank_position": current_rank,
+                    "rank_difference": rank_diff,
+                    "rank_status": rank_status,
+                }
+            })
+
+        return Response({"leaderboard": leaderboard_data})
 
 
 
