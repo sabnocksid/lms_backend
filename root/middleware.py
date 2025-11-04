@@ -9,8 +9,22 @@ class JWTAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
 
-    def __call__(self, scope):
-        return JWTAuthMiddlewareInstance(scope, self.inner)
+    async def __call__(self, scope, receive, send):
+        scope["user"] = None
+
+        query_string = scope.get("query_string", b"").decode()
+        token = None
+        if "token=" in query_string:
+            token = query_string.split("token=")[1].split("&")[0]
+
+        if token:
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                scope["user"] = await database_sync_to_async(User.objects.get)(id=payload["user_id"])
+            except Exception:
+                scope["user"] = None
+
+        return await self.inner(scope, receive, send)
 
 
 class JWTAuthMiddlewareInstance:
