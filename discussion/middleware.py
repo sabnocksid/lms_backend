@@ -9,9 +9,7 @@ def get_user_from_payload(payload):
     return CustomUser.objects.get(id=payload["user_id"])
 
 class JWTAuthMiddleware:
-    """
-    Custom Channels middleware to authenticate WebSocket users with JWT in query string.
-    """
+
 
     def __init__(self, inner):
         self.inner = inner
