@@ -10,7 +10,20 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 
 
 class DiscussionThreadSerializer(serializers.ModelSerializer):
-    
+    ws_url = serializers.SerializerMethodField()
+
     class Meta:
         model = DiscussionThread
-        fields = ["id", "course", "title", "creator", "created_at", "updated_at"]
+        fields = ["id", "course", "title", "creator", "created_at", "updated_at", "ws_url"]
+
+    def get_ws_url(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return f"ws://localhost:8001/ws/discussion/{obj.id}/"
+
+        scheme = "wss" if request.is_secure() else "ws"
+
+        host = request.get_host() 
+
+        ws_url = f"{scheme}://{host}/ws/discussion/{obj.id}/"
+        return ws_url
