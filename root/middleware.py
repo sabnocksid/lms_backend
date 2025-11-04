@@ -5,12 +5,25 @@ from channels.db import database_sync_to_async
 
 User = get_user_model()
 
+
 class JWTAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
 
-    def __call__(self, scope):
-        return JWTAuthMiddlewareInstance(scope, self.inner)
+    async def __call__(self, scope, receive, send):
+        scope["user"] = None
+
+        subprotocols = scope.get("subprotocols", [])
+        if len(subprotocols) == 2 and subprotocols[0] == "Bearer":
+            token = subprotocols[1]
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                scope["user"] = await database_sync_to_async(User.objects.get)(id=payload["user_id"])
+            except Exception:
+                scope["user"] = None
+
+        inner = self.inner(scope)
+        return await inner(receive, send)
 
 
 class JWTAuthMiddlewareInstance:
