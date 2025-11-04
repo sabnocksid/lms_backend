@@ -149,7 +149,6 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             "message": event["message"]
         })
 
-    # ---------------------- DB HANDLERS ----------------------
     @database_sync_to_async
     def get_thread(self, room_name):
         try:
@@ -174,6 +173,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             "content": post.content,
             "parent": parent_id,
             "created_at": post.created_at.isoformat(),
+            "current_user": True  
         }
 
     @database_sync_to_async
