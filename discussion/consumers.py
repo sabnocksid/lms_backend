@@ -15,30 +15,25 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         user = self.scope.get("user")
         logger.info(f"User: {user}, Authenticated: {getattr(user, 'is_authenticated', False)}")
         
-        # Reject unauthenticated users
         if not user or not user.is_authenticated:
             logger.warning("Unauthenticated connection attempt rejected")
             await self.close(code=4001)
             return
         
-        # Get room name and convert to integer (thread ID)
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f'discussion_{self.room_name}'
         
-        # Verify thread exists
         thread = await self.get_thread(self.room_name)
         if not thread:
             logger.warning(f"Thread {self.room_name} not found")
             await self.close(code=4004)
             return
         
-        # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
         
-        logger.info(f"User {user.username} connected to thread {self.room_name}")
+        logger.info(f"User {user.full_name} connected to thread {self.room_name}")
         
-        # Send welcome message
         await self.send(json.dumps({
             "type": "system",
             "message": f"Joined thread {self.room_name}"
@@ -137,7 +132,6 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_thread(self, room_name):
         try:
-            # Convert room_name to integer if it's a thread ID
             thread_id = int(room_name)
             return DiscussionThread.objects.filter(pk=thread_id).first()
         except (ValueError, TypeError):
@@ -154,7 +148,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         )
         return {
             "id": post.id,
-            "creator": user.username,
+            "creator": user.full_name,
             "content": content,
             "parent": parent_id,
             "created_at": post.created_at.isoformat(),
@@ -167,7 +161,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         post.save()
         return {
             "id": post.id,
-            "creator": user.username,
+            "creator": user.full_name,
             "content": post.content,
             "updated": True,
         }
@@ -182,7 +176,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         return [
             {
                 "id": post.id,
-                "creator": post.creator.username,
+                "creator": post.creator.full_name,
                 "content": post.content,
                 "parent": post.parent_id,
                 "created_at": post.created_at.isoformat(),
