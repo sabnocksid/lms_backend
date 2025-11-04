@@ -196,19 +196,38 @@ class LeaderboardView(APIView):
     
 
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
+from django.core.cache import cache
+from django.db.models import Q
+from .models import LearnerProfile
+
+
 class FullLeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        search_query = request.query_params.get('search', '').strip()
+
         all_learners = LearnerProfile.objects.filter(
             user__role='student'
         ).order_by('-points', 'full_name')
+
+        if search_query:
+            all_learners = all_learners.filter(
+                Q(full_name__icontains=search_query)
+            )
 
         rank_map = {}
         last_points = None
         current_rank = 0
 
-        for index, learner in enumerate(all_learners, start=1):
+        all_learners_ranked = LearnerProfile.objects.filter(
+            user__role='student'
+        ).order_by('-points', 'full_name')
+
+        for index, learner in enumerate(all_learners_ranked, start=1):
             if learner.points != last_points:
                 current_rank = index
             rank_map[learner.id] = current_rank
@@ -248,7 +267,7 @@ class FullLeaderboardView(APIView):
 
         cache.set(
             'previous_ranks',
-            {str(l.id): rank_map[l.id] for l in all_learners},
+            {str(l.id): rank_map[l.id] for l in all_learners_ranked},
             timeout=3600
         )
 
@@ -283,6 +302,7 @@ class FullLeaderboardView(APIView):
             })
 
         return Response({"leaderboard": leaderboard_data})
+
 
 
 
