@@ -7,7 +7,6 @@ User = get_user_model()
 
 
 class JWTAuthMiddleware:
-
     def __init__(self, inner):
         self.inner = inner
 
@@ -18,7 +17,7 @@ class JWTAuthMiddleware:
 class JWTAuthMiddlewareInstance:
     def __init__(self, scope, inner):
         self.scope = dict(scope)
-        self.inner = inner  
+        self.inner = inner
 
     async def __call__(self, receive, send):
         self.scope["user"] = None
