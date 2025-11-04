@@ -22,8 +22,13 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
             return f"ws://localhost:8001/ws/discussion/{obj.id}/"
 
         scheme = "wss" if request.is_secure() else "ws"
-
         host = request.get_host() 
 
         ws_url = f"{scheme}://{host}/ws/discussion/{obj.id}/"
+
+        token = request.headers.get("Authorization")
+        if token:
+            token_value = token.replace("Bearer ", "")
+            ws_url = f"{ws_url}?token={token_value}"
+
         return ws_url
