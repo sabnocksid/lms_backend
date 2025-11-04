@@ -5,7 +5,7 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from gramafication.models import LearnerProfile
 from .models import DiscussionThread, DiscussionPost
-from lessons.utils.upload_minio import get_presigned_url 
+from lessons.utils.upload_minio import get_presigned_url
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -48,6 +48,10 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
                 await self.create_message(data)
             elif action == "history":
                 await self.load_history()
+            elif action == "update":
+                await self.update_message(data)
+            elif action == "delete":
+                await self.delete_message(data)
             else:
                 await self.send_error(f"Unknown action: {action}")
         except json.JSONDecodeError:
@@ -56,6 +60,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             logger.exception("WebSocket error")
             await self.send_error(str(e))
 
+    # ---------------------- CREATE ----------------------
     async def create_message(self, data):
         thread = await self.get_thread(self.room_name)
         user = self.scope["user"]
@@ -76,6 +81,44 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             "message": message
         })
 
+    # ---------------------- UPDATE ----------------------
+    async def update_message(self, data):
+        post_id = data.get("id")
+        new_content = data.get("content")
+
+        if not post_id or not new_content:
+            return await self.send_error("Message ID and new content required")
+
+        user = self.scope["user"]
+        updated_message = await self.update_post(post_id, user, new_content)
+
+        if not updated_message:
+            return await self.send_error("Update failed or permission denied")
+
+        await self.channel_layer.group_send(self.room_group_name, {
+            "type": "broadcast_updated_message",
+            "message": updated_message
+        })
+
+    # ---------------------- DELETE ----------------------
+    async def delete_message(self, data):
+        post_id = data.get("id")
+
+        if not post_id:
+            return await self.send_error("Message ID required")
+
+        user = self.scope["user"]
+        deleted_id = await self.delete_post(post_id, user)
+
+        if not deleted_id:
+            return await self.send_error("Delete failed or permission denied")
+
+        await self.channel_layer.group_send(self.room_group_name, {
+            "type": "broadcast_deleted_message",
+            "message": {"id": deleted_id}
+        })
+
+    # ---------------------- HISTORY ----------------------
     async def load_history(self):
         thread = await self.get_thread(self.room_name)
         if not thread:
@@ -87,19 +130,26 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             "messages": messages
         })
 
+    # ---------------------- BROADCASTS ----------------------
     async def broadcast_new_message(self, event):
-        message = event.get("message", {})
-        creator_id = message.get("creator_id")
-        current_user_flag = (getattr(self.scope.get("user"), "id", None) == creator_id)
-
-        msg_for_client = dict(message)
-        msg_for_client["current_user"] = current_user_flag
-
         await self.send_json({
             "type": "new_message",
-            "message": msg_for_client
+            "message": event["message"]
         })
 
+    async def broadcast_updated_message(self, event):
+        await self.send_json({
+            "type": "updated_message",
+            "message": event["message"]
+        })
+
+    async def broadcast_deleted_message(self, event):
+        await self.send_json({
+            "type": "deleted_message",
+            "message": event["message"]
+        })
+
+    # ---------------------- DB HANDLERS ----------------------
     @database_sync_to_async
     def get_thread(self, room_name):
         try:
@@ -114,7 +164,6 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         post = DiscussionPost.objects.create(thread=thread, creator=user, content=content, parent=parent)
 
         full_name, profile_image = self.get_user_display_info_sync(user)
-
         profile_image_url = get_presigned_url(profile_image) if profile_image else None
 
         return {
@@ -126,6 +175,41 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             "parent": parent_id,
             "created_at": post.created_at.isoformat(),
         }
+
+    @database_sync_to_async
+    def update_post(self, post_id, user, new_content):
+        try:
+            post = DiscussionPost.objects.get(pk=post_id)
+            if post.creator != user:
+                return None
+            post.content = new_content
+            post.save()
+
+            full_name, profile_image = self.get_user_display_info_sync(user)
+            profile_image_url = get_presigned_url(profile_image) if profile_image else None
+
+            return {
+                "id": post.id,
+                "creator": full_name,
+                "creator_id": user.id,
+                "profile_image": profile_image_url,
+                "content": post.content,
+                "parent": post.parent_id,
+                "created_at": post.created_at.isoformat(),
+            }
+        except DiscussionPost.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def delete_post(self, post_id, user):
+        try:
+            post = DiscussionPost.objects.get(pk=post_id)
+            if post.creator != user:
+                return None
+            post.delete()
+            return post_id
+        except DiscussionPost.DoesNotExist:
+            return None
 
     @database_sync_to_async
     def get_thread_messages(self, thread):
@@ -151,7 +235,6 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         return messages
 
     def get_user_display_info_sync(self, user):
-        """Sync helper to fetch display name + raw image key."""
         try:
             learner = getattr(user, "profile", None)
             if isinstance(learner, LearnerProfile):
