@@ -4,6 +4,7 @@ from .views import (
     LearnerProfileDetailView,
     LearnerProfileUpdateView,
     LeaderboardView,
+    FullLeaderboardView,
     CourseGamificationView,
     DashboardView,
     EnrollCourseView, 
@@ -18,7 +19,7 @@ urlpatterns = [
     path('engagements/', PointTransactionListView.as_view(), name='engagements'),
     path("learners/me/", LearnerProfileDetailView.as_view(), name="learner-profile-detail"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
-    path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
+    path("leaderboard/", FullLeaderboardView.as_view(), name="leaderboard"),
     path("enroll/", EnrollCourseView.as_view(), name="enroll-course"),
     path("my-enrollments/", MyEnrollmentsView.as_view(), name="user-enrollments"),
 
