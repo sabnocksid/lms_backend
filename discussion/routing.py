@@ -1,6 +1,13 @@
-from django.urls import re_path
-from . import consumers
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from django.urls import path
+from .consumers import DiscussionConsumer
+from .middleware import JWTAuthMiddleware
 
-websocket_urlpatterns = [
-    re_path(r'ws/discussion/(?P<room_name>\w+)/$', consumers.DiscussionConsumer.as_asgi()),
-]
+application = ProtocolTypeRouter({
+    "websocket": JWTAuthMiddleware(
+        URLRouter([
+            path("ws/discussion/<room_name>/", DiscussionConsumer.as_asgi()),
+        ])
+    ),
+})
