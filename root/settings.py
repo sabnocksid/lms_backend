@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'channels',
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'django_filters',
@@ -75,8 +76,11 @@ INSTALLED_APPS = [
     'courses',
     'lessons',
     'quizes',
-    'gramafication'
+    'gramafication',
+    'discussion'
 ]
+
+
 
 
 MIDDLEWARE = [
@@ -125,6 +129,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'root.wsgi.application'
+ASGI_APPLICATION = "root.asgi.application"
+
 
 
 CACHES = {
@@ -132,6 +138,16 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "leaderboard_cache",
     }
+}
+
+
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("redis", 6379)]},
+    },
 }
 
 
