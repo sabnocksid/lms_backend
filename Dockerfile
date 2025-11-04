@@ -40,4 +40,4 @@ ENV DJANGO_SETTINGS_MODULE=root.settings
 ENTRYPOINT ["/entrypoint.sh"]
 
 
-EXPOSE 8001  # Django/Daphne (HTTP + WebSocket)
+EXPOSE 8001  
