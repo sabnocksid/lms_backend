@@ -694,22 +694,23 @@ class PointTransactionPagination(PageNumberPagination):
 
 
 class PointTransactionListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
         profile = getattr(user, "profile", None)
 
-        if not profile:
-            return Response({"detail": "LearnerProfile not found"}, status=400)
-
-        transactions = (
-            PointTransaction.objects.filter(learner=profile)
-            .order_by("-created_at")
-        )
+        if user.is_staff:
+            transactions = PointTransaction.objects.all().order_by("-created_at")
+        else:
+            if not profile:
+                return Response({"detail": "LearnerProfile not found"}, status=400)
+            transactions = PointTransaction.objects.filter(
+                learner=profile
+            ).order_by("-created_at")
 
         paginator = PointTransactionPagination()
         result_page = paginator.paginate_queryset(transactions, request)
-
         serializer = DetailedPointTransactionSerializer(result_page, many=True)
+
         return paginator.get_paginated_response(serializer.data)
