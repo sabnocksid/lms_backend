@@ -80,6 +80,71 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+
+        learner = getattr(request.user, "profile", None)
+        data = serializer.data
+
+        if learner:
+            for i, course_data in enumerate(data):
+                course_instance = page[i]
+                try:
+                    prediction = predict_difficulty(learner, course_instance)
+                    course_data["difficulty"] = {
+                        "level": prediction["level"],
+                        "name": prediction["name"],
+                        "success": prediction["success"],
+                        "recommendation": prediction["recommendation"],
+                    }
+                except Exception:
+                    course_data["difficulty"] = None
+
+        return self.get_paginated_response(data)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        learner = getattr(request.user, "profile", None)
+        if learner:
+            try:
+                prediction = predict_difficulty(learner, instance)
+                data["difficulty"] = prediction
+            except Exception:
+                data["difficulty"] = None
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+    @action(detail=False, methods=["get"], url_path="recommendations")
+    def course_recommendations(self, request):
+        learner = getattr(request.user, "profile", None)
+        if not learner:
+            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        max_level = int(request.query_params.get("max_level", 3))
+        results = get_recommendations(learner, max_level=max_level)
+
+        data = [
+            {
+                "course_id": r["course"].id,
+                "name": r["course"].name,
+                "difficulty": r["difficulty"],
+                "success": r["success"],
+                "days": r["days"],
+            }
+            for r in results
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -111,7 +176,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -119,53 +183,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
-
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
-
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-
-
-    @action(detail=True, methods=["get"], url_path="predict-difficulty")
-    def predict_difficulty_view(self, request, pk=None):
-        learner = getattr(request.user, "profile", None)
-        if not learner:
-            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-        course = self.get_object()
-        result = predict_difficulty(learner, course)
-        return Response(result, status=status.HTTP_200_OK)
-
-
-    @action(detail=False, methods=["get"], url_path="recommendations")
-    def course_recommendations(self, request):
-        learner = getattr(request.user, "profile", None)
-        if not learner:
-            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-        max_level = int(request.query_params.get("max_level", 3))
-        results = get_recommendations(learner, max_level=max_level)
-
-        data = [
-            {
-                "course_id": r["course"].id,
-                "name": r["course"].name,
-                "difficulty": r["difficulty"],
-                "success": r["success"],
-                "days": r["days"],
-            }
-            for r in results
-        ]
-
-        return Response(data, status=status.HTTP_200_OK)
 
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
