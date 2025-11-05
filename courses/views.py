@@ -23,7 +23,16 @@ class CourseFilter(FilterSet):
         ('4', '4-5'),
         ('5', '5'),
     ]
+    DIFFICULTY_CHOICES = [
+        ('1', 'Very Easy'),
+        ('2', 'Easy'),
+        ('3', 'Moderate'),
+        ('4', 'Challenging'),
+        ('5', 'Very Challenging'),
+    ]
+
     rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES, label="Rating Range")
+    difficulty_level = ChoiceFilter(field_name='difficulty_level', choices=DIFFICULTY_CHOICES, label="Difficulty Level")
 
     class Meta:
         model = Course
