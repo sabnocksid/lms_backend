@@ -129,7 +129,7 @@ class CourseSimpleSerializer(serializers.ModelSerializer):
         return [category.name for category in obj.categories.all()]
 
 
-
+from gramafication.models import Enrollment
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
@@ -143,6 +143,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     question_count = serializers.SerializerMethodField()
+    is_enrolled = serializers.SerializerMethodField()  
 
     class Meta:
         model = Course
@@ -165,6 +166,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "lesson_completion_rate",
             "chapter_count",
             "question_count",
+            "is_enrolled",  
         ]
 
     def get_thumbnail(self, obj):
@@ -173,9 +175,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
-    def get_lesson_count(self, obj):
-        return obj.lessons.count()
-    
     def get_instructor(self, obj):
         instructor = obj.instructor
         if not instructor:
@@ -188,12 +187,10 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             or "Unknown Instructor"
         )
 
-        instructor_data = {
-            "id": instructor.id,
-            "name": name,
-        }
+        return {"id": instructor.id, "name": name}
 
-        return instructor_data 
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
 
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
@@ -215,6 +212,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_quizzes(self, obj):
         user = self.context.get("request").user
+        if not user.is_authenticated:
+            return []
 
         attempts = QuizAttempt.objects.filter(
             user=user,
@@ -232,6 +231,19 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             context={**self.context, "attempts_map": attempts_map}
         )
         return serializer.data
+    
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+
+        profile = getattr(user, "profile", None)
+        if not profile:
+            return False
+
+        return Enrollment.objects.filter(learner=profile, course=obj).exists()
 
 
 
