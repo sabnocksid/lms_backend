@@ -702,15 +702,27 @@ class PointTransactionListView(APIView):
 
         if user.is_staff:
             transactions = PointTransaction.objects.all().order_by("-created_at")
+            user_type = "admin"
+
+        elif Course.objects.filter(instructor=user).exists():
+            instructor_courses = Course.objects.filter(instructor=user)
+            transactions = PointTransaction.objects.filter(
+                course__in=instructor_courses
+            ).order_by("-created_at")
+            user_type = "instructor"
+
         else:
             if not profile:
                 return Response({"detail": "LearnerProfile not found"}, status=400)
             transactions = PointTransaction.objects.filter(
                 learner=profile
             ).order_by("-created_at")
+            user_type = "student"
 
         paginator = PointTransactionPagination()
         result_page = paginator.paginate_queryset(transactions, request)
         serializer = DetailedPointTransactionSerializer(result_page, many=True)
 
-        return paginator.get_paginated_response(serializer.data)
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["user_type"] = user_type
+        return response
