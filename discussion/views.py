@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions
 from .models import DiscussionThread, DiscussionPost
+from rest_framework.filters import SearchFilter
 from .serializers import DiscussionThreadSerializer, DiscussionPostSerializer
 from gramafication.models import Enrollment
 
@@ -7,6 +8,8 @@ class DiscussionThreadViewSet(viewsets.ModelViewSet):
     queryset = DiscussionThread.objects.all().order_by('-created_at')
     serializer_class = DiscussionThreadSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [SearchFilter]
+    search_fields = ['title', 'course__name', 'course__instructor__username']
 
     def get_queryset(self):
         user = self.request.user
