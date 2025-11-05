@@ -196,6 +196,7 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
                 "content": post.content,
                 "parent": post.parent_id,
                 "created_at": post.created_at.isoformat(),
+                "current_user": True
             }
         except DiscussionPost.DoesNotExist:
             return None
