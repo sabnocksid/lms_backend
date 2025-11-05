@@ -13,6 +13,12 @@ from .serializers import (
 )
 from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
+from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class CourseFilter(FilterSet):
@@ -23,6 +29,7 @@ class CourseFilter(FilterSet):
         ('4', '4-5'),
         ('5', '5'),
     ]
+
     DIFFICULTY_CHOICES = [
         ('1', 'Very Easy'),
         ('2', 'Easy'),
@@ -32,7 +39,7 @@ class CourseFilter(FilterSet):
     ]
 
     rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES, label="Rating Range")
-    difficulty_level = ChoiceFilter(field_name='difficulty_level', choices=DIFFICULTY_CHOICES, label="Difficulty Level")
+    difficulty_level = ChoiceFilter(method='filter_difficulty_level', choices=DIFFICULTY_CHOICES, label="Difficulty Level")
 
     class Meta:
         model = Course
@@ -47,7 +54,6 @@ class CourseFilter(FilterSet):
 
     def filter_rating_range(self, queryset, name, value):
         queryset = queryset.annotate(avg_rating=Avg('ratings__points'))
-
         if value == '1':
             return queryset.filter(avg_rating__gte=1, avg_rating__lt=2)
         elif value == '2':
@@ -60,13 +66,21 @@ class CourseFilter(FilterSet):
             return queryset.filter(avg_rating__gte=5)
         return queryset
 
+    def filter_difficulty_level(self, queryset, name, value):
+        learner = getattr(self.request.user, "profile", None)
+        if not learner:
+            return queryset.none()
 
-class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all()
-    serializer_class = CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
+        filtered_ids = []
+        for course in queryset:
+            try:
+                prediction = predict_difficulty(learner, course)
+                if str(prediction["level"]) == value:
+                    filtered_ids.append(course.id)
+            except Exception:
+                continue
 
-from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
+        return queryset.filter(id__in=filtered_ids)
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -89,12 +103,10 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
-
         learner = getattr(request.user, "profile", None)
         data = serializer.data
 
@@ -114,13 +126,12 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         return self.get_paginated_response(data)
 
-
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         data = serializer.data
-
         learner = getattr(request.user, "profile", None)
+
         if learner:
             try:
                 prediction = predict_difficulty(learner, instance)
@@ -129,7 +140,6 @@ class CourseViewSet(viewsets.ModelViewSet):
                 data["difficulty"] = None
 
         return Response(data, status=status.HTTP_200_OK)
-
 
     @action(detail=False, methods=["get"], url_path="recommendations")
     def course_recommendations(self, request):
@@ -150,9 +160,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             }
             for r in results
         ]
-
         return Response(data, status=status.HTTP_200_OK)
-
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -168,7 +176,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
-
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
@@ -192,7 +199,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
-
+    
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
