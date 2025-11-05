@@ -57,6 +57,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = CategorySerializer
     permission_classes = [IsAdminOrReadOnly]
 
+from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
+
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -69,7 +71,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ["-date_added"]
 
     def get_queryset(self):
-        return Course.objects.annotate(avg_rating=Avg('ratings__points')).order_by("-date_added")
+        return Course.objects.annotate(avg_rating=Avg("ratings__points")).order_by("-date_added")
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -78,7 +80,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-    # Create
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -94,7 +95,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             headers=headers,
         )
 
-    # Update
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -110,7 +111,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    # Delete
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -119,6 +120,52 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_204_NO_CONTENT,
         )
 
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+
+    @action(detail=True, methods=["get"], url_path="predict-difficulty")
+    def predict_difficulty_view(self, request, pk=None):
+        learner = getattr(request.user, "profile", None)
+        if not learner:
+            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        course = self.get_object()
+        result = predict_difficulty(learner, course)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+    @action(detail=False, methods=["get"], url_path="recommendations")
+    def course_recommendations(self, request):
+        learner = getattr(request.user, "profile", None)
+        if not learner:
+            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        max_level = int(request.query_params.get("max_level", 3))
+        results = get_recommendations(learner, max_level=max_level)
+
+        data = [
+            {
+                "course_id": r["course"].id,
+                "name": r["course"].name,
+                "difficulty": r["difficulty"],
+                "success": r["success"],
+                "days": r["days"],
+            }
+            for r in results
+        ]
+
+        return Response(data, status=status.HTTP_200_OK)
 
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
