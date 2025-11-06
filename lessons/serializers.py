@@ -121,14 +121,15 @@ class ChapterWithViewCountSerializer(serializers.ModelSerializer):
         return None
 
     def get_progress(self, obj):
-        completed_count = ChapterProgress.objects.filter(chapter=obj, completed=True).count()
-        total_count = ChapterProgress.objects.filter(chapter=obj).count()
-
-        return {
-            "completed": completed_count,
-            "total": total_count
-        }
-
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            progress, _ = ChapterProgress.objects.get_or_create(user=request.user, chapter=obj)
+            return {
+                "completed": progress.completed,
+                "completed_at": progress.completed_at
+            }
+        return {"completed": False, "completed_at": None}
+        
     def get_view_count(self, obj):
         return ChapterProgress.objects.filter(chapter=obj, completed=True).count()
     
