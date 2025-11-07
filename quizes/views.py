@@ -71,6 +71,7 @@ class QuizViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(results)
 
 
+from gramafication.models import Enrollment
 
 class QuizAttemptView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -115,12 +116,11 @@ class QuizAttemptView(APIView):
             reason=f"Quiz attempt for quiz {quiz.id}"
         )
 
+        enrollment = Enrollment.objects.get(learner=learner, course=quiz.course)
+
         course_progress, _ = CourseGamification.objects.get_or_create(
-            learner=learner,
-            course=quiz.course,
-            defaults={
-                "total_quizzes": quiz.course.quizzes.count(),
-            }
+            enrollment=enrollment,
+            defaults={"total_quizzes": quiz.course.quizzes.count()}
         )
         course_progress.points_earned += points_earned
         course_progress.xp_earned += xp_earned
