@@ -56,6 +56,7 @@ class Answer(models.Model):
     selected_choice = models.ForeignKey(
         Choice, null=True, blank=True, on_delete=models.SET_NULL, related_name='+'
     )
+    tf_answer = models.BooleanField(null=True, blank=True)
     text_answer = models.TextField(blank=True, null=True)
 
     @property
@@ -63,5 +64,6 @@ class Answer(models.Model):
         if self.question.question_type == 'MCQ':
             return self.selected_choice.is_correct if self.selected_choice else False
         elif self.question.question_type == 'TF':
-            return (self.selected_choice.is_correct if self.selected_choice else False) == self.question.answer_is_true
+            return self.tf_answer == self.question.answer_is_true
         return False
+
