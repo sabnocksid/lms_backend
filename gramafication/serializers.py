@@ -279,24 +279,35 @@ class DashboardSerializer(serializers.Serializer):
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.title', read_only=True)
-    gamification = serializers.SerializerMethodField()
+    learner_name = serializers.CharField(source='learner.full_name', read_only=True)
+
+    points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
+    xp_earned = serializers.IntegerField(source='gamification.xp_earned', read_only=True)
+    chapters_completed = serializers.IntegerField(source='gamification.chapters_completed', read_only=True)
+    total_chapters = serializers.IntegerField(source='gamification.total_chapters', read_only=True)
+    quizzes_attempted = serializers.IntegerField(source='gamification.quizzes_attempted', read_only=True)
+    total_quizzes = serializers.IntegerField(source='gamification.total_quizzes', read_only=True)
+    correct_answers = serializers.IntegerField(source='gamification.correct_answers', read_only=True)
+    course_completed = serializers.BooleanField(source='gamification.course_completed', read_only=True)
+    last_updated = serializers.DateTimeField(source='gamification.last_updated', read_only=True)
 
     class Meta:
         model = Enrollment
-        fields = ['id', 'course', 'course_title', 'date_enrolled', 'is_active', 'completed', 'gamification']
-
-    def get_gamification(self, obj):
-        gam = getattr(obj, 'gamification', None)
-        if gam:
-            return {
-                "points_earned": gam.points_earned,
-                "xp_earned": gam.xp_earned,
-                "chapters_completed": gam.chapters_completed,
-                "total_chapters": gam.total_chapters,
-                "quizzes_attempted": gam.quizzes_attempted,
-                "total_quizzes": gam.total_quizzes,
-                "correct_answers": gam.correct_answers,
-                "course_completed": gam.course_completed,
-                "last_updated": gam.last_updated,
-            }
-        return None
+        fields = [
+            'id',
+            'learner_name',
+            'course',
+            'course_title',
+            'date_enrolled',
+            'is_active',
+            'completed',
+            'points_earned',
+            'xp_earned',
+            'chapters_completed',
+            'total_chapters',
+            'quizzes_attempted',
+            'total_quizzes',
+            'correct_answers',
+            'course_completed',
+            'last_updated',
+        ]
