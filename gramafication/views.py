@@ -668,7 +668,12 @@ class MyEnrollmentsView(generics.ListAPIView):
         profile = getattr(user, 'profile', None)
         if not profile:
             return Enrollment.objects.none()
-        return Enrollment.objects.filter(learner=profile)
+
+        return (
+            Enrollment.objects.filter(learner=profile)
+            .select_related('course', 'learner', 'gamification')
+            .order_by('-date_enrolled')
+        )
 
 
 
