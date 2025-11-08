@@ -671,33 +671,40 @@ class EnrollCourseView(generics.CreateAPIView):
         )
 
 
+
 class MyEnrollmentsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = EnrollmentPagination
 
     def get(self, request, *args, **kwargs):
         user = request.user
         profile = getattr(user, "profile", None)
 
         if user.is_staff:
-            enrollments = Enrollment.objects.select_related('course', 'learner', 'gamification').all().order_by("-date_enrolled")
+            enrollments = Enrollment.objects.all().select_related(
+                "course", "learner", "gamification"
+            ).order_by("-date_enrolled")
             user_type = "admin"
 
         elif Course.objects.filter(instructor=user).exists():
             instructor_courses = Course.objects.filter(instructor=user)
-            enrollments = Enrollment.objects.filter(course__in=instructor_courses).select_related('course', 'learner', 'gamification').order_by("-date_enrolled")
+            enrollments = Enrollment.objects.filter(
+                course__in=instructor_courses
+            ).select_related("course", "learner", "gamification").order_by("-date_enrolled")
             user_type = "instructor"
 
         else:
             if not profile:
-                return Response({"detail": "LearnerProfile not found"}, status=status.HTTP_400_BAD_REQUEST)
-            enrollments = Enrollment.objects.filter(learner=profile).select_related('course', 'learner', 'gamification').order_by("-date_enrolled")
+                return Response({"detail": "LearnerProfile not found"}, status=400)
+
+            enrollments = Enrollment.objects.filter(
+                learner=profile
+            ).select_related("course", "learner", "gamification").order_by("-date_enrolled")
             user_type = "student"
 
-        paginator = self.pagination_class()
-        paginated_data = paginator.paginate_queryset(enrollments, request)
-        serializer = EnrollmentSerializer(paginated_data, many=True)
+        paginator = EnrollmentPagination()
+        result_page = paginator.paginate_queryset(enrollments, request)
 
+        serializer = EnrollmentSerializer(result_page, many=True)
         response = paginator.get_paginated_response(serializer.data)
         response.data["user_type"] = user_type
         return response
