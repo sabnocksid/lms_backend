@@ -278,7 +278,8 @@ class DashboardSerializer(serializers.Serializer):
 
 
 class EnrollmentSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source='course.title', read_only=True)
+    course_title = serializers.CharField(source='course.name', read_only=True)
+    course_thumbnail = serializers.CharField(source='course.thumbnail', read_only=True)
     learner_name = serializers.CharField(source='learner.full_name', read_only=True)
 
     points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
@@ -298,6 +299,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'learner_name',
             'course',
             'course_title',
+            'course_thumbnail',
             'date_enrolled',
             'is_active',
             'completed',
