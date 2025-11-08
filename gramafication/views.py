@@ -678,8 +678,6 @@ class MyEnrollmentsView(generics.ListAPIView):
 
 
 
-
-
 from django.core.paginator import Paginator
 from rest_framework import generics
 from rest_framework.response import Response
