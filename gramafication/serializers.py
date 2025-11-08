@@ -279,7 +279,7 @@ class DashboardSerializer(serializers.Serializer):
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.name', read_only=True)
-    course_thumbnail = serializers.CharField(source='course.thumbnail', read_only=True)
+    course_thumbnail = serializers.SerializerMethodField()
     learner_name = serializers.CharField(source='learner.full_name', read_only=True)
 
     points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
@@ -313,3 +313,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'course_completed',
             'last_updated',
         ]
+
+    def get_course_thumbnail(self, obj):
+        request = self.context.get("request")
+        if obj.course.thumbnail and request:
+            return get_presigned_url(obj.course.thumbnail, request=request)
+        return None
