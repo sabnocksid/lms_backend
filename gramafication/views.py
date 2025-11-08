@@ -704,7 +704,8 @@ class MyEnrollmentsView(APIView):
         paginator = EnrollmentPagination()
         result_page = paginator.paginate_queryset(enrollments, request)
 
-        serializer = EnrollmentSerializer(result_page, many=True)
+
+        serializer = EnrollmentSerializer(result_page, many=True, context={'request': request})
         response = paginator.get_paginated_response(serializer.data)
         response.data["user_type"] = user_type
         return response

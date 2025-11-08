@@ -277,6 +277,7 @@ class DashboardSerializer(serializers.Serializer):
     leaderboard = LeaderboardSectionSerializer()
 
 
+
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.name', read_only=True)
     course_thumbnail = serializers.SerializerMethodField()
@@ -316,6 +317,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def get_course_thumbnail(self, obj):
         request = self.context.get("request")
-        if obj.course.thumbnail and request:
+        if obj.course.thumbnail:
             return get_presigned_url(obj.course.thumbnail, request=request)
         return None
