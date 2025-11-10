@@ -282,6 +282,8 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.name', read_only=True)
     course_thumbnail = serializers.SerializerMethodField()
     learner_name = serializers.CharField(source='learner.full_name', read_only=True)
+    course_completed = serializers.SerializerMethodField()  
+
     points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
     xp_earned = serializers.IntegerField(source='gamification.xp_earned', read_only=True)
     chapters_completed = serializers.IntegerField(source='gamification.chapters_completed', read_only=True)
@@ -289,9 +291,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     quizzes_attempted = serializers.IntegerField(source='gamification.quizzes_attempted', read_only=True)
     total_quizzes = serializers.IntegerField(source='gamification.total_quizzes', read_only=True)
     correct_answers = serializers.IntegerField(source='gamification.correct_answers', read_only=True)
-    course_completed = serializers.BooleanField(source='gamification.course_completed', read_only=True)
     last_updated = serializers.DateTimeField(source='gamification.last_updated', read_only=True)
-    completed = serializers.SerializerMethodField() 
 
     class Meta:
         model = Enrollment
@@ -317,25 +317,28 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def get_course_thumbnail(self, obj):
         request = self.context.get("request")
-        if hasattr(obj.course, "thumbnail") and obj.course.thumbnail:
-            return get_presigned_url(str(obj.course.thumbnail), request=request)
+        if obj.course.thumbnail:
+            return get_presigned_url(obj.course.thumbnail, request=request)
         return None
 
-    def get_completed(self, obj):
+    def get_course_completed(self, obj):
         gamification = getattr(obj, "gamification", None)
         if not gamification:
             return False
-
-        if gamification.course_completed:
-            return True
+        
+        if gamification.total_chapters == 0 and gamification.total_quizzes == 0:
+            return False
 
         chapters_done = (
-            gamification.total_chapters > 0
-            and gamification.chapters_completed >= gamification.total_chapters
+            gamification.chapters_completed >= gamification.total_chapters
+            if gamification.total_chapters > 0
+            else True
         )
         quizzes_done = (
-            gamification.total_quizzes > 0
-            and gamification.quizzes_attempted >= gamification.total_quizzes
+            gamification.quizzes_attempted >= gamification.total_quizzes
+            if gamification.total_quizzes > 0
+            else True
         )
 
         return chapters_done and quizzes_done
+
