@@ -282,7 +282,6 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.name', read_only=True)
     course_thumbnail = serializers.SerializerMethodField()
     learner_name = serializers.CharField(source='learner.full_name', read_only=True)
-
     points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
     xp_earned = serializers.IntegerField(source='gamification.xp_earned', read_only=True)
     chapters_completed = serializers.IntegerField(source='gamification.chapters_completed', read_only=True)
@@ -292,6 +291,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     correct_answers = serializers.IntegerField(source='gamification.correct_answers', read_only=True)
     course_completed = serializers.BooleanField(source='gamification.course_completed', read_only=True)
     last_updated = serializers.DateTimeField(source='gamification.last_updated', read_only=True)
+    completed = serializers.SerializerMethodField()  # override default field
 
     class Meta:
         model = Enrollment
@@ -317,6 +317,25 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def get_course_thumbnail(self, obj):
         request = self.context.get("request")
-        if obj.course.thumbnail:
-            return get_presigned_url(obj.course.thumbnail, request=request)
+        if hasattr(obj.course, "thumbnail") and obj.course.thumbnail:
+            return get_presigned_url(str(obj.course.thumbnail), request=request)
         return None
+
+    def get_completed(self, obj):
+        gamification = getattr(obj, "gamification", None)
+        if not gamification:
+            return False
+
+        if gamification.course_completed:
+            return True
+
+        chapters_done = (
+            gamification.total_chapters > 0
+            and gamification.chapters_completed >= gamification.total_chapters
+        )
+        quizzes_done = (
+            gamification.total_quizzes > 0
+            and gamification.quizzes_attempted >= gamification.total_quizzes
+        )
+
+        return chapters_done and quizzes_done
