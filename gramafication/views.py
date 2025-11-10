@@ -315,19 +315,17 @@ class CourseGamificationView(APIView):
 
     def get(self, request, course_id):
         user = request.user
-        learner = getattr(user, "profile", None) or getattr(user, "learner", None)
+        profile = getattr(user, "profile", None)  
 
-        if not learner:
+        if not profile:
             return Response(
-                {"detail": "Learner profile not found for this user."},
+                {"detail": "LearnerProfile not found for this user."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        course_gamification = get_object_or_404(
-            CourseGamification,
-            learner=learner,
-            course_id=course_id
-        )
+        enrollment = get_object_or_404(Enrollment, learner=profile, course_id=course_id)
+
+        course_gamification = get_object_or_404(CourseGamification, enrollment=enrollment)
 
         serializer = CourseGamificationSerializer(course_gamification)
         return Response(serializer.data)
