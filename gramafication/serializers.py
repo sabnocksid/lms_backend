@@ -291,7 +291,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     correct_answers = serializers.IntegerField(source='gamification.correct_answers', read_only=True)
     course_completed = serializers.BooleanField(source='gamification.course_completed', read_only=True)
     last_updated = serializers.DateTimeField(source='gamification.last_updated', read_only=True)
-    completed = serializers.SerializerMethodField()  # override default field
+    completed = serializers.SerializerMethodField() 
 
     class Meta:
         model = Enrollment

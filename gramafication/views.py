@@ -314,8 +314,21 @@ class CourseGamificationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, course_id):
-        learner = request.user.learner_profile
-        course_gamification = get_object_or_404(CourseGamification, learner=learner, course_id=course_id)
+        user = request.user
+        learner = getattr(user, "profile", None) or getattr(user, "learner", None)
+
+        if not learner:
+            return Response(
+                {"detail": "Learner profile not found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        course_gamification = get_object_or_404(
+            CourseGamification,
+            learner=learner,
+            course_id=course_id
+        )
+
         serializer = CourseGamificationSerializer(course_gamification)
         return Response(serializer.data)
 
