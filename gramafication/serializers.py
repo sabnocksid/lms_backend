@@ -25,15 +25,26 @@ class PointTransactionSerializer(serializers.ModelSerializer):
 
 
 class CourseGamificationSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source='course.title', read_only=True)
-    
+    total_chapters = serializers.ReadOnlyField()
+    completed_chapters = serializers.ReadOnlyField()
+    total_quizzes = serializers.ReadOnlyField()
+    attempted_quizzes = serializers.ReadOnlyField()
+    course_completed = serializers.ReadOnlyField()
+
     class Meta:
         model = CourseGamification
         fields = [
-            "course", "course_title", "points_earned", "xp_earned",
-            "chapters_completed", "total_chapters", "quizzes_attempted",
-            "total_quizzes", "correct_answers", "course_completed", "last_updated"
+            "points_earned",
+            "xp_earned",
+            "correct_answers",
+            "total_chapters",
+            "completed_chapters",
+            "total_quizzes",
+            "attempted_quizzes",
+            "course_completed",
+            "last_updated",
         ]
+
 
 
 class LearnerProfileSummarySerializer(serializers.ModelSerializer):

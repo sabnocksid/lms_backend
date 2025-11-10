@@ -135,13 +135,31 @@ class CourseGamification(models.Model):
     )
     points_earned = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
-    chapters_completed = models.PositiveIntegerField(default=0)
-    total_chapters = models.PositiveIntegerField(default=0)
-    quizzes_attempted = models.PositiveIntegerField(default=0)
-    total_quizzes = models.PositiveIntegerField(default=0)
     correct_answers = models.PositiveIntegerField(default=0)
-    course_completed = models.BooleanField(default=False)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.enrollment.learner.full_name} - {self.enrollment.course.name}"
+
+    @property
+    def total_chapters(self):
+        return self.enrollment.course.chapters.count()
+
+    @property
+    def completed_chapters(self):
+        return self.enrollment.learner.completed_chapters.filter(course=self.enrollment.course).count()
+
+    @property
+    def total_quizzes(self):
+        return self.enrollment.course.quizzes.count()
+
+    @property
+    def attempted_quizzes(self):
+        return self.enrollment.learner.quiz_attempts.filter(quiz__course=self.enrollment.course).count()
+
+    @property
+    def course_completed(self):
+        return (
+            self.completed_chapters >= self.total_chapters
+            and self.attempted_quizzes >= self.total_quizzes
+        )
