@@ -298,7 +298,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     total_chapters = serializers.SerializerMethodField()
     quizzes_attempted = serializers.SerializerMethodField()
     total_quizzes = serializers.SerializerMethodField()
-    course_completed = serializers.SerializerMethodField()
+    completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Enrollment
@@ -345,7 +345,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             user=obj.learner.user 
         ).count()
 
-    def get_course_completed(self, obj):
+    def get_completed(self, obj):
         total_chapters = self.get_total_chapters(obj)
         completed_chapters = self.get_chapters_completed(obj)
         total_quizzes = self.get_total_quizzes(obj)
