@@ -82,7 +82,7 @@ class CourseFilter(FilterSet):
 
         return queryset.filter(id__in=filtered_ids)
 
-
+from gramafication.models import Enrollment
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsInstructorOrAdminOrReadOnly]
@@ -113,6 +113,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         if learner:
             for i, course_data in enumerate(data):
                 course_instance = page[i]
+
+
                 try:
                     prediction = predict_difficulty(learner, course_instance)
                     course_data["difficulty"] = {
@@ -124,13 +126,42 @@ class CourseViewSet(viewsets.ModelViewSet):
                 except Exception:
                     course_data["difficulty"] = None
 
+                enrollment = Enrollment.objects.filter(learner=learner, course=course_instance).first()
+                if enrollment and hasattr(enrollment, "gamification"):
+                    g = enrollment.gamification
+                    completed = (
+                        g.chapters_completed >= g.total_chapters
+                        and g.quizzes_attempted >= g.total_quizzes
+                    )
+                    progress_percent = int(
+                        (
+                            ((g.chapters_completed / g.total_chapters) * 50 if g.total_chapters else 50)
+                            + ((g.quizzes_attempted / g.total_quizzes) * 50 if g.total_quizzes else 50)
+                        )
+                    )
+
+                    course_data["learner_progress"] = {
+                        "chapters_completed": g.chapters_completed,
+                        "total_chapters": g.total_chapters,
+                        "quizzes_attempted": g.quizzes_attempted,
+                        "total_quizzes": g.total_quizzes,
+                        "progress_percent": progress_percent,
+                        "completed": completed,
+                    }
+                else:
+                    course_data["learner_progress"] = None
+
         return self.get_paginated_response(data)
+
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         data = serializer.data
         learner = getattr(request.user, "profile", None)
+
+        data["learner_progress"] = None
+        data["difficulty"] = None
 
         if learner:
             try:
@@ -139,7 +170,31 @@ class CourseViewSet(viewsets.ModelViewSet):
             except Exception:
                 data["difficulty"] = None
 
+            enrollment = Enrollment.objects.filter(learner=learner, course=instance).first()
+            if enrollment and hasattr(enrollment, "gamification"):
+                g = enrollment.gamification
+                completed = (
+                    g.chapters_completed >= g.total_chapters
+                    and g.quizzes_attempted >= g.total_quizzes
+                )
+                progress_percent = int(
+                    (
+                        ((g.chapters_completed / g.total_chapters) * 50 if g.total_chapters else 50)
+                        + ((g.quizzes_attempted / g.total_quizzes) * 50 if g.total_quizzes else 50)
+                    )
+                )
+
+                data["learner_progress"] = {
+                    "chapters_completed": g.chapters_completed,
+                    "total_chapters": g.total_chapters,
+                    "quizzes_attempted": g.quizzes_attempted,
+                    "total_quizzes": g.total_quizzes,
+                    "progress_percent": progress_percent,
+                    "completed": completed,
+                }
+
         return Response(data, status=status.HTTP_200_OK)
+
 
     @action(detail=False, methods=["get"], url_path="recommendations")
     def course_recommendations(self, request):
@@ -161,6 +216,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             for r in results
         ]
         return Response(data, status=status.HTTP_200_OK)
+
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

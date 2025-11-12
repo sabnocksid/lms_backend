@@ -1,103 +1,107 @@
-"""
-Compact Course Difficulty Prediction Algorithm - FIXED VERSION
-
-STEPS:
-1. Learner Skill = (Quiz_Accuracy × 0.4) + (Completion_Rate × 0.4) + (Speed × 0.2)
-2. Course Difficulty = (100 - Avg_Completion) × 0.4 + (100 - Avg_Accuracy) × 0.4 + (Time × 0.2)
-3. Gap = Difficulty - Skill → Map to Level (1-5)
-4. Success = 100 - (Gap × 2), Days = 30 × (Difficulty/Skill)
-"""
-
-from django.db.models import Avg, F, Case, When, Value, FloatField, Q
+from django.db.models import Avg, F, Case, When, Value, FloatField
 from django.utils import timezone
 from ..models import CourseGamification, Enrollment
 from courses.models import Course
 
-
-class DifficultyPredictor:
-    
+class HybridDifficultyPredictor:
     def __init__(self, learner):
         self.learner = learner
-    
+
+    # Step 1: Global course difficulty based on all learners
+    def get_global_difficulty(self, course):
+        enrollments = Enrollment.objects.filter(course=course)
+        if not enrollments.exists():
+            return 50.0
+
+        gams = CourseGamification.objects.filter(enrollment__in=enrollments)
+
+        avg_quiz_acc = gams.aggregate(
+            avg_acc=Avg(
+                Case(
+                    When(quizzes_attempted__gt=0,
+                         then=(F('correct_answers') * 100.0) / F('quizzes_attempted')),
+                    default=Value(50.0),
+                    output_field=FloatField()
+                )
+            )
+        )['avg_acc'] or 50.0
+
+        avg_completion = gams.aggregate(
+            avg_comp=Avg(
+                Case(
+                    When(total_chapters__gt=0,
+                         then=(F('chapters_completed') * 100.0) / F('total_chapters')),
+                    default=Value(50.0),
+                    output_field=FloatField()
+                )
+            )
+        )['avg_comp'] or 50.0
+
+        avg_time = enrollments.filter(completed=True).aggregate(
+            avg_days=Avg(F('completed_at') - F('date_enrolled'))
+        )['avg_days']
+        avg_time_days = avg_time.days if avg_time else 30
+
+        difficulty = (
+            (100 - avg_completion) * 0.4 +
+            (100 - avg_quiz_acc) * 0.4 +
+            min((avg_time_days / 60) * 100, 100) * 0.2
+        )
+        return round(max(min(difficulty, 100), 0), 1)
+
+    # Step 2: Learner's personal skill level
     def get_learner_skill(self):
-        """Step 1: Calculate learner skill (0-100)"""
         enrollments = self.learner.enrollments.filter(is_active=True)
         if not enrollments.exists():
             return 50.0
-        
+
         gams = CourseGamification.objects.filter(enrollment__in=enrollments)
-        
-        # Quiz accuracy
         total_quiz = sum(g.quizzes_attempted for g in gams)
         total_correct = sum(g.correct_answers for g in gams)
         quiz_acc = ((total_correct / total_quiz) * 100) if total_quiz > 0 else 50.0
-        
-        # Completion rate
+
         completed = enrollments.filter(completed=True).count()
-        total_enrollments = enrollments.count()
-        comp_rate = ((completed / total_enrollments) * 100) if total_enrollments > 0 else 50.0
-        
-        # Speed calculation
+        total = enrollments.count()
+        comp_rate = ((completed / total) * 100) if total > 0 else 50.0
+
         speeds = []
         for e in enrollments:
             if hasattr(e, 'gamification') and e.gamification.chapters_completed > 0:
                 days = max((timezone.now() - e.date_enrolled).days, 1)
                 speeds.append(e.gamification.chapters_completed / days)
-        
-        if speeds:
-            avg_speed = sum(speeds) / len(speeds)
-            speed_score = min((avg_speed / 1.0) * 100, 100)
-        else:
-            speed_score = 50.0
-        
+        avg_speed = sum(speeds) / len(speeds) if speeds else 0.5
+        speed_score = min(avg_speed * 100, 100)
+
         skill = (quiz_acc * 0.4) + (comp_rate * 0.4) + (speed_score * 0.2)
-        return max(min(skill, 100.0), 0.0)  # Clamp between 0-100
-    
-    def get_course_difficulty(self, course):
-        """Step 2: Calculate course difficulty (0-100)"""
-        enrollments = Enrollment.objects.filter(course=course)
-        if not enrollments.exists():
-            return 50.0
-        
-        gams = CourseGamification.objects.filter(enrollment__in=enrollments)
-        
-        # Completion rate
-        completed = enrollments.filter(completed=True).count()
-        total_enrollments = enrollments.count()
-        comp_rate = ((completed / total_enrollments) * 100) if total_enrollments > 0 else 50.0
-        
-        # Quiz accuracy - safe division
-        avg_acc_result = gams.aggregate(
-            acc=Avg(
-                Case(
-                    When(quizzes_attempted__gt=0,
-                         then=(F('correct_answers') * 100.0) / F('quizzes_attempted')),
-                    default=Value(0.0),
-                    output_field=FloatField()
-                )
-            )
-        )
-        avg_acc = avg_acc_result['acc'] if avg_acc_result['acc'] is not None else 50.0
-        
-        # Time to complete
-        completed_enrollments = enrollments.filter(completed=True)
-        times = []
-        for e in completed_enrollments:
-            if hasattr(e, 'gamification'):
-                days = max((e.gamification.last_updated - e.date_enrolled).days, 1)
-                times.append(days)
-        
-        if times:
-            avg_days = sum(times) / len(times)
-            time_score = min((avg_days / 60) * 100, 100)
-        else:
-            time_score = 50.0
-        
-        difficulty = ((100 - comp_rate) * 0.4) + ((100 - avg_acc) * 0.4) + (time_score * 0.2)
-        return max(min(difficulty, 100.0), 0.0)  # Clamp between 0-100
-    
-    def get_difficulty_level(self, gap):
-        """Step 3: Map gap to difficulty level"""
+        return round(max(min(skill, 100), 0), 1)
+
+    # Step 3: Hybrid difficulty calculation
+    def predict(self, course):
+        global_diff = self.get_global_difficulty(course)
+        learner_skill = self.get_learner_skill()
+
+        hybrid_diff = (global_diff * 0.6) + ((global_diff - learner_skill) * 0.4)
+        hybrid_diff = max(min(hybrid_diff, 100), 0)
+
+        gap = hybrid_diff - learner_skill
+
+        level, label = self.map_level(gap)
+        success = max(min(100 - abs(gap) * 1.8, 95), 10)
+
+        days = max(int(30 * (hybrid_diff / (learner_skill or 1))), 7)
+        rec = self.get_recommendation(level, success)
+
+        return {
+            "level": level,
+            "name": label,
+            "skill": learner_skill,
+            "difficulty": round(hybrid_diff, 1),
+            "success": round(success, 1),
+            "days": days,
+            "recommendation": rec,
+        }
+
+    def map_level(self, gap):
         if gap <= -20:
             return 1, "Very Easy"
         elif gap <= -5:
@@ -107,123 +111,45 @@ class DifficultyPredictor:
         elif gap <= 25:
             return 4, "Challenging"
         else:
-            return 5, "Very Challenging"
-    
-    def predict(self, course):
-        """Run full prediction"""
-        skill = self.get_learner_skill()
-        difficulty = self.get_course_difficulty(course)
-        gap = difficulty - skill
-        
-        level, name = self.get_difficulty_level(gap)
-        
-        # Success rate calculation with bounds
-        success = max(min(100 - (gap * 2), 95), 20)
-        
-        # Days calculation with safe division
-        if skill > 0:
-            days = max(int(30 * (difficulty / skill)), 7)
-        else:
-            days = 30
-        
-        # Recommendation logic
+            return 5, "Very Hard"
+
+    def get_recommendation(self, level, success):
         if level == 1:
-            rec = "Perfect for quick learning!"
+            return "Perfect for a quick boost!"
         elif level == 2:
-            rec = "Great match for your skill level"
+            return "A smooth course for your pace."
         elif level == 3:
-            rec = "Good challenge" if success >= 70 else "Stay consistent"
+            return "A balanced challenge."
         elif level == 4:
-            rec = "Tough but achievable" if success >= 60 else "Consider prerequisites"
+            return "Push your limits — you can handle it."
         else:
-            rec = "Very difficult! Build foundations first"
-        
-        return {
-            'level': level,
-            'name': name,
-            'skill': round(skill, 1),
-            'difficulty': round(difficulty, 1),
-            'gap': round(gap, 1),
-            'success': round(success, 1),
-            'days': days,
-            'recommendation': rec,
-        }
+            return "This one’s tough. Prep before you dive in!"
 
+# --- API Layer Integrations ---
 
-# Usage functions
 def predict_difficulty(learner, course):
-    """Predict difficulty for a specific course"""
-    return DifficultyPredictor(learner).predict(course)
-
+    return HybridDifficultyPredictor(learner).predict(course)
 
 def get_recommendations(learner, max_level=3):
-    """Get course recommendations for learner"""
-    predictor = DifficultyPredictor(learner)
+    predictor = HybridDifficultyPredictor(learner)
     enrolled = learner.enrollments.values_list('course_id', flat=True)
     courses = Course.objects.exclude(id__in=enrolled).filter(is_active=True)
-    
+
     results = []
     for course in courses:
         try:
             pred = predictor.predict(course)
-            if pred['level'] <= max_level and pred['success'] >= 50:  # Filter out too hard courses
+            if pred['level'] <= max_level and pred['success'] >= 50:
                 results.append({
-                    'course': course,
-                    'difficulty': pred['name'],
-                    'level': pred['level'],
-                    'success': pred['success'],
-                    'days': pred['days'],
-                    'recommendation': pred['recommendation'],
+                    "course": course,
+                    "difficulty": pred["name"],
+                    "level": pred["level"],
+                    "success": pred["success"],
+                    "days": pred["days"],
+                    "recommendation": pred["recommendation"],
                 })
         except Exception as e:
-            # Log error but continue with other courses
             print(f"Error predicting difficulty for {course.name}: {e}")
             continue
-    
-    # Sort by success rate (higher is better) and then by level (lower is better)
-    return sorted(results, key=lambda x: (-x['success'], x['level']))
 
-
-# Debugging function
-def debug_prediction(learner, course):
-    """Debug prediction with detailed output"""
-    predictor = DifficultyPredictor(learner)
-    
-    skill = predictor.get_learner_skill()
-    difficulty = predictor.get_course_difficulty(course)
-    
-    print(f"=== Debug Info ===")
-    print(f"Learner: {learner}")
-    print(f"Course: {course}")
-    print(f"Learner Skill: {skill:.2f}")
-    print(f"Course Difficulty: {difficulty:.2f}")
-    
-    result = predictor.predict(course)
-    print(f"\n=== Prediction ===")
-    for key, value in result.items():
-        print(f"{key}: {value}")
-    
-    return result
-
-
-# Example usage
-"""
-from accounts.models import LearnerProfile
-from courses.models import Course
-
-learner = LearnerProfile.objects.get(id=1)
-course = Course.objects.get(id=5)
-
-# Basic prediction
-result = predict_difficulty(learner, course)
-print(f"{result['name']} - {result['success']}% success in {result['days']} days")
-print(result['recommendation'])
-
-# Debug mode
-debug_result = debug_prediction(learner, course)
-
-# Get recommendations
-recs = get_recommendations(learner, max_level=3)
-for r in recs[:5]:
-    print(f"{r['course'].name}: {r['difficulty']} ({r['success']}% in {r['days']} days)")
-"""
+    return sorted(results, key=lambda x: (-x["success"], x["level"]))
