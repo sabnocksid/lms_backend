@@ -106,7 +106,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         return CoursePreviewSerializer
 
     def _get_learner_progress(self, learner, course):
-        """Return learner progress dict for a course"""
         enrollment = Enrollment.objects.filter(learner=learner, course=course).first()
         if enrollment and hasattr(enrollment, "gamification"):
             g = enrollment.gamification
@@ -130,6 +129,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             }
         return None
 
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -141,7 +141,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             for i, course_data in enumerate(data):
                 course_instance = page[i]
 
-                # Difficulty prediction
                 try:
                     prediction = predict_difficulty(learner, course_instance)
                     course_data["difficulty"] = {
@@ -153,7 +152,6 @@ class CourseViewSet(viewsets.ModelViewSet):
                 except Exception:
                     course_data["difficulty"] = None
 
-                # Learner progress
                 course_data["learner_progress"] = self._get_learner_progress(learner, course_instance)
 
         return self.get_paginated_response(data)
@@ -168,14 +166,12 @@ class CourseViewSet(viewsets.ModelViewSet):
         data["difficulty"] = None
 
         if learner:
-            # Difficulty prediction
             try:
                 prediction = predict_difficulty(learner, instance)
                 data["difficulty"] = prediction
             except Exception:
                 data["difficulty"] = None
 
-            # Learner progress
             data["learner_progress"] = self._get_learner_progress(learner, instance)
 
         return Response(data, status=status.HTTP_200_OK)
@@ -238,8 +234,8 @@ class CourseViewSet(viewsets.ModelViewSet):
             {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
-    
-      
+
+
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
