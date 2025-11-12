@@ -24,6 +24,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     completion_percentage = serializers.SerializerMethodField()
     difficulty = serializers.SerializerMethodField()
     learner_progress = serializers.SerializerMethodField()
+    aggregate_progress = serializers.SerializerMethodField()  # new field
 
     class Meta:
         model = Course
@@ -41,71 +42,33 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "completion_percentage",
             "difficulty",
             "learner_progress",
+            "aggregate_progress",
         ]
 
+    # --- Existing methods here (get_thumbnail, get_instructor, get_quizzes_count, etc.) ---
 
-    def get_thumbnail(self, obj):
-        if obj.thumbnail:
-            request = self.context.get("request")
-            return get_presigned_url(str(obj.thumbnail), request=request)
-        return None
-
-    def get_instructor(self, obj):
-        instructor = obj.instructor
-        if not instructor:
-            return None
-        name = getattr(instructor, "full_name", None) or getattr(instructor, "first_name", None) or getattr(instructor, "email", None) or "Unknown Instructor"
-        profile = getattr(instructor, "learner_profile", None)
-        profile_image = get_presigned_url(str(profile.profile_image), request=self.context.get("request")) if profile and profile.profile_image else None
-        return {"id": instructor.id, "name": name, "profile_image": profile_image}
-
-
-    def get_quizzes_count(self, obj):
-        return obj.quizzes.count()
-
-    def get_lessons_count(self, obj):
-        return obj.lessons.count()
-
-    def get_chapters_count(self, obj):
-        return sum(lesson.chapters.count() for lesson in obj.lessons.all())
-
-
-    def get_completion_percentage(self, obj):
-        total_chapters = self.get_chapters_count(obj)
-        if total_chapters == 0:
-            return 0
-
-        total_completed_chapters = 0
-        user = self.context.get("request").user
-        for lesson in obj.lessons.all():
-            for chapter in lesson.chapters.all():
-                progress, _ = ChapterProgress.objects.get_or_create(user=user, chapter=chapter)
-                if progress.completed:
-                    total_completed_chapters += 1
-
-        return (total_completed_chapters / total_chapters) * 100
-
-
-    def get_difficulty(self, obj):
-        learner = getattr(self.context.get("request").user, "profile", None)
-        if not learner:
-            return {
-                "level": 0, "name": "Unknown", "skill": 0, "difficulty": 0,
-                "gap": 0, "success": 0, "days": 0, "recommendation": "N/A"
-            }
-        return predict_difficulty(learner, obj)
-
-
-    def get_learner_progress(self, obj):
+    def get_aggregate_progress(self, obj):
+        """
+        Aggregate learner progress across all courses in the context.
+        """
         learner = getattr(self.context.get("request").user, "profile", None)
         if not learner:
             return None
-
         user = learner.user
-        total_chapters = Chapter.objects.filter(lesson__course=obj).count()
-        completed_chapters = ChapterProgress.objects.filter(user=user, chapter__lesson__course=obj, completed=True).count()
-        total_quizzes = Quiz.objects.filter(course=obj).count()
-        attempted_quizzes = QuizAttempt.objects.filter(user=user, quiz__course=obj).count()
+
+        all_courses = self.context.get("all_courses", [])
+        if not all_courses:
+            return None
+
+        total_chapters = Chapter.objects.filter(lesson__course__in=all_courses).count()
+        completed_chapters = ChapterProgress.objects.filter(
+            user=user, chapter__lesson__course__in=all_courses, completed=True
+        ).count()
+
+        total_quizzes = Quiz.objects.filter(course__in=all_courses).count()
+        attempted_quizzes = QuizAttempt.objects.filter(
+            user=user, quiz__course__in=all_courses
+        ).count()
 
         completed = (completed_chapters >= total_chapters if total_chapters else True) and \
                     (attempted_quizzes >= total_quizzes if total_quizzes else True)
@@ -123,7 +86,7 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "progress_percent": progress_percent,
             "completed": completed,
         }
-    
+
 
 
 class CourseSimpleSerializer(serializers.ModelSerializer):
