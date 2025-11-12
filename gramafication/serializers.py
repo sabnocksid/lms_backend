@@ -310,12 +310,11 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'course_thumbnail',
             'date_enrolled',
             'is_active',
-            'completed',
             'chapters_completed',
             'total_chapters',
             'quizzes_attempted',
             'total_quizzes',
-            'course_completed',
+            'completed',
         ]
 
     def get_course_thumbnail(self, obj):
