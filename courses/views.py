@@ -114,13 +114,13 @@ class CourseViewSet(viewsets.ModelViewSet):
 
             try:
                 completed_chapters = ChapterProgress.objects.filter(
-                    user=learner.user,
+                    user=self.learner.user,
                     chapter__lesson__course=course,
                     completed=True
                 ).count()
 
                 attempted_quizzes = QuizAttempt.objects.filter(
-                    user=learner.user,
+                    user=self.learner.user,
                     quiz__course=course
                 ).count()
 
