@@ -288,21 +288,17 @@ class DashboardSerializer(serializers.Serializer):
     leaderboard = LeaderboardSectionSerializer()
 
 
-
+from lessons.models import ChapterProgress
 class EnrollmentSerializer(serializers.ModelSerializer):
     course_title = serializers.CharField(source='course.name', read_only=True)
     course_thumbnail = serializers.SerializerMethodField()
     learner_name = serializers.CharField(source='learner.full_name', read_only=True)
 
-    points_earned = serializers.IntegerField(source='gamification.points_earned', read_only=True)
-    xp_earned = serializers.IntegerField(source='gamification.xp_earned', read_only=True)
     chapters_completed = serializers.SerializerMethodField()
     total_chapters = serializers.SerializerMethodField()
     quizzes_attempted = serializers.SerializerMethodField()
     total_quizzes = serializers.SerializerMethodField()
-    correct_answers = serializers.IntegerField(source='gamification.correct_answers', read_only=True)
     course_completed = serializers.SerializerMethodField()
-    last_updated = serializers.DateTimeField(source='gamification.last_updated', read_only=True)
 
     class Meta:
         model = Enrollment
@@ -315,15 +311,11 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'date_enrolled',
             'is_active',
             'completed',
-            'points_earned',
-            'xp_earned',
             'chapters_completed',
             'total_chapters',
             'quizzes_attempted',
             'total_quizzes',
-            'correct_answers',
             'course_completed',
-            'last_updated',
         ]
 
     def get_course_thumbnail(self, obj):
@@ -332,19 +324,40 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             return get_presigned_url(obj.course.thumbnail, request=request)
         return None
 
-    def get_chapters_completed(self, obj):
-        return obj.lessons.completed_chapters if hasattr(obj, "lessons") else 0
 
     def get_total_chapters(self, obj):
-        return obj.lessons.total_chapters if hasattr(obj, "lessons") else 0
+        return Chapter.objects.filter(lesson__course=obj.course).count()
 
-    def get_quizzes_attempted(self, obj):
-        return obj.gamification.attempted_quizzes if hasattr(obj, "gamification") else 0
+    def get_chapters_completed(self, obj):
+        return ChapterProgress.objects.filter(
+            learner=obj.learner,
+            chapter__lesson__course=obj.course
+        ).count()
 
     def get_total_quizzes(self, obj):
-        return obj.gamification.total_quizzes if hasattr(obj, "gamification") else 0
+        from quizes.models import Quiz  
+        return Quiz.objects.filter(course=obj.course).count()
+
+    def get_quizzes_attempted(self, obj):
+        from quizes.models import QuizAttempt
+        return QuizAttempt.objects.filter(
+            quiz__course=obj.course,
+            user=obj.learner.user  
+        ).count()
 
     def get_course_completed(self, obj):
-        return obj.gamification.course_completed if hasattr(obj, "gamification") else False
+        total_chapters = self.get_total_chapters(obj)
+        completed_chapters = self.get_chapters_completed(obj)
+        total_quizzes = self.get_total_quizzes(obj)
+        attempted_quizzes = self.get_quizzes_attempted(obj)
+
+        if total_chapters == 0 and total_quizzes == 0:
+            return False
+
+        chapter_done = completed_chapters >= total_chapters if total_chapters > 0 else True
+        quiz_done = attempted_quizzes >= total_quizzes if total_quizzes > 0 else True
+
+        return chapter_done and quiz_done
+
 
 
