@@ -309,7 +309,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'course_title',
             'course_thumbnail',
             'date_enrolled',
-            'is_active',
+            # 'is_active',
             'chapters_completed',
             'total_chapters',
             'quizzes_attempted',
