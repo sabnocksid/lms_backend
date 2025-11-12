@@ -83,7 +83,9 @@ class CourseFilter(FilterSet):
         return queryset.filter(id__in=filtered_ids)
 
 from gramafication.models import Enrollment
-
+from lessons.models import ChapterProgress, Chapter
+from quizes.models import Quiz
+from gramafication.models import QuizAttempt
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -110,7 +112,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         if enrollment and hasattr(enrollment, "gamification"):
             g = enrollment.gamification
 
-            # Use try/except to avoid any missing attribute errors
             try:
                 completed_chapters = ChapterProgress.objects.filter(
                     user=learner.user,
