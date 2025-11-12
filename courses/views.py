@@ -1,5 +1,5 @@
-from django.db.models import Avg
-from rest_framework import viewsets, status, filters
+from django.db.models import Avg, Q
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, ChoiceFilter
@@ -9,12 +9,11 @@ from .serializers import (
     CoursePreviewSerializer,
     CourseDetailSerializer,
     CourseCreateUpdateSerializer,
+    RatingSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
-from gramafication.models import Enrollment
 from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
-
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -39,8 +38,8 @@ class CourseFilter(FilterSet):
         ('5', 'Very Challenging'),
     ]
 
-    rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES)
-    difficulty_level = ChoiceFilter(method='filter_difficulty_level', choices=DIFFICULTY_CHOICES)
+    rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES, label="Rating Range")
+    difficulty_level = ChoiceFilter(method='filter_difficulty_level', choices=DIFFICULTY_CHOICES, label="Difficulty Level")
 
     class Meta:
         model = Course
@@ -55,15 +54,17 @@ class CourseFilter(FilterSet):
 
     def filter_rating_range(self, queryset, name, value):
         queryset = queryset.annotate(avg_rating=Avg('ratings__points'))
-        ranges = {
-            '1': (1, 2),
-            '2': (2, 3),
-            '3': (3, 4),
-            '4': (4, 5),
-            '5': (5, 5),
-        }
-        low, high = ranges.get(value, (0, 5))
-        return queryset.filter(avg_rating__gte=low, avg_rating__lt=high if high < 5 else high + 0.1)
+        if value == '1':
+            return queryset.filter(avg_rating__gte=1, avg_rating__lt=2)
+        elif value == '2':
+            return queryset.filter(avg_rating__gte=2, avg_rating__lt=3)
+        elif value == '3':
+            return queryset.filter(avg_rating__gte=3, avg_rating__lt=4)
+        elif value == '4':
+            return queryset.filter(avg_rating__gte=4, avg_rating__lt=5)
+        elif value == '5':
+            return queryset.filter(avg_rating__gte=5)
+        return queryset
 
     def filter_difficulty_level(self, queryset, name, value):
         learner = getattr(self.request.user, "profile", None)
@@ -80,6 +81,8 @@ class CourseFilter(FilterSet):
                 continue
 
         return queryset.filter(id__in=filtered_ids)
+
+from gramafication.models import Enrollment
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -236,6 +239,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             status=status.HTTP_204_NO_CONTENT,
         )
     
+      
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
