@@ -1,35 +1,54 @@
 from django.db.models import Avg, F, Case, When, Value, FloatField
 from django.utils import timezone
 from ..models import CourseGamification, Enrollment
-from courses.models import Course
+from courses.models import Course, Chapter, Quiz, ChapterProgress, QuizAttempt
 
 class DifficultyPredictor:
     def __init__(self, learner):
-        self.learner = learner
+        self.learner = learner  # learner.profile object
+        self.user = learner.user  # the actual User
 
     def get_learner_skill(self):
         enrollments = self.learner.enrollments.filter(is_active=True)
         if not enrollments.exists():
             return 50.0
 
-        gams = CourseGamification.objects.filter(enrollment__in=enrollments)
-
-        # Quiz accuracy
-        total_quiz = sum(g.attempted_quizzes for g in gams)
-        total_correct = sum(g.correct_answers for g in gams)
-        quiz_acc = ((total_correct / total_quiz) * 100) if total_quiz else 50.0
-
-        # Completion rate
-        completed = enrollments.filter(gamification__course_completed=True).count()
-        comp_rate = (completed / enrollments.count()) * 100 if enrollments.count() else 50.0
-
-        # Speed score
+        # Quiz accuracy: calculate total quizzes and correct answers manually
+        total_quiz = 0
+        total_correct = 0
         speeds = []
+
         for e in enrollments:
             g = getattr(e, "gamification", None)
-            if g and g.completed_chapters > 0:
+            if not g:
+                continue
+
+            # Completed chapters via user
+            completed_chapters = ChapterProgress.objects.filter(
+                user=self.user,
+                chapter__lesson__course=e.course,
+                completed=True
+            ).count()
+            total_chap = Chapter.objects.filter(lesson__course=e.course).count()
+
+            # Attempted quizzes
+            attempted_quizzes = QuizAttempt.objects.filter(
+                user=self.user,
+                quiz__course=e.course
+            ).count()
+            total_quizzes = Quiz.objects.filter(course=e.course).count()
+
+            # Track totals for quiz accuracy
+            total_quiz += attempted_quizzes
+            total_correct += g.correct_answers
+
+            # Speed score
+            if completed_chapters > 0:
                 days = max((timezone.now() - e.date_enrolled).days, 1)
-                speeds.append(g.completed_chapters / days)
+                speeds.append(completed_chapters / days)
+
+        quiz_acc = (total_correct / total_quiz * 100) if total_quiz else 50.0
+        comp_rate = (enrollments.filter(gamification__course_completed=True).count() / enrollments.count() * 100) if enrollments.count() else 50.0
         avg_speed = sum(speeds) / len(speeds) if speeds else 0.5
         speed_score = min(avg_speed * 100, 100)
 
@@ -41,13 +60,12 @@ class DifficultyPredictor:
         if not enrollments.exists():
             return 50.0
 
+        # Aggregate gamifications
         gams = CourseGamification.objects.filter(enrollment__in=enrollments)
+        completed_count = enrollments.filter(gamification__course_completed=True).count()
+        comp_rate = (completed_count / enrollments.count() * 100) if enrollments.count() else 50.0
 
-        # Completion rate
-        completed = enrollments.filter(gamification__course_completed=True).count()
-        comp_rate = (completed / enrollments.count()) * 100 if enrollments.count() else 50.0
-
-        # Quiz accuracy
+        # Quiz accuracy: use attempted_quizzes and correct_answers
         avg_acc_result = gams.aggregate(
             acc=Avg(
                 Case(
@@ -59,10 +77,9 @@ class DifficultyPredictor:
         )
         avg_acc = avg_acc_result['acc'] if avg_acc_result['acc'] is not None else 50.0
 
-        # Time score (days to complete)
-        completed_enrollments = enrollments.filter(gamification__course_completed=True)
+        # Time score
         times = []
-        for e in completed_enrollments:
+        for e in enrollments.filter(gamification__course_completed=True):
             g = getattr(e, "gamification", None)
             if g:
                 days = max((g.last_updated - e.date_enrolled).days, 1)
