@@ -83,9 +83,6 @@ class CourseFilter(FilterSet):
         return queryset.filter(id__in=filtered_ids)
 
 
-logger = logging.getLogger(__name__)
-
-
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsInstructorOrAdminOrReadOnly]
@@ -97,16 +94,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     ordering = ["-date_added"]
 
     def get_queryset(self):
-        """Optimize queryset with annotations and prefetching"""
-        queryset = Course.objects.annotate(
-            avg_rating=Avg("ratings__points")
-        ).select_related(
-            'instructor'  # If you have instructor relation
-        ).prefetch_related(
-            'categories',  # If you have categories
-            'enrollments',  # Prefetch enrollments for difficulty calculation
-        )
-        return queryset.order_by("-date_added")
+        return Course.objects.annotate(avg_rating=Avg("ratings__points")).order_by("-date_added")
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -115,17 +103,16 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-    def _add_difficulty_to_courses(self, courses, learner):
-        """
-        Helper method to add difficulty predictions to courses.
-        Optimized to batch process when possible.
-        """
-        if not learner:
-            return courses
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        learner = getattr(request.user, "profile", None)
+        data = serializer.data
 
-        for course_data, course_instance in zip(courses, courses):
-            # Only add difficulty if explicitly requested
-            if self.request.query_params.get('include_difficulty', 'false').lower() == 'true':
+        if learner:
+            for i, course_data in enumerate(data):
+                course_instance = page[i]
                 try:
                     prediction = predict_difficulty(learner, course_instance)
                     course_data["difficulty"] = {
@@ -134,48 +121,10 @@ class CourseViewSet(viewsets.ModelViewSet):
                         "success": prediction["success"],
                         "recommendation": prediction["recommendation"],
                     }
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to predict difficulty for course {course_instance.id}: {str(e)}",
-                        exc_info=True
-                    )
+                except Exception:
                     course_data["difficulty"] = None
-            else:
-                course_data["difficulty"] = None
 
-        return courses
-
-    def list(self, request, *args, **kwargs):
-
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            data = serializer.data
-            learner = getattr(request.user, "profile", None)
-
-            if learner and request.query_params.get('include_difficulty', 'false').lower() == 'true':
-                for i, course_data in enumerate(data):
-                    course_instance = page[i]
-                    try:
-                        prediction = predict_difficulty(learner, course_instance)
-                        course_data["difficulty"] = {
-                            "level": prediction["level"],
-                            "name": prediction["name"],
-                            "success": prediction["success"],
-                            "recommendation": prediction["recommendation"],
-                        }
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to predict difficulty for course {course_instance.id}: {str(e)}"
-                        )
-                        course_data["difficulty"] = None
-
-            return self.get_paginated_response(data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return self.get_paginated_response(data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -187,106 +136,43 @@ class CourseViewSet(viewsets.ModelViewSet):
             try:
                 prediction = predict_difficulty(learner, instance)
                 data["difficulty"] = prediction
-            except Exception as e:
-                logger.error(
-                    f"Failed to predict difficulty for course {instance.id}: {str(e)}",
-                    exc_info=True
-                )
-                data["difficulty"] = {
-                    "error": "Unable to calculate difficulty",
-                    "level": 3,
-                    "name": "Moderate",
-                }
+            except Exception:
+                data["difficulty"] = None
 
         return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="recommendations")
     def course_recommendations(self, request):
-
         learner = getattr(request.user, "profile", None)
         if not learner:
-            return Response(
-                {"detail": "Learner profile not found."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            max_level = int(request.query_params.get("max_level", 3))
-            limit = int(request.query_params.get("limit", 10))
-            
-            if not 1 <= max_level <= 5:
-                return Response(
-                    {"detail": "max_level must be between 1 and 5"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        max_level = int(request.query_params.get("max_level", 3))
+        results = get_recommendations(learner, max_level=max_level)
 
-            results = get_recommendations(learner, max_level=max_level)
-            
-            if not results:
-                return Response(
-                    {
-                        "message": "No recommendations found. Try increasing max_level.",
-                        "recommendations": []
-                    },
-                    status=status.HTTP_200_OK
-                )
-
-            results = results[:limit]
-
-            data = [
-                {
-                    "course_id": r["course"].id,
-                    "name": r["course"].name,
-                    "difficulty": r["difficulty"],
-                    "level": r["level"],
-                    "success": r["success"],
-                    "days": r["days"],
-                    "recommendation": r.get("recommendation", ""),
-                }
-                for r in results
-            ]
-            
-            return Response(
-                {
-                    "count": len(data),
-                    "recommendations": data
-                },
-                status=status.HTTP_200_OK
-            )
-
-        except ValueError as e:
-            return Response(
-                {"detail": f"Invalid parameter: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            logger.error(f"Error generating recommendations: {str(e)}", exc_info=True)
-            return Response(
-                {"detail": "Failed to generate recommendations. Please try again later."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        data = [
+            {
+                "course_id": r["course"].id,
+                "name": r["course"].name,
+                "difficulty": r["difficulty"],
+                "success": r["success"],
+                "days": r["days"],
+            }
+            for r in results
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {
-                    "success": False,
-                    "message": "Course creation failed",
-                    "errors": serializer.errors
-                },
+                {"success": False, "message": "Course creation failed", "errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        
         return Response(
-            {
-                "success": True,
-                "message": "Course created successfully",
-                "data": serializer.data
-            },
+            {"success": True, "message": "Course created successfully", "data": serializer.data},
             status=status.HTTP_201_CREATED,
             headers=headers,
         )
@@ -295,67 +181,24 @@ class CourseViewSet(viewsets.ModelViewSet):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        
         if not serializer.is_valid():
             return Response(
-                {
-                    "success": False,
-                    "message": "Course update failed",
-                    "errors": serializer.errors
-                },
+                {"success": False, "message": "Course update failed", "errors": serializer.errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
         self.perform_update(serializer)
-        
         return Response(
-            {
-                "success": True,
-                "message": "Course updated successfully",
-                "data": serializer.data
-            },
+            {"success": True, "message": "Course updated successfully", "data": serializer.data},
             status=status.HTTP_200_OK,
         )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        course_name = instance.name
-        
         self.perform_destroy(instance)
-        
         return Response(
-            {
-                "success": True,
-                "message": f"Course '{course_name}' deleted successfully"
-            },
+            {"success": True, "message": "Course deleted successfully"},
             status=status.HTTP_204_NO_CONTENT,
         )
-
-    @action(detail=True, methods=["get"], url_path="difficulty")
-    def get_difficulty(self, request, pk=None):
-
-        instance = self.get_object()
-        learner = getattr(request.user, "profile", None)
-
-        if not learner:
-            return Response(
-                {"detail": "Learner profile required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            prediction = predict_difficulty(learner, instance)
-            return Response(prediction, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(
-                f"Failed to predict difficulty for course {instance.id}: {str(e)}",
-                exc_info=True
-            )
-            return Response(
-                {"detail": "Failed to calculate difficulty"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
     
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
