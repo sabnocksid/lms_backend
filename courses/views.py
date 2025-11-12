@@ -1,5 +1,5 @@
-from django.db.models import Avg, Q
-from rest_framework import viewsets, permissions, status, filters
+from django.db.models import Avg
+from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, ChoiceFilter
@@ -9,11 +9,12 @@ from .serializers import (
     CoursePreviewSerializer,
     CourseDetailSerializer,
     CourseCreateUpdateSerializer,
-    RatingSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
+from gramafication.models import Enrollment
 from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -38,8 +39,8 @@ class CourseFilter(FilterSet):
         ('5', 'Very Challenging'),
     ]
 
-    rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES, label="Rating Range")
-    difficulty_level = ChoiceFilter(method='filter_difficulty_level', choices=DIFFICULTY_CHOICES, label="Difficulty Level")
+    rating_range = ChoiceFilter(method='filter_rating_range', choices=RATING_CHOICES)
+    difficulty_level = ChoiceFilter(method='filter_difficulty_level', choices=DIFFICULTY_CHOICES)
 
     class Meta:
         model = Course
@@ -54,17 +55,15 @@ class CourseFilter(FilterSet):
 
     def filter_rating_range(self, queryset, name, value):
         queryset = queryset.annotate(avg_rating=Avg('ratings__points'))
-        if value == '1':
-            return queryset.filter(avg_rating__gte=1, avg_rating__lt=2)
-        elif value == '2':
-            return queryset.filter(avg_rating__gte=2, avg_rating__lt=3)
-        elif value == '3':
-            return queryset.filter(avg_rating__gte=3, avg_rating__lt=4)
-        elif value == '4':
-            return queryset.filter(avg_rating__gte=4, avg_rating__lt=5)
-        elif value == '5':
-            return queryset.filter(avg_rating__gte=5)
-        return queryset
+        ranges = {
+            '1': (1, 2),
+            '2': (2, 3),
+            '3': (3, 4),
+            '4': (4, 5),
+            '5': (5, 5),
+        }
+        low, high = ranges.get(value, (0, 5))
+        return queryset.filter(avg_rating__gte=low, avg_rating__lt=high if high < 5 else high + 0.1)
 
     def filter_difficulty_level(self, queryset, name, value):
         learner = getattr(self.request.user, "profile", None)
@@ -82,7 +81,6 @@ class CourseFilter(FilterSet):
 
         return queryset.filter(id__in=filtered_ids)
 
-from gramafication.models import Enrollment
 
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
@@ -104,6 +102,31 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
+    def _get_learner_progress(self, learner, course):
+        """Return learner progress dict for a course"""
+        enrollment = Enrollment.objects.filter(learner=learner, course=course).first()
+        if enrollment and hasattr(enrollment, "gamification"):
+            g = enrollment.gamification
+            completed = (
+                g.completed_chapters >= g.total_chapters
+                and g.attempted_quizzes >= g.total_quizzes
+            )
+            progress_percent = int(
+                (
+                    ((g.completed_chapters / g.total_chapters) * 50 if g.total_chapters else 50)
+                    + ((g.attempted_quizzes / g.total_quizzes) * 50 if g.total_quizzes else 50)
+                )
+            )
+            return {
+                "chapters_completed": g.completed_chapters,
+                "total_chapters": g.total_chapters,
+                "quizzes_attempted": g.attempted_quizzes,
+                "total_quizzes": g.total_quizzes,
+                "progress_percent": progress_percent,
+                "completed": completed,
+            }
+        return None
+
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -115,7 +138,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             for i, course_data in enumerate(data):
                 course_instance = page[i]
 
-
+                # Difficulty prediction
                 try:
                     prediction = predict_difficulty(learner, course_instance)
                     course_data["difficulty"] = {
@@ -127,33 +150,10 @@ class CourseViewSet(viewsets.ModelViewSet):
                 except Exception:
                     course_data["difficulty"] = None
 
-                enrollment = Enrollment.objects.filter(learner=learner, course=course_instance).first()
-                if enrollment and hasattr(enrollment, "gamification"):
-                    g = enrollment.gamification
-                    completed = (
-                        g.chapters_completed >= g.total_chapters
-                        and g.quizzes_attempted >= g.total_quizzes
-                    )
-                    progress_percent = int(
-                        (
-                            ((g.chapters_completed / g.total_chapters) * 50 if g.total_chapters else 50)
-                            + ((g.quizzes_attempted / g.total_quizzes) * 50 if g.total_quizzes else 50)
-                        )
-                    )
-
-                    course_data["learner_progress"] = {
-                        "chapters_completed": g.chapters_completed,
-                        "total_chapters": g.total_chapters,
-                        "quizzes_attempted": g.quizzes_attempted,
-                        "total_quizzes": g.total_quizzes,
-                        "progress_percent": progress_percent,
-                        "completed": completed,
-                    }
-                else:
-                    course_data["learner_progress"] = None
+                # Learner progress
+                course_data["learner_progress"] = self._get_learner_progress(learner, course_instance)
 
         return self.get_paginated_response(data)
-
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -165,37 +165,17 @@ class CourseViewSet(viewsets.ModelViewSet):
         data["difficulty"] = None
 
         if learner:
+            # Difficulty prediction
             try:
                 prediction = predict_difficulty(learner, instance)
                 data["difficulty"] = prediction
             except Exception:
                 data["difficulty"] = None
 
-            enrollment = Enrollment.objects.filter(learner=learner, course=instance).first()
-            if enrollment and hasattr(enrollment, "gamification"):
-                g = enrollment.gamification
-                completed = (
-                    g.chapters_completed >= g.total_chapters
-                    and g.quizzes_attempted >= g.total_quizzes
-                )
-                progress_percent = int(
-                    (
-                        ((g.chapters_completed / g.total_chapters) * 50 if g.total_chapters else 50)
-                        + ((g.quizzes_attempted / g.total_quizzes) * 50 if g.total_quizzes else 50)
-                    )
-                )
-
-                data["learner_progress"] = {
-                    "chapters_completed": g.chapters_completed,
-                    "total_chapters": g.total_chapters,
-                    "quizzes_attempted": g.quizzes_attempted,
-                    "total_quizzes": g.total_quizzes,
-                    "progress_percent": progress_percent,
-                    "completed": completed,
-                }
+            # Learner progress
+            data["learner_progress"] = self._get_learner_progress(learner, instance)
 
         return Response(data, status=status.HTTP_200_OK)
-
 
     @action(detail=False, methods=["get"], url_path="recommendations")
     def course_recommendations(self, request):
@@ -217,7 +197,6 @@ class CourseViewSet(viewsets.ModelViewSet):
             for r in results
         ]
         return Response(data, status=status.HTTP_200_OK)
-
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

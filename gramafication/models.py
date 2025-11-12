@@ -129,7 +129,7 @@ class Enrollment(models.Model):
 
 class CourseGamification(models.Model):
     enrollment = models.OneToOneField(
-        "Enrollment",
+        Enrollment,
         on_delete=models.CASCADE,
         related_name="gamification"
     )
@@ -160,20 +160,12 @@ class CourseGamification(models.Model):
     @property
     def attempted_quizzes(self):
         return QuizAttempt.objects.filter(
-            learner=self.enrollment.learner,
+            user=self.enrollment.learner.user,
             quiz__course=self.enrollment.course
         ).count()
 
     @property
     def course_completed(self):
-        total_chaps = self.total_chapters
-        total_quizzes = self.total_quizzes
-
-        if total_chaps == 0 and total_quizzes == 0:
-            return False
-
-        return (
-            (self.completed_chapters >= total_chaps if total_chaps else True)
-            and (self.attempted_quizzes >= total_quizzes if total_quizzes else True)
-        )
-
+        chapter_done = self.completed_chapters >= self.total_chapters if self.total_chapters else True
+        quiz_done = self.attempted_quizzes >= self.total_quizzes if self.total_quizzes else True
+        return chapter_done and quiz_done
