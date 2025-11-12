@@ -110,48 +110,8 @@ class CourseViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page, many=True, context={"request": request})
-
-        learner = getattr(request.user, "profile", None)
-        aggregate_progress = None
-        if learner:
-            user = learner.user
-            all_courses = self.filter_queryset(self.get_queryset())
-            total_chapters = Chapter.objects.filter(lesson__course__in=all_courses).count()
-            completed_chapters = ChapterProgress.objects.filter(
-                user=user, chapter__lesson__course__in=all_courses, completed=True
-            ).count()
-
-            total_quizzes = Quiz.objects.filter(course__in=all_courses).count()
-            attempted_quizzes = QuizAttempt.objects.filter(
-                user=user, quiz__course__in=all_courses
-            ).count()
-
-            completed = (completed_chapters >= total_chapters if total_chapters else True) and \
-                        (attempted_quizzes >= total_quizzes if total_quizzes else True)
-
-            progress_percent = int(
-                ((completed_chapters / total_chapters) * 50 if total_chapters else 50) +
-                ((attempted_quizzes / total_quizzes) * 50 if total_quizzes else 50)
-            )
-
-            aggregate_progress = {
-                "chapters_completed": completed_chapters,
-                "total_chapters": total_chapters,
-                "quizzes_attempted": attempted_quizzes,
-                "total_quizzes": total_quizzes,
-                "progress_percent": progress_percent,
-                "completed": completed,
-            }
-
-        return Response({
-            "aggregate_progress": aggregate_progress,
-            "count": self.paginator.page.paginator.count if page is not None else len(queryset),
-            "next": self.get_next_link(),
-            "previous": self.get_previous_link(),
-            "results": serializer.data
-        })
-
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
