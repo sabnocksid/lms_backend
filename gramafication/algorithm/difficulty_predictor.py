@@ -6,7 +6,7 @@ from gramafication.models import Enrollment, CourseGamification
 
 class DifficultyPredictor:
     def __init__(self, learner):
-        self.learner = learner
+        self.learner = learner  # learner.profile
         self.user = learner.user
 
     def get_learner_skill(self):
@@ -14,7 +14,8 @@ class DifficultyPredictor:
         if not enrollments.exists():
             return 50.0
 
-        total_quiz, total_correct = 0, 0
+        total_quiz = 0
+        total_correct = 0
         speeds = []
 
         for e in enrollments:
@@ -22,24 +23,38 @@ class DifficultyPredictor:
             if not g:
                 continue
 
-            completed_chaps = ChapterProgress.objects.filter(
+            # Completed chapters via user
+            completed_chapters = ChapterProgress.objects.filter(
                 user=self.user,
                 chapter__lesson__course=e.course,
                 completed=True
             ).count()
-            total_chaps = Chapter.objects.filter(lesson__course=e.course).count()
-            attempted_quizzes = QuizAttempt.objects.filter(user=self.user, quiz__course=e.course).count()
+            total_chap = Chapter.objects.filter(lesson__course=e.course).count()
+
+            attempted_quizzes = QuizAttempt.objects.filter(
+                user=self.user,
+                quiz__course=e.course
+            ).count()
             total_quizzes = Quiz.objects.filter(course=e.course).count()
 
             total_quiz += attempted_quizzes
-            total_correct += getattr(g, "correct_answers", 0)
+            total_correct += g.correct_answers
 
-            if completed_chaps > 0:
+            # Speed score
+            if completed_chapters > 0:
                 days = max((timezone.now() - e.date_enrolled).days, 1)
-                speeds.append(completed_chaps / days)
+                speeds.append(completed_chapters / days)
 
         quiz_acc = (total_correct / total_quiz * 100) if total_quiz else 50.0
-        comp_rate = (enrollments.filter(gamification__course_completed=True).count() / enrollments.count() * 100) if enrollments.count() else 50.0
+
+        # Calculate completed courses in Python
+        completed_courses = 0
+        for e in enrollments:
+            g = getattr(e, "gamification", None)
+            if g and g.course_completed:
+                completed_courses += 1
+        comp_rate = (completed_courses / enrollments.count() * 100) if enrollments.count() else 50.0
+
         avg_speed = sum(speeds) / len(speeds) if speeds else 0.5
         speed_score = min(avg_speed * 100, 100)
 
@@ -51,23 +66,26 @@ class DifficultyPredictor:
         if not enrollments.exists():
             return 50.0
 
-        gams = CourseGamification.objects.filter(enrollment__in=enrollments)
-        completed_count = enrollments.filter(gamification__course_completed=True).count()
-        comp_rate = (completed_count / enrollments.count() * 100) if enrollments.count() else 50.0
+        gams = [e.gamification for e in enrollments if hasattr(e, "gamification")]
 
-        avg_acc_result = gams.aggregate(
-            acc=Avg(
-                Case(
-                    When(attempted_quizzes__gt=0, then=(F("correct_answers") * 100.0) / F("attempted_quizzes")),
-                    default=Value(0),
-                    output_field=FloatField()
-                )
-            )
-        )
-        avg_acc = avg_acc_result['acc'] if avg_acc_result['acc'] is not None else 50.0
+        # Average quiz accuracy
+        avg_acc = 50.0
+        if gams:
+            total_acc = 0
+            for g in gams:
+                attempted = g.attempted_quizzes or 0
+                correct = g.correct_answers or 0
+                acc = (correct / attempted * 100) if attempted else 0
+                total_acc += acc
+            avg_acc = total_acc / len(gams)
 
+        # Completion rate in Python
+        completed_count = sum(1 for g in gams if g.course_completed)
+        comp_rate = (completed_count / len(gams) * 100) if gams else 50.0
+
+        # Time score
         times = []
-        for e in enrollments.filter(gamification__course_completed=True):
+        for e in enrollments:
             g = getattr(e, "gamification", None)
             if g:
                 days = max((g.last_updated - e.date_enrolled).days, 1)
@@ -104,5 +122,7 @@ class DifficultyPredictor:
             "recommendation": recommendation,
         }
 
+
 def predict_difficulty(learner, course):
     return DifficultyPredictor(learner).predict(course)
+
