@@ -153,14 +153,19 @@ class CourseViewSet(viewsets.ModelViewSet):
 
                 try:
                     prediction = predict_difficulty(learner, course_instance)
+                    course_data["difficulty"] = prediction
+                except Exception as e:
+                    print(f"Predict difficulty failed for course {course_instance.id}: {e}")
                     course_data["difficulty"] = {
-                        "level": prediction["level"],
-                        "name": prediction["name"],
-                        "success": prediction["success"],
-                        "recommendation": prediction["recommendation"],
+                        "level": 0,
+                        "name": "Unknown",
+                        "skill": 0,
+                        "difficulty": 0,
+                        "gap": 0,
+                        "success": 0,
+                        "days": 0,
+                        "recommendation": "N/A"
                     }
-                except Exception:
-                    course_data["difficulty"] = None
 
                 course_data["learner_progress"] = self._get_learner_progress(learner, course_instance)
 
