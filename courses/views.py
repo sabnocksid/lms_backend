@@ -119,6 +119,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                     + ((g.attempted_quizzes / g.total_quizzes) * 50 if g.total_quizzes else 50)
                 )
             )
+            
             return {
                 "chapters_completed": g.completed_chapters,
                 "total_chapters": g.total_chapters,
