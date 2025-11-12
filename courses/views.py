@@ -83,6 +83,7 @@ class CourseFilter(FilterSet):
         return queryset.filter(id__in=filtered_ids)
 
 from gramafication.models import Enrollment
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     permission_classes = [IsInstructorOrAdminOrReadOnly]

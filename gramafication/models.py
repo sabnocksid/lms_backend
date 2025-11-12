@@ -147,8 +147,10 @@ class CourseGamification(models.Model):
 
     @property
     def completed_chapters(self):
-        return self.enrollment.learner.completed_chapters.filter(
-            chapter__lesson__course=self.enrollment.course
+        return ChapterProgress.objects.filter(
+            learner=self.enrollment.learner,
+            chapter__lesson__course=self.enrollment.course,
+            completed=True
         ).count()
 
     @property
