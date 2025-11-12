@@ -113,16 +113,18 @@ class CourseViewSet(viewsets.ModelViewSet):
             g = enrollment.gamification
 
             try:
+
                 completed_chapters = ChapterProgress.objects.filter(
-                    user=self.user,
+                    user=learner.user,
                     chapter__lesson__course=course,
                     completed=True
                 ).count()
 
                 attempted_quizzes = QuizAttempt.objects.filter(
-                    user=self.user,
+                    user=learner.user,
                     quiz__course=course
                 ).count()
+
 
                 total_chapters = Chapter.objects.filter(lesson__course=course).count()
                 total_quizzes = Quiz.objects.filter(course=course).count()
