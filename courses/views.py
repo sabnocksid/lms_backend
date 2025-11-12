@@ -157,15 +157,19 @@ class CourseViewSet(viewsets.ModelViewSet):
         learner = getattr(request.user, "profile", None)
         data = serializer.data
 
-        if learner:
+        if learner and data and page:
             for i, course_data in enumerate(data):
+                if i >= len(page):
+                    print(f"[Warning] data/page length mismatch at index {i}")
+                    continue
+
                 course_instance = page[i]
 
                 try:
                     prediction = predict_difficulty(learner, course_instance)
                     course_data["difficulty"] = prediction
                 except Exception as e:
-                    print(f"Predict difficulty failed for course {course_instance.id}: {e}")
+                    print(f"[Error] Predict difficulty failed for course {course_instance.id}: {e}")
                     course_data["difficulty"] = {
                         "level": 0,
                         "name": "Unknown",
@@ -180,6 +184,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                 course_data["learner_progress"] = self._get_learner_progress(learner, course_instance)
 
         return self.get_paginated_response(data)
+
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
