@@ -107,155 +107,35 @@ class CourseViewSet(viewsets.ModelViewSet):
             return CourseCreateUpdateSerializer
         return CoursePreviewSerializer
 
-    def _get_learner_progress(self, learner, course):
-        enrollment = Enrollment.objects.filter(learner=learner, course=course).first()
-        if not enrollment:
-            return None
-
-        g = getattr(enrollment, "gamification", None)
-        if not g:
-            return None
-
-        try:
-            completed_chapters = ChapterProgress.objects.filter(
-                user=learner.user,
-                chapter__lesson__course=course,
-                completed=True
-            ).count()
-
-            attempted_quizzes = QuizAttempt.objects.filter(
-                user=learner.user,
-                quiz__course=course
-            ).count()
-
-            total_chapters = g.total_chapters
-            total_quizzes = g.total_quizzes
-
-            completed = (completed_chapters >= total_chapters if total_chapters else True) and \
-                        (attempted_quizzes >= total_quizzes if total_quizzes else True)
-
-            progress_percent = int(
-                ((completed_chapters / total_chapters) * 50 if total_chapters else 50) +
-                ((attempted_quizzes / total_quizzes) * 50 if total_quizzes else 50)
-            )
-
-            return {
-                "chapters_completed": completed_chapters,
-                "total_chapters": total_chapters,
-                "quizzes_attempted": attempted_quizzes,
-                "total_quizzes": total_quizzes,
-                "progress_percent": progress_percent,
-                "completed": completed,
-            }
-
-        except Exception:
-            return None
-
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
-        learner = getattr(request.user, "profile", None)
-        data = serializer.data
-
-        if learner and data and page:
-            for i, course_data in enumerate(data):
-                if i >= len(page):
-                    print(f"[Warning] data/page length mismatch at index {i}")
-                    continue
-
-                course_instance = page[i]
-
-                try:
-                    prediction = predict_difficulty(learner, course_instance)
-                    course_data["difficulty"] = prediction
-                except Exception as e:
-                    print(f"[Error] Predict difficulty failed for course {course_instance.id}: {e}")
-                    course_data["difficulty"] = {
-                        "level": 0,
-                        "name": "Unknown",
-                        "skill": 0,
-                        "difficulty": 0,
-                        "gap": 0,
-                        "success": 0,
-                        "days": 0,
-                        "recommendation": "N/A"
-                    }
-
-                course_data["learner_progress"] = self._get_learner_progress(learner, course_instance)
-
-        return self.get_paginated_response(data)
-
+        return self.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        data = serializer.data
-        learner = getattr(request.user, "profile", None)
-
-        data["learner_progress"] = None
-        data["difficulty"] = None
-
-        if learner:
-            try:
-                prediction = predict_difficulty(learner, instance)
-                data["difficulty"] = prediction
-            except Exception:
-                data["difficulty"] = None
-
-            data["learner_progress"] = self._get_learner_progress(learner, instance)
-
-        return Response(data, status=status.HTTP_200_OK)
-
-    # @action(detail=False, methods=["get"], url_path="recommendations")
-    # def course_recommendations(self, request):
-    #     learner = getattr(request.user, "profile", None)
-    #     if not learner:
-    #         return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     max_level = int(request.query_params.get("max_level", 3))
-    #     results = get_recommendations(learner, max_level=max_level)
-
-    #     data = [
-    #         {
-    #             "course_id": r["course"].id,
-    #             "name": r["course"].name,
-    #             "difficulty": r["difficulty"],
-    #             "success": r["success"],
-    #             "days": r["days"],
-    #         }
-    #         for r in results
-    #     ]
-    #     return Response(data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {"success": False, "message": "Course creation failed", "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
         return Response(
             {"success": True, "message": "Course created successfully", "data": serializer.data},
-            status=status.HTTP_201_CREATED,
-            headers=headers,
+            status=status.HTTP_201_CREATED
         )
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if not serializer.is_valid():
-            return Response(
-                {"success": False, "message": "Course update failed", "errors": serializer.errors},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(
             {"success": True, "message": "Course updated successfully", "data": serializer.data},
-            status=status.HTTP_200_OK,
+            status=status.HTTP_200_OK
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -263,9 +143,8 @@ class CourseViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response(
             {"success": True, "message": "Course deleted successfully"},
-            status=status.HTTP_204_NO_CONTENT,
+            status=status.HTTP_204_NO_CONTENT
         )
-
 
 class CourseRatingViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
