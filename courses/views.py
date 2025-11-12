@@ -121,7 +121,7 @@ class CourseViewSet(viewsets.ModelViewSet):
             )
 
             return {
-                "chapters_completed": g.completed_chapters,
+                "completed_chapters": g.completed_chapters,
                 "total_chapters": g.total_chapters,
                 "quizzes_attempted": g.attempted_quizzes,
                 "total_quizzes": g.total_quizzes,
