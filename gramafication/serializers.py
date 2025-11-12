@@ -330,9 +330,10 @@ class EnrollmentSerializer(serializers.ModelSerializer):
 
     def get_chapters_completed(self, obj):
         return ChapterProgress.objects.filter(
-            learner=obj.learner,
+            user=obj.learner.user, 
             chapter__lesson__course=obj.course
         ).count()
+
 
     def get_total_quizzes(self, obj):
         from quizes.models import Quiz  
@@ -342,7 +343,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         from quizes.models import QuizAttempt
         return QuizAttempt.objects.filter(
             quiz__course=obj.course,
-            user=obj.learner.user  
+            user=obj.learner.user 
         ).count()
 
     def get_course_completed(self, obj):
