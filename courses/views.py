@@ -13,7 +13,7 @@ from .serializers import (
 )
 from .permissions import IsAdminOrReadOnly, IsInstructorOrAdminOrReadOnly
 from .pagination import CoursePagination
-from gramafication.algorithm.difficulty_predictor import predict_difficulty, get_recommendations
+from gramafication.algorithm.difficulty_predictor import predict_difficulty
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -177,26 +177,26 @@ class CourseViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["get"], url_path="recommendations")
-    def course_recommendations(self, request):
-        learner = getattr(request.user, "profile", None)
-        if not learner:
-            return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+    # @action(detail=False, methods=["get"], url_path="recommendations")
+    # def course_recommendations(self, request):
+    #     learner = getattr(request.user, "profile", None)
+    #     if not learner:
+    #         return Response({"detail": "Learner profile not found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        max_level = int(request.query_params.get("max_level", 3))
-        results = get_recommendations(learner, max_level=max_level)
+    #     max_level = int(request.query_params.get("max_level", 3))
+    #     results = get_recommendations(learner, max_level=max_level)
 
-        data = [
-            {
-                "course_id": r["course"].id,
-                "name": r["course"].name,
-                "difficulty": r["difficulty"],
-                "success": r["success"],
-                "days": r["days"],
-            }
-            for r in results
-        ]
-        return Response(data, status=status.HTTP_200_OK)
+    #     data = [
+    #         {
+    #             "course_id": r["course"].id,
+    #             "name": r["course"].name,
+    #             "difficulty": r["difficulty"],
+    #             "success": r["success"],
+    #             "days": r["days"],
+    #         }
+    #         for r in results
+    #     ]
+    #     return Response(data, status=status.HTTP_200_OK)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
