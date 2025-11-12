@@ -333,10 +333,10 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         return None
 
     def get_chapters_completed(self, obj):
-        return obj.gamification.completed_chapters if hasattr(obj, "gamification") else 0
+        return obj.lessons.completed_chapters if hasattr(obj, "lessons") else 0
 
     def get_total_chapters(self, obj):
-        return obj.gamification.total_chapters if hasattr(obj, "gamification") else 0
+        return obj.lessons.total_chapters if hasattr(obj, "lessons") else 0
 
     def get_quizzes_attempted(self, obj):
         return obj.gamification.attempted_quizzes if hasattr(obj, "gamification") else 0
