@@ -107,28 +107,37 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def _get_learner_progress(self, learner, course):
         enrollment = Enrollment.objects.filter(learner=learner, course=course).first()
-        if enrollment and hasattr(enrollment, "gamification"):
-            g = enrollment.gamification
-            completed = (
-                g.completed_chapters >= g.total_chapters
-                and g.attempted_quizzes >= g.total_quizzes
-            )
-            progress_percent = int(
-                (
-                    ((g.completed_chapters / g.total_chapters) * 50 if g.total_chapters else 50)
-                    + ((g.attempted_quizzes / g.total_quizzes) * 50 if g.total_quizzes else 50)
-                )
-            )
-
+        g = getattr(enrollment, "gamification", None)
+        if not g:
             return {
-                "completed_chapters": g.completed_chapters,
-                "total_chapters": g.total_chapters,
-                "quizzes_attempted": g.attempted_quizzes,
-                "total_quizzes": g.total_quizzes,
-                "progress_percent": progress_percent,
-                "completed": completed,
+                "chapters_completed": 0,
+                "total_chapters": 0,
+                "quizzes_attempted": 0,
+                "total_quizzes": 0,
+                "progress_percent": 0,
+                "completed": False,
             }
-        return None
+
+        completed = (
+            g.completed_chapters >= g.total_chapters
+            and g.attempted_quizzes >= g.total_quizzes
+        )
+        progress_percent = int(
+            (
+                ((g.completed_chapters / g.total_chapters) * 50 if g.total_chapters else 50)
+                + ((g.attempted_quizzes / g.total_quizzes) * 50 if g.total_quizzes else 50)
+            )
+        )
+
+        return {
+            "chapters_completed": g.completed_chapters,
+            "total_chapters": g.total_chapters,
+            "quizzes_attempted": g.attempted_quizzes,
+            "total_quizzes": g.total_quizzes,
+            "progress_percent": progress_percent,
+            "completed": completed,
+        }
+
 
 
     def list(self, request, *args, **kwargs):
