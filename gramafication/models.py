@@ -114,7 +114,7 @@ class Enrollment(models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        related_name="enrollments"
+        related_name="enrollments" 
     )
     date_enrolled = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True) 
