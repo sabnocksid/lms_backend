@@ -109,48 +109,47 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def _get_learner_progress(self, learner, course):
         enrollment = Enrollment.objects.filter(learner=learner, course=course).first()
-        if enrollment and hasattr(enrollment, "gamification"):
-            g = enrollment.gamification
+        if not enrollment:
+            return None
 
-            try:
+        g = getattr(enrollment, "gamification", None)
+        if not g:
+            return None
 
-                completed_chapters = ChapterProgress.objects.filter(
-                    user=learner.user,
-                    chapter__lesson__course=course,
-                    completed=True
-                ).count()
+        try:
+            completed_chapters = ChapterProgress.objects.filter(
+                user=learner.user,
+                chapter__lesson__course=course,
+                completed=True
+            ).count()
 
-                attempted_quizzes = QuizAttempt.objects.filter(
-                    user=learner.user,
-                    quiz__course=course
-                ).count()
+            attempted_quizzes = QuizAttempt.objects.filter(
+                user=learner.user,
+                quiz__course=course
+            ).count()
 
+            total_chapters = g.total_chapters
+            total_quizzes = g.total_quizzes
 
-                total_chapters = Chapter.objects.filter(lesson__course=course).count()
-                total_quizzes = Quiz.objects.filter(course=course).count()
+            completed = (completed_chapters >= total_chapters if total_chapters else True) and \
+                        (attempted_quizzes >= total_quizzes if total_quizzes else True)
 
-                completed = (completed_chapters >= total_chapters if total_chapters else True) and \
-                            (attempted_quizzes >= total_quizzes if total_quizzes else True)
+            progress_percent = int(
+                ((completed_chapters / total_chapters) * 50 if total_chapters else 50) +
+                ((attempted_quizzes / total_quizzes) * 50 if total_quizzes else 50)
+            )
 
-                progress_percent = int(
-                    ((completed_chapters / total_chapters) * 50 if total_chapters else 50) +
-                    ((attempted_quizzes / total_quizzes) * 50 if total_quizzes else 50)
-                )
+            return {
+                "chapters_completed": completed_chapters,
+                "total_chapters": total_chapters,
+                "quizzes_attempted": attempted_quizzes,
+                "total_quizzes": total_quizzes,
+                "progress_percent": progress_percent,
+                "completed": completed,
+            }
 
-                return {
-                    "chapters_completed": completed_chapters,
-                    "total_chapters": total_chapters,
-                    "quizzes_attempted": attempted_quizzes,
-                    "total_quizzes": total_quizzes,
-                    "progress_percent": progress_percent,
-                    "completed": completed,
-                }
-
-            except Exception:
-                return None
-
-        return None
-
+        except Exception:
+            return None
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
