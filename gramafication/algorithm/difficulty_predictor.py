@@ -1,7 +1,9 @@
 from django.db.models import Avg, F, Case, When, Value, FloatField
 from django.utils import timezone
 from ..models import CourseGamification, Enrollment
-from courses.models import Course, Chapter, Quiz, ChapterProgress, QuizAttempt
+from courses.models import Course
+from lessons.models import Chapter,  ChapterProgress
+from quizes.models import QuizAttempt, Quiz
 
 class DifficultyPredictor:
     def __init__(self, learner):
@@ -29,6 +31,7 @@ class DifficultyPredictor:
                 chapter__lesson__course=e.course,
                 completed=True
             ).count()
+
             total_chap = Chapter.objects.filter(lesson__course=e.course).count()
 
             # Attempted quizzes
