@@ -43,12 +43,14 @@ services:
       - .:/app
     entrypoint: ["/entrypoint.sh"]
 
+  # Redis
   redis:
     image: redis:7-alpine
     container_name: redis
     ports:
       - "6379:6379"
 
+  # PostgreSQL
   db:
     image: postgres:15
     container_name: lms_db
@@ -61,6 +63,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  # MinIO
   minio:
     image: minio/minio
     container_name: minio
@@ -74,6 +77,7 @@ services:
     volumes:
       - minio_data:/data
 
+  # pgAdmin
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin
@@ -85,30 +89,6 @@ services:
     depends_on:
       - db
 
-  # ===== CADDY REVERSE PROXY =====
-  caddy:
-    image: caddy:latest
-    container_name: caddy
-    depends_on:
-      - web
-      - pgadmin
-      - minio
-    networks:
-      - lms_net
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-
-networks:
-  lms_net:
-    driver: bridge
-
 volumes:
   pgdata:
   minio_data:
-  caddy_data:
-  caddy_config:
