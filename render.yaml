@@ -3,5 +3,8 @@ services:
     name: my-django-app
     env: docker
     dockerfilePath: ./Dockerfile
-    plan: free
-    autoDeploy: true
+    dependsOn:
+      - name: db
+
+  - type: postgres
+    name: db
