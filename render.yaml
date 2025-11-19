@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: my-django-app
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    autoDeploy: true
