@@ -97,10 +97,10 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         })
 
 
-
+from .serializers import LearnerProfileUpdateSerializer
 
 class LearnerProfileUpdateView(generics.UpdateAPIView):
-    serializer_class = LearnerProfileSerializer
+    serializer_class = LearnerProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -111,45 +111,199 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
         )
         return profile
     
-
+from django.core.cache import cache
 
 class LeaderboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        top_learners = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:10]
-        top_serializer = LeaderboardSerializer(top_learners, many=True, context={"request": request})
+        all_learners = LearnerProfile.objects.filter(user__role='student').order_by('-points', 'full_name')
 
-        current_user = None
-        rank = None
+        rank_map = {}
+        last_points = None
+        current_rank = 0
+        for index, learner in enumerate(all_learners, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
+
+        previous_ranks = cache.get('previous_ranks', {})
+
+        leaderboard_data = []
+        for learner in all_learners[:10]: 
+            prev_rank = previous_ranks.get(str(learner.id))
+            curr_rank = rank_map.get(learner.id)
+
+            if prev_rank:
+                rank_diff = prev_rank - curr_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+                else:
+                    rank_status = "same"
+            else:
+                rank_diff = 0
+                rank_status = "new"
+
+            leaderboard_data.append({
+                "id": learner.id,
+                "full_name": learner.full_name,
+                "profile_image": get_presigned_url(learner.profile_image, request=request)
+                if learner.profile_image else None,
+                "points": learner.points,
+                "xp": learner.xp,
+                "rank": learner.rank,
+                "rank_position": curr_rank,
+                "rank_difference": rank_diff,
+                "rank_status": rank_status,
+            })
+
+        cache.set('previous_ranks', {str(l.id): rank_map[l.id] for l in all_learners}, timeout=3600)
 
         if request.user.role == 'student':
-            current_user, _ = LearnerProfile.objects.get_or_create(
-                user=request.user,
-                defaults={"full_name": request.user.full_name}
-            )
-            rank = current_user.get_rank_position()
+            current_user = LearnerProfile.objects.get(user=request.user)
+            current_rank = rank_map.get(current_user.id)
+            previous_rank = previous_ranks.get(str(current_user.id))
+            rank_diff = 0
+            rank_status = "same"
+
+            if previous_rank:
+                rank_diff = previous_rank - current_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
 
             return Response({
-                "leaderboard": top_serializer.data,
+                "leaderboard": leaderboard_data,
                 "current_user": {
                     "id": current_user.id,
                     "full_name": current_user.full_name,
-                    "profile_image": get_presigned_url(current_user.profile_image, request=request) if current_user.profile_image else None,
+                    "profile_image": get_presigned_url(current_user.profile_image, request=request)
+                    if current_user.profile_image else None,
                     "points": current_user.points,
                     "xp": current_user.xp,
                     "rank": current_user.rank,
-                    "rank_position": rank
+                    "rank_position": current_rank,
+                    "rank_difference": rank_diff,
+                    "rank_status": rank_status,
                 }
             })
 
-        else:
-            top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
-            top_3_serializer = LeaderboardSerializer(top_3, many=True, context={"request": request})
-            return Response({
-                "leaderboard": top_serializer.data,
-                "top_3_learners": top_3_serializer.data
+        return Response({"leaderboard": leaderboard_data})
+    
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions
+from django.core.cache import cache
+from django.db.models import Q
+from .models import LearnerProfile
+
+
+class FullLeaderboardView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        search_query = request.query_params.get('search', '').strip()
+
+        all_learners = LearnerProfile.objects.filter(
+            user__role='student'
+        ).order_by('-points', 'full_name')
+
+        if search_query:
+            all_learners = all_learners.filter(
+                Q(full_name__icontains=search_query)
+            )
+
+        rank_map = {}
+        last_points = None
+        current_rank = 0
+
+        all_learners_ranked = LearnerProfile.objects.filter(
+            user__role='student'
+        ).order_by('-points', 'full_name')
+
+        for index, learner in enumerate(all_learners_ranked, start=1):
+            if learner.points != last_points:
+                current_rank = index
+            rank_map[learner.id] = current_rank
+            last_points = learner.points
+
+        previous_ranks = cache.get('previous_ranks', {})
+
+        leaderboard_data = []
+        for learner in all_learners:
+            prev_rank = previous_ranks.get(str(learner.id))
+            curr_rank = rank_map.get(learner.id)
+
+            if prev_rank:
+                rank_diff = prev_rank - curr_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+                else:
+                    rank_status = "same"
+            else:
+                rank_diff = 0
+                rank_status = "new"
+
+            leaderboard_data.append({
+                "id": learner.id,
+                "full_name": learner.full_name,
+                "profile_image": get_presigned_url(learner.profile_image, request=request)
+                if learner.profile_image else None,
+                "points": learner.points,
+                "xp": learner.xp,
+                "rank": getattr(learner, 'rank', None),
+                "rank_position": curr_rank,
+                "rank_difference": rank_diff,
+                "rank_status": rank_status,
             })
+
+        cache.set(
+            'previous_ranks',
+            {str(l.id): rank_map[l.id] for l in all_learners_ranked},
+            timeout=3600
+        )
+
+        if request.user.role == 'student':
+            current_user = LearnerProfile.objects.get(user=request.user)
+            current_rank = rank_map.get(current_user.id)
+            previous_rank = previous_ranks.get(str(current_user.id))
+            rank_diff = 0
+            rank_status = "same"
+
+            if previous_rank:
+                rank_diff = previous_rank - current_rank
+                if rank_diff > 0:
+                    rank_status = "up"
+                elif rank_diff < 0:
+                    rank_status = "down"
+
+            return Response({
+                "leaderboard": leaderboard_data,
+                "current_user": {
+                    "id": current_user.id,
+                    "full_name": current_user.full_name,
+                    "profile_image": get_presigned_url(current_user.profile_image, request=request)
+                    if current_user.profile_image else None,
+                    "points": current_user.points,
+                    "xp": current_user.xp,
+                    "rank": getattr(current_user, 'rank', None),
+                    "rank_position": current_rank,
+                    "rank_difference": rank_diff,
+                    "rank_status": rank_status,
+                }
+            })
+
+        return Response({"leaderboard": leaderboard_data})
+
+
 
 
 
@@ -160,9 +314,13 @@ class CourseGamificationView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, course_id):
-        learner = request.user.learner_profile
-        course_gamification = get_object_or_404(CourseGamification, learner=learner, course_id=course_id)
-        serializer = CourseGamificationSerializer(course_gamification)
+        learner_profile = request.user.profile 
+
+        enrollment = get_object_or_404(Enrollment, learner=learner_profile, course_id=course_id)
+
+        gamification, _ = CourseGamification.objects.get_or_create(enrollment=enrollment)
+
+        serializer = CourseGamificationSerializer(gamification)
         return Response(serializer.data)
 
 
@@ -473,11 +631,20 @@ class DashboardView(APIView):
 
 
 
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
 from .models import Enrollment, LearnerProfile, Course, CourseGamification
 from .serializers import EnrollmentSerializer
+
+
+
+class EnrollmentPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 
 class EnrollCourseView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -486,12 +653,12 @@ class EnrollCourseView(generics.CreateAPIView):
         user = request.user
         profile = getattr(user, 'profile', None)
         if not profile:
-            return Response({"detail": "LearnerProfile not found"}, status=400)
+            return Response({"detail": "LearnerProfile not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             course = Course.objects.get(id=course_id)
         except Course.DoesNotExist:
-            return Response({"detail": "Course not found"}, status=404)
+            return Response({"detail": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
 
         enrollment, created = Enrollment.objects.get_or_create(
             learner=profile,
@@ -500,18 +667,103 @@ class EnrollCourseView(generics.CreateAPIView):
 
         if created:
             CourseGamification.objects.create(enrollment=enrollment)
-        
+
         serializer = EnrollmentSerializer(enrollment)
-        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
 
 
-class MyEnrollmentsView(generics.ListAPIView):
-    serializer_class = EnrollmentSerializer
+
+class MyEnrollmentsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        profile = getattr(user, 'profile', None)
-        if not profile:
-            return Enrollment.objects.none()
-        return Enrollment.objects.filter(learner=profile)
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        profile = getattr(user, "profile", None)
+
+        if user.is_staff:
+            enrollments = Enrollment.objects.all().select_related(
+                "course", "learner", "gamification"
+            ).order_by("-date_enrolled")
+            user_type = "admin"
+
+        elif Course.objects.filter(instructor=user).exists():
+            instructor_courses = Course.objects.filter(instructor=user)
+            enrollments = Enrollment.objects.filter(
+                course__in=instructor_courses
+            ).select_related("course", "learner", "gamification").order_by("-date_enrolled")
+            user_type = "instructor"
+
+        else:
+            if not profile:
+                return Response({"detail": "LearnerProfile not found"}, status=400)
+
+            enrollments = Enrollment.objects.filter(
+                learner=profile
+            ).select_related("course", "learner", "gamification").order_by("-date_enrolled")
+            user_type = "student"
+
+        paginator = EnrollmentPagination()
+        result_page = paginator.paginate_queryset(enrollments, request)
+
+
+        serializer = EnrollmentSerializer(result_page, many=True, context={'request': request})
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["user_type"] = user_type
+        return response
+
+
+
+from django.core.paginator import Paginator
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework.pagination import PageNumberPagination
+
+from .models import PointTransaction
+from .serializers import DetailedPointTransactionSerializer
+from rest_framework.permissions import IsAuthenticated
+
+
+class PointTransactionPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size'
+    max_page_size = 100  
+
+
+
+class PointTransactionListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        profile = getattr(user, "profile", None)
+
+        if user.is_staff:
+            transactions = PointTransaction.objects.all().order_by("-created_at")
+            user_type = "admin"
+
+        elif Course.objects.filter(instructor=user).exists():
+            instructor_courses = Course.objects.filter(instructor=user)
+            transactions = PointTransaction.objects.filter(
+                course__in=instructor_courses
+            ).order_by("-created_at")
+            user_type = "instructor"
+
+        else:
+            if not profile:
+                return Response({"detail": "LearnerProfile not found"}, status=400)
+            transactions = PointTransaction.objects.filter(
+                learner=profile
+            ).order_by("-created_at")
+            user_type = "student"
+
+        paginator = PointTransactionPagination()
+        result_page = paginator.paginate_queryset(transactions, request)
+        serializer = DetailedPointTransactionSerializer(result_page, many=True)
+
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["user_type"] = user_type
+        return response

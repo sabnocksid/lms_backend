@@ -3,9 +3,9 @@ from .models import Course, Category, Rating
 from quizes.models import QuizAttempt
 from lessons.utils.upload_minio import upload_file_to_minio, get_presigned_url
 from lessons.serializers import  LessonWithChapterCountSerializer, LessonWithProgressSerializer, LessonOverviewSerializer
-from quizes.serializers import QuizDetailSerializer, QuizSummarySerializer
-from lessons.models import ChapterProgress
-
+from lessons.models import  ChapterProgress, Chapter
+from quizes.serializers import QuizDetailSerializer, QuizSummarySerializer,  Quiz, QuizAttempt
+from gramafication.algorithm.difficulty_predictor import predict_difficulty
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,7 +22,8 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
     lessons_count = serializers.SerializerMethodField()
     chapters_count = serializers.SerializerMethodField()
     completion_percentage = serializers.SerializerMethodField()
-    # lessons = LessonWithProgressSerializer(many=True, read_only=True)  
+    difficulty = serializers.SerializerMethodField()
+    learner_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -38,8 +39,10 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
             "lessons_count",
             "chapters_count",
             "completion_percentage",
-            # "lessons",  
+            "difficulty",
+            "learner_progress",
         ]
+
 
     def get_thumbnail(self, obj):
         if obj.thumbnail:
@@ -51,56 +54,75 @@ class CoursePreviewSerializer(serializers.ModelSerializer):
         instructor = obj.instructor
         if not instructor:
             return None
-
-        name = (
-            getattr(instructor, "full_name", None)
-            or getattr(instructor, "first_name", None)
-            or getattr(instructor, "email", None)
-            or "Unknown Instructor"
-        )
-
-        instructor_data = {
-            "id": instructor.id,
-            "name": name,
-        }
-
+        name = getattr(instructor, "full_name", None) or getattr(instructor, "first_name", None) or getattr(instructor, "email", None) or "Unknown Instructor"
         profile = getattr(instructor, "learner_profile", None)
-        if profile and getattr(profile, "profile_image", None):
-            request = self.context.get("request")
-            instructor_data["profile_image"] = get_presigned_url(
-                str(profile.profile_image), request=request
-            )
-        else:
-            instructor_data["profile_image"] = None
+        profile_image = get_presigned_url(str(profile.profile_image), request=self.context.get("request")) if profile and profile.profile_image else None
+        return {"id": instructor.id, "name": name, "profile_image": profile_image}
 
-        return instructor_data
 
     def get_quizzes_count(self, obj):
         return obj.quizzes.count()
 
     def get_lessons_count(self, obj):
         return obj.lessons.count()
-    
+
     def get_chapters_count(self, obj):
-        total_chapters = 0
-        for lesson in obj.lessons.all():
-            total_chapters += lesson.chapters.count()
-        return total_chapters
+        return sum(lesson.chapters.count() for lesson in obj.lessons.all())
+
 
     def get_completion_percentage(self, obj):
-        total_chapters = self.get_chapters_count(obj)  
+        total_chapters = self.get_chapters_count(obj)
         if total_chapters == 0:
             return 0
 
         total_completed_chapters = 0
-
+        user = self.context.get("request").user
         for lesson in obj.lessons.all():
             for chapter in lesson.chapters.all():
-                progress, _ = ChapterProgress.objects.get_or_create(user=self.context.get('request').user, chapter=chapter)
+                progress, _ = ChapterProgress.objects.get_or_create(user=user, chapter=chapter)
                 if progress.completed:
                     total_completed_chapters += 1
 
-        return (total_completed_chapters / total_chapters) * 100 if total_chapters > 0 else 0
+        return (total_completed_chapters / total_chapters) * 100
+
+
+    def get_difficulty(self, obj):
+        learner = getattr(self.context.get("request").user, "profile", None)
+        if not learner:
+            return {
+                "level": 0, "name": "Unknown", "skill": 0, "difficulty": 0,
+                "gap": 0, "success": 0, "days": 0, "recommendation": "N/A"
+            }
+        return predict_difficulty(learner, obj)
+
+
+    def get_learner_progress(self, obj):
+        learner = getattr(self.context.get("request").user, "profile", None)
+        if not learner:
+            return None
+
+        user = learner.user
+        total_chapters = Chapter.objects.filter(lesson__course=obj).count()
+        completed_chapters = ChapterProgress.objects.filter(user=user, chapter__lesson__course=obj, completed=True).count()
+        total_quizzes = Quiz.objects.filter(course=obj).count()
+        attempted_quizzes = QuizAttempt.objects.filter(user=user, quiz__course=obj).count()
+
+        completed = (completed_chapters >= total_chapters if total_chapters else True) and \
+                    (attempted_quizzes >= total_quizzes if total_quizzes else True)
+
+        progress_percent = int(
+            ((completed_chapters / total_chapters) * 50 if total_chapters else 50) +
+            ((attempted_quizzes / total_quizzes) * 50 if total_quizzes else 50)
+        )
+
+        return {
+            "chapters_completed": completed_chapters,
+            "total_chapters": total_chapters,
+            "quizzes_attempted": attempted_quizzes,
+            "total_quizzes": total_quizzes,
+            "progress_percent": progress_percent,
+            "completed": completed,
+        }
     
 
 
@@ -129,7 +151,7 @@ class CourseSimpleSerializer(serializers.ModelSerializer):
         return [category.name for category in obj.categories.all()]
 
 
-
+from gramafication.models import Enrollment
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
@@ -143,6 +165,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     lesson_completion_rate = serializers.SerializerMethodField()
     chapter_count = serializers.SerializerMethodField()
     question_count = serializers.SerializerMethodField()
+    is_enrolled = serializers.SerializerMethodField()  
 
     class Meta:
         model = Course
@@ -165,6 +188,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "lesson_completion_rate",
             "chapter_count",
             "question_count",
+            "is_enrolled",  
         ]
 
     def get_thumbnail(self, obj):
@@ -173,9 +197,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return get_presigned_url(str(obj.thumbnail), request=request)
         return None
 
-    def get_lesson_count(self, obj):
-        return obj.lessons.count()
-    
     def get_instructor(self, obj):
         instructor = obj.instructor
         if not instructor:
@@ -188,12 +209,10 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             or "Unknown Instructor"
         )
 
-        instructor_data = {
-            "id": instructor.id,
-            "name": name,
-        }
+        return {"id": instructor.id, "name": name}
 
-        return instructor_data 
+    def get_lesson_count(self, obj):
+        return obj.lessons.count()
 
     def get_lesson_completion_rate(self, obj):
         total_lessons = obj.lessons.count()
@@ -215,6 +234,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_quizzes(self, obj):
         user = self.context.get("request").user
+        if not user.is_authenticated:
+            return []
 
         attempts = QuizAttempt.objects.filter(
             user=user,
@@ -232,6 +253,19 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             context={**self.context, "attempts_map": attempts_map}
         )
         return serializer.data
+    
+
+    def get_is_enrolled(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+
+        profile = getattr(user, "profile", None)
+        if not profile:
+            return False
+
+        return Enrollment.objects.filter(learner=profile, course=obj).exists()
 
 
 

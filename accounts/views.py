@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import viewsets
 from .models import CustomUser
+from django.db.models import Q
 from .serializers import RegisterSerializer, UserSerializer, LoginSerializer, UserRoleSerializer, AdminUserCreateSerializer
 
 # Register
@@ -132,3 +133,97 @@ class AdminUserCreateView(generics.CreateAPIView):
             "role": user.role,
             "is_active": user.is_active
         }, status=status.HTTP_201_CREATED)
+    
+
+from rest_framework import permissions, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.contrib.auth.hashers import make_password
+from rest_framework.response import Response
+from rest_framework import status
+from django.core.exceptions import ObjectDoesNotExist
+
+class UserUpdateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        user_id = kwargs.get('user_id')
+        
+        try:
+            instance = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        user = request.user
+        
+        if instance.role == 'student':
+            if user != instance:
+                if 'is_active' in request.data:
+                    instance.is_active = not instance.is_active
+                else:
+                    return Response(
+                        {"detail": "Only 'is_active' field can be updated for students."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            else:
+                if user.role != 'admin':
+                    return Response(
+                        {"detail": "Admin privileges required to update student profiles."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+
+        elif instance.role == 'instructor':
+            if user != instance and user.role != 'admin':  
+                return Response(
+                    {"detail": "Only instructors can update their own name and email."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if user.role == 'admin':
+                allowed_fields = ['full_name', 'email', 'role', 'is_active']
+            else:
+                allowed_fields = ['full_name', 'email', 'is_active']
+
+            filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
+            
+            if len(filtered_data) != len(request.data):
+                return Response(
+                    {"detail": "Only 'full_name', 'email', 'role', and 'is_active' can be updated for instructors."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            request_data = filtered_data
+
+        elif instance.role == 'admin':
+            if user != instance and user.role != 'admin':  
+                return Response(
+                    {"detail": "Only admins can update admin profiles."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            allowed_fields = ['full_name', 'email', 'password', 'is_active', 'role']
+            filtered_data = {key: value for key, value in request.data.items() if key in allowed_fields}
+            
+            if len(filtered_data) != len(request.data):
+                return Response(
+                    {"detail": "Only 'full_name', 'email', 'password', 'is_active', and 'role' can be updated for admins."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            request_data = filtered_data
+
+        if 'password' in request.data:
+            password = request.data.get('password')
+            if password:
+                instance.set_password(password)
+
+        serializer = UserSerializer(instance, data=request_data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

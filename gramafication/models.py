@@ -114,7 +114,7 @@ class Enrollment(models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        related_name="enrollments"
+        related_name="enrollments" 
     )
     date_enrolled = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True) 
@@ -135,13 +135,37 @@ class CourseGamification(models.Model):
     )
     points_earned = models.IntegerField(default=0)
     xp_earned = models.IntegerField(default=0)
-    chapters_completed = models.PositiveIntegerField(default=0)
-    total_chapters = models.PositiveIntegerField(default=0)
-    quizzes_attempted = models.PositiveIntegerField(default=0)
-    total_quizzes = models.PositiveIntegerField(default=0)
     correct_answers = models.PositiveIntegerField(default=0)
-    course_completed = models.BooleanField(default=False)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.enrollment.learner.full_name} - {self.enrollment.course.name}"
+
+    @property
+    def total_chapters(self):
+        return Chapter.objects.filter(lesson__course=self.enrollment.course).count()
+
+    @property
+    def completed_chapters(self):
+        return ChapterProgress.objects.filter(
+            user=self.enrollment.learner.user, 
+            chapter__lesson__course=self.enrollment.course,
+            completed=True
+        ).count()
+
+    @property
+    def total_quizzes(self):
+        return Quiz.objects.filter(course=self.enrollment.course).count()
+
+    @property
+    def attempted_quizzes(self):
+        return QuizAttempt.objects.filter(
+            user=self.enrollment.learner.user,
+            quiz__course=self.enrollment.course
+        ).count()
+
+    @property
+    def course_completed(self):
+        chapter_done = self.completed_chapters >= self.total_chapters if self.total_chapters else True
+        quiz_done = self.attempted_quizzes >= self.total_quizzes if self.total_quizzes else True
+        return chapter_done and quiz_done

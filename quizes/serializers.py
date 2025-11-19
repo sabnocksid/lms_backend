@@ -145,10 +145,36 @@ class QuizFullDetailSerializer(serializers.ModelSerializer):
         return obj.questions.count()
 
 
+
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Answer
-        fields = ['question', 'selected_choice', 'text_answer']
+        fields = ['question', 'selected_choice', 'tf_answer', 'text_answer']
+
+    def validate(self, data):
+        question = data.get('question')
+        selected_choice = data.get('selected_choice')
+        tf_answer = data.get('tf_answer')
+        text_answer = data.get('text_answer')
+
+        if not question:
+            raise serializers.ValidationError({"question": "Question is required."})
+
+        q_type = question.question_type
+
+        if q_type == 'MCQ':
+            if not selected_choice:
+                raise serializers.ValidationError({"selected_choice": "Choice is required for MCQ."})
+        elif q_type == 'TF':
+            if tf_answer is None:
+                raise serializers.ValidationError({"tf_answer": "True/False value required for TF question."})
+        elif q_type == 'TEXT':
+            if not text_answer:
+                raise serializers.ValidationError({"text_answer": "Answer text required for this question."})
+        else:
+            raise serializers.ValidationError({"question": f"Unknown question type: {q_type}"})
+
+        return data
 
 
 class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
@@ -160,14 +186,41 @@ class QuizAttemptSubmitSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = self.context['request'].user
-        answers_data = validated_data.pop('answers')
         quiz_id = self.context['view'].kwargs.get('quiz_id')
-        quiz = Quiz.objects.get(id=quiz_id)
 
+        try:
+            quiz = Quiz.objects.get(id=quiz_id)
+        except Quiz.DoesNotExist:
+            raise serializers.ValidationError({"quiz": "Quiz not found."})
+
+        answers_data = validated_data.pop('answers')
         attempt = QuizAttempt.objects.create(user=user, quiz=quiz)
+
         for answer_data in answers_data:
-            Answer.objects.create(attempt=attempt, **answer_data)
+            question = answer_data['question']
+            q_type = question.question_type
+
+            if q_type == 'MCQ':
+                Answer.objects.create(
+                    attempt=attempt,
+                    question=question,
+                    selected_choice=answer_data.get('selected_choice')
+                )
+            elif q_type == 'TF':
+                Answer.objects.create(
+                    attempt=attempt,
+                    question=question,
+                    tf_answer=answer_data.get('tf_answer')
+                )
+            elif q_type == 'TEXT':
+                Answer.objects.create(
+                    attempt=attempt,
+                    question=question,
+                    text_answer=answer_data.get('text_answer')
+                )
+
         return attempt
+
 
 
 class UserAnswerSerializer(serializers.ModelSerializer):

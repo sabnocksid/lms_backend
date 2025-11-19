@@ -22,16 +22,54 @@ class PointTransactionSerializer(serializers.ModelSerializer):
         model = PointTransaction
         fields = ["id", "points", "reason", "created_at"]
 
+
+
 class CourseGamificationSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source='course.title', read_only=True)
-    
+    total_chapters = serializers.ReadOnlyField()
+    completed_chapters = serializers.ReadOnlyField()
+    total_quizzes = serializers.ReadOnlyField()
+    attempted_quizzes = serializers.ReadOnlyField()
+    course_completed = serializers.ReadOnlyField()
+
     class Meta:
         model = CourseGamification
         fields = [
-            "course", "course_title", "points_earned", "xp_earned",
-            "chapters_completed", "total_chapters", "quizzes_attempted",
-            "total_quizzes", "correct_answers", "course_completed", "last_updated"
+            "points_earned",
+            "xp_earned",
+            "correct_answers",
+            "total_chapters",
+            "completed_chapters",
+            "total_quizzes",
+            "attempted_quizzes",
+            "course_completed",
+            "last_updated",
         ]
+
+
+
+class LearnerProfileSummarySerializer(serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = LearnerProfile
+        fields = ['full_name', 'profile_image', 'rank', 'level', 'xp']
+    
+    def get_profile_image(self, obj):
+        if obj.profile_image:
+            request = self.context.get('request')
+            return get_presigned_url(obj.profile_image, request=request)  
+        return None
+
+
+
+
+class DetailedPointTransactionSerializer(serializers.ModelSerializer):
+    learner_profile = LearnerProfileSummarySerializer(source='learner')
+
+    class Meta:
+        model = PointTransaction
+        fields = ["id", "points", "reason", "created_at", "learner_profile"]
+        
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
     earned_badges = LearnerBadgeSerializer(many=True, read_only=True)
@@ -97,6 +135,36 @@ class LearnerProfileSerializer(serializers.ModelSerializer):
                 "last_updated": gamification.last_updated if gamification else None,
             })
         return result
+    
+from lessons.utils.upload_minio import upload_file_to_minio
+
+
+class LearnerProfileUpdateSerializer(serializers.ModelSerializer):
+    profile_image_file = serializers.FileField(required=False, write_only=True)
+
+    class Meta:
+        model = LearnerProfile
+        fields = ["full_name", "profile_image", "date_of_birth", "profile_image_file"]
+
+    def update(self, instance, validated_data):
+        profile_image_file = validated_data.pop("profile_image_file", None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if profile_image_file:
+            file_name = f"learners/profile_images/{profile_image_file.name}"
+
+            file_url = upload_file_to_minio(profile_image_file, file_name)
+
+            if not file_url:
+                raise serializers.ValidationError({"profile_image_file": "Upload failed!"})
+
+            instance.profile_image = file_url
+
+        instance.save()
+
+        return instance
 
 
 
@@ -220,26 +288,75 @@ class DashboardSerializer(serializers.Serializer):
     leaderboard = LeaderboardSectionSerializer()
 
 
+from lessons.models import ChapterProgress
 class EnrollmentSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source='course.title', read_only=True)
-    gamification = serializers.SerializerMethodField()
+    course_title = serializers.CharField(source='course.name', read_only=True)
+    course_thumbnail = serializers.SerializerMethodField()
+    learner_name = serializers.CharField(source='learner.full_name', read_only=True)
+
+    chapters_completed = serializers.SerializerMethodField()
+    total_chapters = serializers.SerializerMethodField()
+    quizzes_attempted = serializers.SerializerMethodField()
+    total_quizzes = serializers.SerializerMethodField()
+    completed = serializers.SerializerMethodField()
 
     class Meta:
         model = Enrollment
-        fields = ['id', 'course', 'course_title', 'date_enrolled', 'is_active', 'completed', 'gamification']
+        fields = [
+            'id',
+            'learner_name',
+            'course',
+            'course_title',
+            'course_thumbnail',
+            'date_enrolled',
+            'chapters_completed',
+            'total_chapters',
+            'quizzes_attempted',
+            'total_quizzes',
+            'completed',
+        ]
 
-    def get_gamification(self, obj):
-        gam = getattr(obj, 'gamification', None)
-        if gam:
-            return {
-                "points_earned": gam.points_earned,
-                "xp_earned": gam.xp_earned,
-                "chapters_completed": gam.chapters_completed,
-                "total_chapters": gam.total_chapters,
-                "quizzes_attempted": gam.quizzes_attempted,
-                "total_quizzes": gam.total_quizzes,
-                "correct_answers": gam.correct_answers,
-                "course_completed": gam.course_completed,
-                "last_updated": gam.last_updated,
-            }
+    def get_course_thumbnail(self, obj):
+        request = self.context.get("request")
+        if obj.course.thumbnail:
+            return get_presigned_url(obj.course.thumbnail, request=request)
         return None
+
+
+    def get_total_chapters(self, obj):
+        return Chapter.objects.filter(lesson__course=obj.course).count()
+
+    def get_chapters_completed(self, obj):
+        return ChapterProgress.objects.filter(
+            user=obj.learner.user, 
+            chapter__lesson__course=obj.course
+        ).count()
+
+
+    def get_total_quizzes(self, obj):
+        from quizes.models import Quiz  
+        return Quiz.objects.filter(course=obj.course).count()
+
+    def get_quizzes_attempted(self, obj):
+        from quizes.models import QuizAttempt
+        return QuizAttempt.objects.filter(
+            quiz__course=obj.course,
+            user=obj.learner.user 
+        ).count()
+
+    def get_completed(self, obj):
+        total_chapters = self.get_total_chapters(obj)
+        completed_chapters = self.get_chapters_completed(obj)
+        total_quizzes = self.get_total_quizzes(obj)
+        attempted_quizzes = self.get_quizzes_attempted(obj)
+
+        if total_chapters == 0 and total_quizzes == 0:
+            return False
+
+        chapter_done = completed_chapters >= total_chapters if total_chapters > 0 else True
+        quiz_done = attempted_quizzes >= total_quizzes if total_quizzes > 0 else True
+
+        return chapter_done and quiz_done
+
+
+

@@ -2,6 +2,8 @@ from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.utils import timezone
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from .models import Lesson, Chapter, ChapterProgress
 from .serializers import (
@@ -9,6 +11,7 @@ from .serializers import (
     LessonWithProgressSerializer,
     ChapterSerializer,
     ChapterProgressSerializer,
+    ChapterWithViewCountSerializer
 )
 
 from gramafication.algorithm.gramafication_course import process_course_gamification
@@ -66,3 +69,13 @@ class ChapterViewSet(viewsets.ModelViewSet):
             "chapter": serializer.data,
             "gamification": gamification_result
         })
+    
+
+
+class ChapterByLessonView(generics.ListAPIView):
+    serializer_class = ChapterWithViewCountSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        lesson_id = self.kwargs.get("lesson_id")
+        return Chapter.objects.filter(lesson_id=lesson_id).order_by("created_at")

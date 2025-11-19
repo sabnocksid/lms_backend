@@ -5,14 +5,14 @@ djangorestframework-simplejwt
 drf-spectacular
 drf_spectacular_sidecar
 django-filter>=23.2
+django-cors-headers
 
 # Database
 psycopg2-binary
 
-# Deployment
+# Deployment / Environment
 gunicorn
 python-dotenv
-django-cors-headers
 
 # Media & Storage
 pillow
@@ -23,6 +23,7 @@ boto3
 pycryptodome
 cryptography>=42.0.0
 
+# Nepali datetime support
 nepali-datetime
 
 # Celery & Redis
@@ -33,3 +34,7 @@ django-celery-beat
 # Optional (for email templates)
 jinja2>=3.1.2
 
+# WebSocket / Real-time support
+channels>=4.1.0
+channels-redis>=4.1.0
+daphne>=4.0.0
