@@ -13,7 +13,7 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 
 class DiscussionThreadSerializer(serializers.ModelSerializer):
     ws_url = serializers.SerializerMethodField()
-    enrolled_learners = serializers.SerializerMethodField()
+    discussion_users = serializers.SerializerMethodField()
 
     class Meta:
         model = DiscussionThread
