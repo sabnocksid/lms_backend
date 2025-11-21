@@ -619,7 +619,7 @@ class DashboardView(APIView):
         if user.is_staff or user.is_superuser:
             discussions = DiscussionThread.objects.all().order_by('-created_at').select_related(
                 "course", "course__instructor"
-            )
+            )[:5] 
         elif hasattr(user, "profile"):
             enrolled_courses = Enrollment.objects.filter(
                 learner=user.profile,
@@ -627,11 +627,11 @@ class DashboardView(APIView):
             ).values_list("course_id", flat=True)
             discussions = DiscussionThread.objects.filter(
                 course_id__in=enrolled_courses
-            ).select_related("course", "course__instructor")
+            ).select_related("course", "course__instructor")[:5] 
         else:
             discussions = DiscussionThread.objects.filter(
                 course__instructor=user
-            ).select_related("course", "course__instructor")
+            ).select_related("course", "course__instructor")[:5] 
 
         discussion_serializer = DiscussionThreadSerializer(
             discussions, many=True, context={"request": request}
@@ -653,7 +653,7 @@ class DashboardView(APIView):
             dashboard_response["continue_watching"] = continue_watching_data
 
         dashboard_response["recent_discussions"] = discussion_serializer.data
-        
+
         return Response(dashboard_response)
 
 
