@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import DiscussionThread, DiscussionPost
+from gramafication.serializers import LearnerProfileSerializer
 
 class DiscussionPostSerializer(serializers.ModelSerializer):
     creator_name = serializers.CharField(source="creator.username", read_only=True)
@@ -11,10 +12,20 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 
 class DiscussionThreadSerializer(serializers.ModelSerializer):
     ws_url = serializers.SerializerMethodField()
+    enrolled_learners = serializers.SerializerMethodField()
 
     class Meta:
         model = DiscussionThread
-        fields = ["id", "course", "title", "creator", "created_at", "updated_at", "ws_url"]
+        fields = [
+            "id", 
+            "course", 
+            "title", 
+            "creator", 
+            "created_at", 
+            "updated_at", 
+            "ws_url",
+            "enrolled_learners"
+        ]
 
     def get_ws_url(self, obj):
         request = self.context.get("request")
@@ -31,3 +42,8 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
             ws_url = f"{ws_url}?token={token_value}"
 
         return ws_url
+
+    def get_enrolled_learners(self, obj):
+        enrollments = obj.course.enrollments.filter(is_active=True)
+        learners = [enrollment.learner for enrollment in enrollments]
+        return LearnerProfileSerializer(learners, many=True).data
