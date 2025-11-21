@@ -611,6 +611,34 @@ class DashboardView(APIView):
         for course, data in zip(top_rated_courses, serializer.data):
             highest_rated_courses_data.append(data)
 
+
+        from discussion.models import DiscussionThread
+        from discussion.serializers import DiscussionThreadSerializer
+        user = request.user
+
+        if user.is_staff or user.is_superuser:
+            discussions = DiscussionThread.objects.all().order_by('-created_at').select_related(
+                "course", "course__instructor"
+            )
+        elif hasattr(user, "profile"):
+            enrolled_courses = Enrollment.objects.filter(
+                learner=user.profile,
+                is_active=True
+            ).values_list("course_id", flat=True)
+            discussions = DiscussionThread.objects.filter(
+                course_id__in=enrolled_courses
+            ).select_related("course", "course__instructor")
+        else:
+            discussions = DiscussionThread.objects.filter(
+                course__instructor=user
+            ).select_related("course", "course__instructor")
+
+        discussion_serializer = DiscussionThreadSerializer(
+            discussions, many=True, context={"request": request}
+        )
+
+        dashboard_response["recent_discussions"] = discussion_serializer.data
+
         dashboard_response = {
             "welcome_box": welcome_data,
             "leaderboard": leaderboard_data,
