@@ -25,7 +25,7 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
             "created_at", 
             "updated_at", 
             "ws_url",
-            "enrolled_learners"
+            "discussion_users"
         ]
 
     def get_ws_url(self, obj):
@@ -44,7 +44,7 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
 
         return ws_url
 
-    def get_enrolled_learners(self, obj):
+    def discussion_users(self, obj):
         enrollments = obj.course.enrollments.filter(is_active=True)
         learners = [enrollment.learner for enrollment in enrollments]
 
