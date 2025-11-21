@@ -637,7 +637,6 @@ class DashboardView(APIView):
             discussions, many=True, context={"request": request}
         )
 
-        dashboard_response["recent_discussions"] = discussion_serializer.data
 
         dashboard_response = {
             "welcome_box": welcome_data,
@@ -653,6 +652,8 @@ class DashboardView(APIView):
         if continue_watching_data:
             dashboard_response["continue_watching"] = continue_watching_data
 
+        dashboard_response["recent_discussions"] = discussion_serializer.data
+        
         return Response(dashboard_response)
 
 
