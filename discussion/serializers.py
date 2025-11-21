@@ -14,19 +14,21 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 class DiscussionThreadSerializer(serializers.ModelSerializer):
     ws_url = serializers.SerializerMethodField()
     discussion_users = serializers.SerializerMethodField()
-    course_name = serializers.SerializerMethodField()  # New field
+    course_name = serializers.SerializerMethodField()
+    participant_count = serializers.SerializerMethodField()  
 
     class Meta:
         model = DiscussionThread
         fields = [
-            "id", 
-            "course_name",  # Show name instead of ID
-            "title", 
-            "creator", 
-            "created_at", 
-            "updated_at", 
+            "id",
+            "course_name",
+            "title",
+            "creator",
+            "created_at",
+            "updated_at",
             "ws_url",
-            "discussion_users"
+            "discussion_users",
+            "participant_count"  
         ]
 
     def get_ws_url(self, obj):
@@ -50,10 +52,13 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
         learners = [enrollment.learner for enrollment in enrollments]
 
         return SimpleLearnerSerializer(
-            learners,
+            learners[:5],
             many=True,
             context=self.context
         ).data
 
+    def get_participant_count(self, obj):
+        return obj.course.enrollments.filter(is_active=True).count()
+
     def get_course_name(self, obj):
-        return obj.course.name 
+        return obj.course.name
