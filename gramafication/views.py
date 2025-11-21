@@ -568,7 +568,7 @@ class DashboardView(APIView):
 
         continue_watching_data = []
         if user.role == "student":
-            continue_watching_courses = (
+            courses_qs = (
                 Course.objects.prefetch_related("lessons__chapters")
                 .annotate(
                     total_chapters=Count("lessons__chapters", distinct=True),
@@ -589,15 +589,20 @@ class DashboardView(APIView):
                             output_field=FloatField()
                         ),
                         output_field=FloatField()
+                    ),
+                    is_completed=Case(
+                        When(total_chapters=F("completed_chapters"), then=Value(True)),
+                        default=Value(False),
+                        output_field=FloatField()
                     )
                 )
-                .filter(completion_percentage__lt=100, completion_percentage__gt=0)
-                .order_by("-completion_percentage")[:5]
+                .order_by("-completion_percentage")[:10]  
             )
 
             continue_watching_data = CoursePreviewSerializer(
-                continue_watching_courses, many=True, context={"request": request}
+                courses_qs, many=True, context={"request": request}
             ).data
+
 
         top_rated_courses = (
             Course.objects
