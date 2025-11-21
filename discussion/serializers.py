@@ -14,12 +14,13 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 class DiscussionThreadSerializer(serializers.ModelSerializer):
     ws_url = serializers.SerializerMethodField()
     discussion_users = serializers.SerializerMethodField()
+    course_name = serializers.SerializerMethodField()  # New field
 
     class Meta:
         model = DiscussionThread
         fields = [
             "id", 
-            "course", 
+            "course_name",  # Show name instead of ID
             "title", 
             "creator", 
             "created_at", 
@@ -53,3 +54,6 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
             many=True,
             context=self.context
         ).data
+
+    def get_course_name(self, obj):
+        return obj.course.name 
