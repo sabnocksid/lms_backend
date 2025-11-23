@@ -1,15 +1,32 @@
-from django.db import models
 from django.conf import settings
-
-User = settings.AUTH_USER_MODEL
+from django.db import models
 
 class Notification(models.Model):
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
-    actor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="actions")
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications"
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
     verb = models.CharField(max_length=255)
-    target_course = models.ForeignKey("courses.Course", null=True, blank=True, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+
+    target_course = models.ForeignKey(
+        "courses.Course",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     read = models.BooleanField(default=False)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
 
     def __str__(self):
-        return f"{self.verb} -> {self.recipient}"
+        return f"{self.actor} {self.verb} {self.target_course or ''}"

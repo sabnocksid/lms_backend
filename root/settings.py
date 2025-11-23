@@ -80,22 +80,12 @@ INSTALLED_APPS = [
     'gramafication',
     'discussion',
     'notifications',
+    'notifications.apps.NotificationsConfig',
+
 ]
 
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "[{asctime}] {levelname} {name} {message}", "style": "{"},
-    },
-    "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
-    },
-    "loggers": {
-        "notifications_ws": {"handlers": ["console"], "level": "INFO"},
-    },
-}
+
 
 
 
