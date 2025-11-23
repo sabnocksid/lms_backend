@@ -27,7 +27,7 @@ def send_realtime_notification(notification):
     async_to_sync(channel_layer.group_send)(
         f"notifications_{notification.recipient.id}",
         {
-            "type": "send_notification",  # matches consumer method
+            "type": "send_notification",  
             "notification": payload
         }
     )
