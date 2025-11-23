@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "root.settings")
 django_asgi_app = get_asgi_application()
 
 from discussion.routing import websocket_urlpatterns as discussion_ws
-from gramafication.routing import websocket_urlpatterns as notifications_ws
+from notifications.routing import websocket_urlpatterns as notifications_ws
 
 all_ws = discussion_ws + notifications_ws
 
