@@ -17,8 +17,9 @@ def bulk_notify(recipients, actor=None, verb="", course=None):
         send_notification_task.delay(n.id)
 
 
-# Example: notify when Course is created
-from courses.models import Course, Chapter, Quiz
+from courses.models import Course
+from lessons.models import Chapter
+from quizes.models import Quiz
 from gramafication.models import Enrollment, PointTransaction, CourseGamification
 
 @receiver(post_save, sender=Course)
