@@ -9,5 +9,5 @@ def create_default_thread(sender, instance, created, **kwargs):
         DiscussionThread.objects.create(
             course=instance,
             title="General Discussion",
-            creator=instance.instructor  
+            creator=instance.creator  
         )
