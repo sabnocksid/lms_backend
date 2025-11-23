@@ -8,13 +8,17 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "root.settings")
 
 django_asgi_app = get_asgi_application()
 
-from discussion.routing import websocket_urlpatterns
+# Import websocket routes
+from discussion.routing import websocket_urlpatterns as discussion_ws
+from notifications.routing import websocket_urlpatterns as notifications_ws
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         JWTAuthMiddleware(
-            URLRouter(websocket_urlpatterns)
+            URLRouter(
+                discussion_ws + notifications_ws  # merge both routes
+            )
         )
     ),
 })
