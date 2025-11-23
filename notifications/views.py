@@ -1,19 +1,10 @@
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-def send_realtime_notification(notification):
-    channel_layer = get_channel_layer()
+class MarkNotificationsRead(APIView):
+    permission_classes = [IsAuthenticated]
 
-    async_to_sync(channel_layer.group_send)(
-        f"notifications_{notification.recipient.id}",
-        {
-            "type": "send_notification",
-            "notification": {
-                "id": notification.id,
-                "verb": notification.verb,
-                "actor": str(notification.actor) if notification.actor else None,
-                "target": str(notification.target_course) if notification.target_course else None,
-                "timestamp": str(notification.timestamp),
-            }
-        }
-    )
+    def post(self, request):
+        request.user.notifications.filter(read=False).update(read=True)
+        return Response({"status": "ok"})
