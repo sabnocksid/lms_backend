@@ -1,13 +1,17 @@
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from courses.models import Course
-from discussion.models import DiscussionThread
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
-@receiver(post_save, sender=Course)
-def create_default_thread(sender, instance, created, **kwargs):
-    if created:
-        DiscussionThread.objects.create(
-            course=instance,
-            title="General Discussion",
-            creator=instance.instructor  
-        )
+def send_realtime_notification(notification):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        f"notifications_{notification.recipient.id}",
+        {
+            "type": "send_notification",
+            "notification": {
+                "id": notification.id,
+                "verb": notification.verb,
+                "actor": notification.actor_id,
+                "course": getattr(notification, "target_course_id", None),
+            }
+        }
+    )
