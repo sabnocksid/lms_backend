@@ -20,7 +20,7 @@ def notify_students_course_created(sender, instance, created, **kwargs):
     notifications = [
         Notification(
             recipient=student,
-            actor=getattr(instance, "creator", None),
+            actor=getattr(instance, "instructor", None),
             verb="New course added",
             target_course=instance
         )
@@ -42,7 +42,7 @@ def notify_students_chapter_created(sender, instance, created, **kwargs):
     notifications = [
         Notification(
             recipient=student,
-            actor=getattr(instance.course, "creator", None),
+            actor=getattr(instance.course, "instructor", None),
             verb=f"New chapter '{instance.title}' added",
             target_course=instance.course
         )
@@ -63,7 +63,7 @@ def notify_students_quiz_created(sender, instance, created, **kwargs):
     notifications = [
         Notification(
             recipient=student,
-            actor=getattr(instance.course, "creator", None),
+            actor=getattr(instance.course, "instructor", None),
             verb=f"New quiz '{instance.title}' added",
             target_course=instance.course
         )
