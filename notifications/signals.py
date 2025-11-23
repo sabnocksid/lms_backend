@@ -6,169 +6,166 @@ from notifications.models import Notification
 from notifications.utils import send_realtime_notification
 
 from courses.models import Course
-from lessons.models import Chapter
-from quizes.models import Quiz
+from lessons.models import Chapter 
+from quizes.models import Quiz     
 
-from gramafication.models import PointTransaction, CourseGamification
-from gramafication.models import Enrollment
+from gramafication.models import PointTransaction, CourseGamification, Enrollment, LearnerProfile
 
 User = get_user_model()
 
-# ---------------------------------------------------
-#   COURSE CREATED
-# ---------------------------------------------------
+
+def notify_users(notifications):
+
+    if not notifications:
+        return
+
+    Notification.objects.bulk_create(notifications, ignore_conflicts=True)
+    for notification in notifications:
+        send_realtime_notification(notification)
+
+
+
 @receiver(post_save, sender=Course)
 def notify_new_course(sender, instance, created, **kwargs):
     if not created:
         return
 
-    students = User.objects.filter(profile__role="student")
-
+    # Notify all learners (users with LearnerProfile)
+    students = User.objects.filter(learnerprofile__isnull=False).select_related('learnerprofile')
+    
     notifications = [
         Notification(
-            recipient=s,
+            recipient=student,
             actor=instance.instructor,
-            verb="added a new course",
-            target_course=instance
+            verb="published a new course",
+            target_course=instance,
         )
-        for s in students
+        for student in students
     ]
-
-    Notification.objects.bulk_create(notifications)
-
-    for n in notifications:
-        send_realtime_notification(n)
+    
+    notify_users(notifications)
 
 
-# ---------------------------------------------------
-#   CHAPTER CREATED
-# ---------------------------------------------------
+
+
 @receiver(post_save, sender=Chapter)
 def notify_new_chapter(sender, instance, created, **kwargs):
     if not created:
         return
 
-    students = User.objects.filter(profile__role="student")
+    course = instance.lesson.course  
+    students = User.objects.filter(learnerprofile__isnull=False)
 
     notifications = [
         Notification(
-            recipient=s,
-            actor=instance.lesson.course.instructor,
-            verb=f"added a new chapter '{instance.title}'",
-            target_course=instance.lesson.course
+            recipient=student,
+            actor=course.instructor,
+            verb=f"added a new chapter: '{instance.title}'",
+            target_course=course,
         )
-        for s in students
+        for student in students
     ]
-
-    Notification.objects.bulk_create(notifications)
-
-    for n in notifications:
-        send_realtime_notification(n)
+    
+    notify_users(notifications)
 
 
-# ---------------------------------------------------
-#   QUIZ CREATED
-# ---------------------------------------------------
+
 @receiver(post_save, sender=Quiz)
 def notify_new_quiz(sender, instance, created, **kwargs):
     if not created:
         return
 
-    students = User.objects.filter(profile__role="student")
+    course = instance.course
+    students = User.objects.filter(learnerprofile__isnull=False)
 
     notifications = [
         Notification(
-            recipient=s,
-            actor=instance.course.instructor,
-            verb=f"added a quiz '{instance.title}'",
-            target_course=instance.course
+            recipient=student,
+            actor=course.instructor,
+            verb=f"added a new quiz: '{instance.title}'",
+            target_course=course,
         )
-        for s in students
+        for student in students
     ]
-
-    Notification.objects.bulk_create(notifications)
-
-    for n in notifications:
-        send_realtime_notification(n)
+    
+    notify_users(notifications)
 
 
-# ---------------------------------------------------
-#   NEW ENROLLMENT
-# ---------------------------------------------------
+
+
 @receiver(post_save, sender=Enrollment)
 def notify_enrollment(sender, instance, created, **kwargs):
     if not created:
         return
 
-    learner = instance.learner.user
+    learner_user = instance.learner.user
     course = instance.course
     instructor = getattr(course, "instructor", None)
 
-    # Instructor notification
-    if instructor:
-        notif = Notification.objects.create(
+    notifications_to_send = []
+
+    if instructor and instructor != learner_user:
+        instructor_notif = Notification(
             recipient=instructor,
-            actor=learner,
-            verb="enrolled in your course",
-            target_course=course
+            actor=learner_user,
+            verb=f"enrolled in your course '{course.name}'",
+            target_course=course,
         )
-        send_realtime_notification(notif)
+        notifications_to_send.append(instructor_notif)
 
-    # Admin notification
     admins = User.objects.filter(is_staff=True)
-
-    admin_notifs = [
+    admin_notifications = [
         Notification(
-            recipient=a,
-            actor=learner,
-            verb=f"enrolled in '{course.name}'",
-            target_course=course
+            recipient=admin,
+            actor=learner_user,
+            verb=f"enrolled in course '{course.name}'",
+            target_course=course,
         )
-        for a in admins
+        for admin in admins
+        if admin != learner_user  
     ]
+    notifications_to_send.extend(admin_notifications)
 
-    Notification.objects.bulk_create(admin_notifs)
-
-    for n in admin_notifs:
-        send_realtime_notification(n)
+    notify_users(notifications_to_send)
 
 
-# ---------------------------------------------------
-#   POINTS EARNED
-# ---------------------------------------------------
+
+
 @receiver(post_save, sender=PointTransaction)
 def notify_point_transaction(sender, instance, created, **kwargs):
     if not created:
         return
 
-    learner_user = instance.learner.user
+    if instance.points <= 0:
+        return
 
-    notif = Notification.objects.create(
-        recipient=learner_user,
+    notif = Notification(
+        recipient=instance.learner.user,
         actor=None,
-        verb=f"{instance.points} points added",
-        target_course=None
+        verb=f"Earned +{instance.points} points!",
+        target_course=instance.enrollment.course if hasattr(instance, 'enrollment') else None,
     )
-
+    Notification.objects.create(notif)  
     send_realtime_notification(notif)
 
 
-# ---------------------------------------------------
-#   COURSE COMPLETED
-# ---------------------------------------------------
+
 @receiver(post_save, sender=CourseGamification)
-def notify_course_completed(sender, instance, **kwargs):
+def notify_course_completed(sender, instance, updated_fields=None, **kwargs):
     if not instance.course_completed:
         return
 
+    if updated_fields and 'course_completed' not in updated_fields:
+        return
+
     enrollment = instance.enrollment
-    learner_user = enrollment.learner.user
+    course = enrollment.course
 
-    notif = Notification.objects.create(
-        recipient=learner_user,
+    notif = Notification(
+        recipient=enrollment.learner.user,
         actor=None,
-        verb=f"You completed '{enrollment.course.name}'!",
-        target_course=enrollment.course
+        verb=f"Congratulations! You completed the course '{course.name}'!",
+        target_course=course,
     )
-
+    Notification.objects.create(notif)
     send_realtime_notification(notif)
