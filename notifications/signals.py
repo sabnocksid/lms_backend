@@ -5,11 +5,6 @@ from django.conf import settings
 from notifications.models import Notification
 from notifications.tasks import send_notification_task
 
-from courses.models import Course
-from lessons.models import Chapter
-from quizes.models import Quiz
-from gramafication.models import Enrollment, PointTransaction, CourseGamification
-
 User = settings.AUTH_USER_MODEL
 
 def bulk_notify(recipients, actor=None, verb="", course=None):
@@ -22,12 +17,15 @@ def bulk_notify(recipients, actor=None, verb="", course=None):
         send_notification_task.delay(n.id)
 
 
+# Example: notify when Course is created
+from courses.models import Course, Chapter, Quiz
+from gramafication.models import Enrollment, PointTransaction, CourseGamification
+
 @receiver(post_save, sender=Course)
 def notify_new_course(sender, instance, created, **kwargs):
     if not created:
         return
-
-    learners = User.objects.filter(profile__isnull=False)  # your actual profile
+    learners = User.objects.filter(profile__isnull=False)
     bulk_notify(
         recipients=learners,
         actor=instance.instructor,
@@ -35,13 +33,10 @@ def notify_new_course(sender, instance, created, **kwargs):
         course=instance
     )
 
-
-# 2. New Chapter
 @receiver(post_save, sender=Chapter)
 def notify_new_chapter(sender, instance, created, **kwargs):
     if not created:
         return
-
     course = instance.lesson.course
     learners = User.objects.filter(profile__isnull=False)
     bulk_notify(
@@ -51,12 +46,10 @@ def notify_new_chapter(sender, instance, created, **kwargs):
         course=course
     )
 
-
 @receiver(post_save, sender=Quiz)
 def notify_new_quiz(sender, instance, created, **kwargs):
     if not created:
         return
-
     course = instance.course
     learners = User.objects.filter(profile__isnull=False)
     bulk_notify(
@@ -66,7 +59,6 @@ def notify_new_quiz(sender, instance, created, **kwargs):
         course=course
     )
 
-
 @receiver(post_save, sender=Enrollment)
 def notify_enrollment(sender, instance, created, **kwargs):
     if not created:
@@ -75,8 +67,6 @@ def notify_enrollment(sender, instance, created, **kwargs):
     learner = instance.learner.user
     course = instance.course
     instructor = getattr(course, "instructor", None)
-
-    notifications = []
 
     if instructor and instructor != learner:
         n = Notification.objects.create(
@@ -114,7 +104,6 @@ def notify_points(sender, instance, created, **kwargs):
 def notify_course_completed(sender, instance, **kwargs):
     if not instance.course_completed:
         return
-
     if getattr(instance, '_completion_notified', False):
         return
     instance._completion_notified = True
