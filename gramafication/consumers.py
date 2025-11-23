@@ -18,14 +18,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        pass  
+        # optional: handle client-to-server messages if needed
+        pass
 
     async def send_notification(self, event):
         await self.send(text_data=json.dumps(event["notification"]))
 
     @database_sync_to_async
-    def create_notification_dict(self, notification):
-        from .models import Notification
+    def serialize_notification(self, notification):
         return {
             "id": notification.id,
             "verb": notification.verb,

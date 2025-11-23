@@ -3,7 +3,8 @@ from channels.layers import get_channel_layer
 
 def send_realtime_notification(notification):
     channel_layer = get_channel_layer()
-    group_name = f"user_{notification.recipient.id}"
+    group_name = f"notifications_{notification.recipient.id}"
+
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
@@ -11,7 +12,8 @@ def send_realtime_notification(notification):
             "notification": {
                 "id": notification.id,
                 "verb": notification.verb,
-                "course": notification.target_course.name if notification.target_course else None,
+                "actor": str(notification.actor) if notification.actor else None,
+                "target": str(notification.target_course) if hasattr(notification, "target_course") else None,
                 "timestamp": str(notification.timestamp)
             }
         }
