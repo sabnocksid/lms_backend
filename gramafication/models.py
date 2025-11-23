@@ -186,7 +186,7 @@ class Notification(models.Model):
     )
     verb = models.CharField(max_length=255)  
     target_course = models.ForeignKey(
-        "Course",
+        "courses.Course",
         on_delete=models.CASCADE,
         null=True,
         blank=True
