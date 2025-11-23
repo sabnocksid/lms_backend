@@ -10,7 +10,7 @@ from lessons.models import Chapter
 from quizes.models import Quiz
 
 from gramafication.models import PointTransaction, CourseGamification
-from enrollments.models import Enrollment
+from gramafication.models import Enrollment
 
 User = get_user_model()
 
