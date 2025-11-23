@@ -842,14 +842,14 @@ class PointTransactionListView(APIView):
 #         target_course=target_course
 #     )
 
-    send_realtime_notification(notification)
+    # send_realtime_notification(notification)
 
-    return JsonResponse({
-        "message": "Notification sent",
-        "notification": {
-            "id": notification.id,
-            "verb": notification.verb,
-            "course": target_course.name if target_course else None,
-            "timestamp": str(notification.timestamp)
-        }
-    })
+    # return JsonResponse({
+    #     "message": "Notification sent",
+    #     "notification": {
+    #         "id": notification.id,
+    #         "verb": notification.verb,
+    #         "course": target_course.name if target_course else None,
+    #         "timestamp": str(notification.timestamp)
+    #     }
+    # })
