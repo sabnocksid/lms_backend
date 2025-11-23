@@ -1,6 +1,6 @@
-from django.urls import path
+from django.urls import re_path
 from .consumers import DiscussionConsumer
 
 websocket_urlpatterns = [
-    path("ws/discussion/<room_name>/", DiscussionConsumer.as_asgi()),
+    re_path(r'ws/discussion/(?P<thread_id>\d+)/$', DiscussionConsumer.as_asgi()),
 ]
