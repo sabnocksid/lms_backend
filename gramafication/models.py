@@ -170,6 +170,7 @@ class CourseGamification(models.Model):
         quiz_done = self.attempted_quizzes >= self.total_quizzes if self.total_quizzes else True
         return chapter_done and quiz_done
 
+from courses.models import Course
 
 class Notification(models.Model):
     recipient = models.ForeignKey(
