@@ -552,12 +552,16 @@ class DashboardView(APIView):
         if user.role == "student":
             transactions = PointTransaction.objects.filter(learner__user=user).order_by('-created_at')[:5]
         elif user.role == "instructor":
-            courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
+            instructor_courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
+
+            learner_ids = Enrollment.objects.filter(
+                course_id__in=instructor_courses,
+                is_active=True
+            ).values_list("learner_id", flat=True)
+
             transactions = PointTransaction.objects.filter(
-                learner__courses__in=courses
-            ).select_related(
-                "learner__user"
-            ).order_by("-created_at")[:5]
+                learner_id__in=learner_ids
+            ).select_related("learner__user").order_by("-created_at")[:5]
         else:
             transactions = PointTransaction.objects.select_related("learner__user").order_by('-created_at')[:5]
 
