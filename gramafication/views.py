@@ -359,6 +359,7 @@ class DashboardView(APIView):
                 student_count = students.count()
             else:
                 instructor_courses = Course.objects.filter(instructor=user)
+                student_count = students.count()
                 students = LearnerProfile.objects.filter(
                     user__chapter_progress__chapter__lesson__course__in=instructor_courses
                 ).distinct()
