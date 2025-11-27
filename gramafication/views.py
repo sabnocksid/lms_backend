@@ -549,12 +549,14 @@ class DashboardView(APIView):
             top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
             leaderboard_data["top_3_learners"] = LeaderboardSerializer(top_3, many=True, context={"request": request}).data
 
-        # --- Recent Activities ---
         if user.role == "student":
             transactions = PointTransaction.objects.filter(learner__user=user).order_by('-created_at')[:5]
         elif user.role == "instructor":
-            courses = Course.objects.filter(instructor=user)
-            transactions = PointTransaction.objects.filter(learner__course__in=courses).select_related("learner__user").order_by('-created_at')[:5]
+            courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
+
+            transactions = PointTransaction.objects.filter(
+                learner__course_id__in=courses
+            ).select_related("learner__user").order_by('-created_at')[:5]
         else:
             transactions = PointTransaction.objects.select_related("learner__user").order_by('-created_at')[:5]
 
