@@ -99,53 +99,17 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
 
 from .serializers import LearnerProfileUpdateSerializer
 
-from rest_framework import generics, permissions, status
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.response import Response
-from django.contrib.auth.hashers import make_password
-from .models import LearnerProfile
-from .serializers import LearnerProfileUpdateSerializer
-
 class LearnerProfileUpdateView(generics.UpdateAPIView):
     serializer_class = LearnerProfileUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def get_object(self):
-        user = self.request.user
-        if user.role == 'student':
-            profile, _ = LearnerProfile.objects.get_or_create(
-                user=user,
-                defaults={"full_name": user.full_name}
-            )
-            return profile
-        return user
-
-    def update(self, request, *args, **kwargs):
-        user = self.request.user
-        obj = self.get_object()
-        data = request.data.copy()
-
-        if user.role == 'student':
-            allowed_fields = ['full_name', 'profile_image']
-        else:
-            allowed_fields = ['full_name', 'email', 'password']
-
-        update_data = {key: data[key] for key in allowed_fields if key in data}
-
-        if 'password' in update_data:
-            update_data['password'] = make_password(update_data['password'])
-
-        for attr, value in update_data.items():
-            setattr(obj, attr, value)
-
-        obj.save()
-
-        return Response({
-            "success": True,
-            "message": "Profile updated successfully",
-            "updated_fields": list(update_data.keys())
-        }, status=status.HTTP_200_OK)
+        profile, _ = LearnerProfile.objects.get_or_create(
+            user=self.request.user,
+            defaults={"full_name": self.request.user.full_name}
+        )
+        return profile
     
 from django.core.cache import cache
 
