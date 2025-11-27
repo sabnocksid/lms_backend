@@ -45,6 +45,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
 
             return Response({
                 "role": user.role,
+                "email": user.email,
                 "full_name": user.full_name,
                 "total_courses": total_courses,
                 "total_quizzes": total_quizzes,
