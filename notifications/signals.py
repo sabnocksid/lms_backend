@@ -5,7 +5,14 @@ from django.conf import settings
 from notifications.models import Notification
 from notifications.tasks import send_notification_task
 
-User = settings.AUTH_USER_MODEL
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.contrib.auth import get_user_model
+
+from notifications.models import Notification
+from notifications.tasks import send_notification_task
+
+User = get_user_model()
 
 def bulk_notify(recipients, actor=None, verb="", course=None):
     notifications = [
