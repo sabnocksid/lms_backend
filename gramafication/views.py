@@ -22,13 +22,11 @@ class LearnerProfileListView(generics.ListAPIView):
     queryset = LearnerProfile.objects.all()
     serializer_class = LearnerProfileSerializer
 
-class LearnerProfileDetailView(generics.RetrieveAPIView):
+class ProfileDetailView(generics.RetrieveAPIView):
     serializer_class = LearnerProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        if self.request.user.role != 'student':
-            return None
+    def get_student_profile(self):
         profile, _ = LearnerProfile.objects.get_or_create(
             user=self.request.user,
             defaults={"full_name": self.request.user.full_name}
@@ -39,9 +37,19 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
         user = request.user
 
         if user.role in ['admin', 'instructor']:
-            total_courses = Course.objects.count()
-            total_quizzes = Quiz.objects.count()
-            total_students = LearnerProfile.objects.filter(user__role='student').count()
+            # Courses and quizzes count for instructor/admin
+            if user.role == 'instructor':
+                courses = Course.objects.filter(instructor=user)
+                total_courses = courses.count()
+                total_quizzes = Quiz.objects.filter(course__instructor=user).count()
+                total_students = LearnerProfile.objects.filter(
+                    user__role='student',
+                    user__enrollments__course__instructor=user
+                ).distinct().count()
+            else:  # admin
+                total_courses = Course.objects.count()
+                total_quizzes = Quiz.objects.count()
+                total_students = LearnerProfile.objects.filter(user__role='student').count()
 
             return Response({
                 "role": user.role,
@@ -51,28 +59,29 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
                 "total_students": total_students,
             })
 
-        profile = self.get_object()
+        # Student logic
+        profile = self.get_student_profile()
         profile_image_url = get_presigned_url(profile.profile_image, request=request) if profile.profile_image else None
 
+        # Calculate completed courses
         completed_courses = 0
-        all_courses = Course.objects.all()  
-
+        all_courses = Course.objects.all()
         for course in all_courses:
             total_chapters = Chapter.objects.filter(lesson__course=course).count()
             completed_chapters = ChapterProgress.objects.filter(
                 user=user, chapter__lesson__course=course, completed=True
             ).count()
-
             if total_chapters > 0 and completed_chapters == total_chapters:
                 completed_courses += 1
 
+        # Quiz stats
         quiz_attempts = QuizAttempt.objects.filter(user=user)
         total_quizzes_attended = quiz_attempts.count()
         total_correct = 0
         total_incorrect = 0
         total_questions_attempted = 0
 
-        for attempt in quiz_attempts.select_related('quiz').prefetch_related('answers__selected_choice'):
+        for attempt in quiz_attempts.prefetch_related('answers__selected_choice'):
             answers = attempt.answers.all()
             total_questions_attempted += answers.count()
             total_correct += sum(1 for a in answers if a.selected_choice and a.selected_choice.is_correct)
@@ -95,7 +104,6 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
             "total_incorrect": total_incorrect,
             "accuracy": round(accuracy, 2),
         })
-
 
 from .serializers import LearnerProfileUpdateSerializer
 
