@@ -553,10 +553,11 @@ class DashboardView(APIView):
             transactions = PointTransaction.objects.filter(learner__user=user).order_by('-created_at')[:5]
         elif user.role == "instructor":
             courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
-
             transactions = PointTransaction.objects.filter(
-                learner__course__in=courses
-            ).select_related("learner__user").order_by('-created_at')[:5]
+                learner__courses__in=courses
+            ).select_related(
+                "learner__user"
+            ).order_by("-created_at")[:5]
         else:
             transactions = PointTransaction.objects.select_related("learner__user").order_by('-created_at')[:5]
 
