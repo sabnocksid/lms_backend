@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import DiscussionThread, DiscussionPost
+from gramafication.serializers import SimpleLearnerSerializer
+
 
 class DiscussionPostSerializer(serializers.ModelSerializer):
     creator_name = serializers.CharField(source="creator.username", read_only=True)
@@ -11,10 +13,23 @@ class DiscussionPostSerializer(serializers.ModelSerializer):
 
 class DiscussionThreadSerializer(serializers.ModelSerializer):
     ws_url = serializers.SerializerMethodField()
+    discussion_users = serializers.SerializerMethodField()
+    course_name = serializers.SerializerMethodField()
+    participant_count = serializers.SerializerMethodField()  
 
     class Meta:
         model = DiscussionThread
-        fields = ["id", "course", "title", "creator", "created_at", "updated_at", "ws_url"]
+        fields = [
+            "id",
+            "course_name",
+            "title",
+            "creator",
+            "created_at",
+            "updated_at",
+            "ws_url",
+            "discussion_users",
+            "participant_count"  
+        ]
 
     def get_ws_url(self, obj):
         request = self.context.get("request")
@@ -31,3 +46,19 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
             ws_url = f"{ws_url}?token={token_value}"
 
         return ws_url
+
+    def get_discussion_users(self, obj):
+        enrollments = obj.course.enrollments.filter(is_active=True)
+        learners = [enrollment.learner for enrollment in enrollments]
+
+        return SimpleLearnerSerializer(
+            learners[:5],
+            many=True,
+            context=self.context
+        ).data
+
+    def get_participant_count(self, obj):
+        return obj.course.enrollments.filter(is_active=True).count()
+
+    def get_course_name(self, obj):
+        return obj.course.name

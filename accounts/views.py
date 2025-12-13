@@ -227,3 +227,14 @@ class UserUpdateAPIView(APIView):
             return Response(serializer.data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+from django.contrib.auth import logout
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(["POST"])
+def logout_view(request):
+    logout(request)
+    return Response({"detail": "Logged out successfully"})

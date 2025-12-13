@@ -1,46 +1,41 @@
 import jwt
+from channels.middleware import BaseMiddleware
 from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
-from channels.db import database_sync_to_async
+from urllib.parse import parse_qs
 
-User = get_user_model()
-
-class JWTAuthMiddleware:
-    def __init__(self, inner):
-        self.inner = inner
-
+class JWTAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
-        scope["user"] = AnonymousUser()
+        from django.contrib.auth.models import AnonymousUser  # <-- moved inside
 
         query_string = scope.get("query_string", b"").decode()
-        token = None
-        
-        if "token=" in query_string:
-            token = query_string.split("token=")[1].split("&")[0]
-        
-        if not token:
-            subprotocols = scope.get("subprotocols", [])
-            if len(subprotocols) >= 2 and subprotocols[0] == "Bearer":
-                token = subprotocols[1]
+        query_params = parse_qs(query_string)
+        token = query_params.get("token", [None])[0]
 
         if token:
-            user = await self.get_user_from_token(token)
-            if user:
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+
+                from django.contrib.auth import get_user_model  # <-- safe here
+                User = get_user_model()
+
+                user = await self.get_user(payload["user_id"], User)
                 scope["user"] = user
+            except Exception:
+                scope["user"] = AnonymousUser()
+        else:
+            scope["user"] = AnonymousUser()
 
-        return await self.inner(scope, receive, send)
+        return await super().__call__(scope, receive, send)
 
-    @database_sync_to_async
-    def get_user_from_token(self, token):
+    @staticmethod
+    async def get_user(user_id, User):
+        from channels.db import database_sync_to_async
 
-        try:
-            payload = jwt.decode(
-                token, 
-                settings.SECRET_KEY, 
-                algorithms=["HS256"]
-            )
-            user = User.objects.get(id=payload["user_id"])
-            return user
-        except (jwt.ExpiredSignatureError, jwt.DecodeError, User.DoesNotExist):
-            return None
+        @database_sync_to_async
+        def inner():
+            try:
+                return User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return None
+
+        return await inner()

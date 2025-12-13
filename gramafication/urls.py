@@ -9,11 +9,13 @@ from .views import (
     DashboardView,
     EnrollCourseView, 
     MyEnrollmentsView,
-    PointTransactionListView
+    PointTransactionListView,
+    UserProfileUpdateView
 )
 
 urlpatterns = [
     path("learners/me/update/", LearnerProfileUpdateView.as_view(), name="learner-profile-update"),
+    path("profile/update", UserProfileUpdateView.as_view(), name="learner-profile-update"),
 
     path("learners/", LearnerProfileListView.as_view(), name="learner-profile-list"),
     path('engagements/', PointTransactionListView.as_view(), name='engagements'),

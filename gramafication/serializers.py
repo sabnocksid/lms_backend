@@ -69,7 +69,19 @@ class DetailedPointTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PointTransaction
         fields = ["id", "points", "reason", "created_at", "learner_profile"]
-        
+
+class SimpleLearnerSerializer(serializers.ModelSerializer):
+    profile_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LearnerProfile
+        fields = ["id", "full_name", "profile_image"]
+
+    def get_profile_image(self, obj):
+        if obj.profile_image:
+            request = self.context.get("request")
+            return get_presigned_url(obj.profile_image, request=request)
+        return None
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
     earned_badges = LearnerBadgeSerializer(many=True, read_only=True)

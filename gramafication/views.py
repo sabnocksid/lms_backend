@@ -45,6 +45,7 @@ class LearnerProfileDetailView(generics.RetrieveAPIView):
 
             return Response({
                 "role": user.role,
+                "email": user.email,
                 "full_name": user.full_name,
                 "total_courses": total_courses,
                 "total_quizzes": total_quizzes,
@@ -110,6 +111,61 @@ class LearnerProfileUpdateView(generics.UpdateAPIView):
             defaults={"full_name": self.request.user.full_name}
         )
         return profile
+    
+
+
+
+from rest_framework import generics, permissions, status
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from .serializers import LearnerProfileUpdateSerializer
+
+User = get_user_model()
+
+class UserProfileUpdateView(generics.UpdateAPIView):
+    serializer_class = LearnerProfileUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_object(self):
+        user = self.request.user
+        if user.role == 'student':
+            from .models import LearnerProfile
+            profile, _ = LearnerProfile.objects.get_or_create(
+                user=user,
+                defaults={"full_name": user.full_name}
+            )
+            return profile
+        return user
+
+    def update(self, request, *args, **kwargs):
+        user = request.user
+        obj = self.get_object()
+        data = request.data.copy()
+
+        if user.role == 'student':
+            allowed_fields = ['full_name', 'profile_image']
+        else:
+            allowed_fields = ['full_name', 'email', 'password']
+
+        update_data = {key: data[key] for key in allowed_fields if key in data}
+
+        if 'password' in update_data:
+            update_data['password'] = make_password(update_data['password'])
+
+        for attr, value in update_data.items():
+            setattr(obj, attr, value)
+
+        obj.save()
+
+        return Response({
+            "success": True,
+            "message": "Profile updated successfully",
+            "updated_fields": list(update_data.keys())
+        }, status=status.HTTP_200_OK)
+
     
 from django.core.cache import cache
 
@@ -358,10 +414,13 @@ class DashboardView(APIView):
                 students = LearnerProfile.objects.filter(user__role="student")
                 student_count = students.count()
             else:
-                instructor_courses = Course.objects.filter(instructor=user)
+                instructor_courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
+
+                
                 students = LearnerProfile.objects.filter(
-                    chapterprogress__chapter__lesson__course__in=instructor_courses
+                    user__chapter_progress__chapter__lesson__course_id__in=instructor_courses
                 ).distinct()
+                student_count = students.count()
 
             total_chapters = Chapter.objects.count()
             total_quizzes = Quiz.objects.count()
@@ -546,12 +605,19 @@ class DashboardView(APIView):
             top_3 = LearnerProfile.objects.filter(user__role='student').order_by("-points", "full_name")[:3]
             leaderboard_data["top_3_learners"] = LeaderboardSerializer(top_3, many=True, context={"request": request}).data
 
-        # --- Recent Activities ---
         if user.role == "student":
             transactions = PointTransaction.objects.filter(learner__user=user).order_by('-created_at')[:5]
         elif user.role == "instructor":
-            courses = Course.objects.filter(instructor=user)
-            transactions = PointTransaction.objects.filter(learner__course__in=courses).select_related("learner__user").order_by('-created_at')[:5]
+            instructor_courses = Course.objects.filter(instructor=user).values_list("id", flat=True)
+
+            learner_ids = Enrollment.objects.filter(
+                course_id__in=instructor_courses,
+                is_active=True
+            ).values_list("learner_id", flat=True)
+
+            transactions = PointTransaction.objects.filter(
+                learner_id__in=learner_ids
+            ).select_related("learner__user").order_by("-created_at")[:5]
         else:
             transactions = PointTransaction.objects.select_related("learner__user").order_by('-created_at')[:5]
 
@@ -568,7 +634,7 @@ class DashboardView(APIView):
 
         continue_watching_data = []
         if user.role == "student":
-            continue_watching_courses = (
+            courses_qs = (
                 Course.objects.prefetch_related("lessons__chapters")
                 .annotate(
                     total_chapters=Count("lessons__chapters", distinct=True),
@@ -589,15 +655,20 @@ class DashboardView(APIView):
                             output_field=FloatField()
                         ),
                         output_field=FloatField()
+                    ),
+                    is_completed=Case(
+                        When(total_chapters=F("completed_chapters"), then=Value(True)),
+                        default=Value(False),
+                        output_field=FloatField()
                     )
                 )
-                .filter(completion_percentage__lt=100, completion_percentage__gt=0)
-                .order_by("-completion_percentage")[:5]
+                .order_by("-completion_percentage")[:10]  
             )
 
             continue_watching_data = CoursePreviewSerializer(
-                continue_watching_courses, many=True, context={"request": request}
+                courses_qs, many=True, context={"request": request}
             ).data
+
 
         top_rated_courses = (
             Course.objects
@@ -610,6 +681,33 @@ class DashboardView(APIView):
 
         for course, data in zip(top_rated_courses, serializer.data):
             highest_rated_courses_data.append(data)
+
+
+        from discussion.models import DiscussionThread
+        from discussion.serializers import DiscussionThreadSerializer
+        user = request.user
+
+        if user.is_staff or user.is_superuser:
+            discussions = DiscussionThread.objects.all().order_by('-created_at').select_related(
+                "course", "course__instructor"
+            )[:5] 
+        elif hasattr(user, "profile"):
+            enrolled_courses = Enrollment.objects.filter(
+                learner=user.profile,
+                is_active=True
+            ).values_list("course_id", flat=True)
+            discussions = DiscussionThread.objects.filter(
+                course_id__in=enrolled_courses
+            ).select_related("course", "course__instructor")[:5] 
+        else:
+            discussions = DiscussionThread.objects.filter(
+                course__instructor=user
+            ).select_related("course", "course__instructor")[:5] 
+
+        discussion_serializer = DiscussionThreadSerializer(
+            discussions, many=True, context={"request": request}
+        )
+
 
         dashboard_response = {
             "welcome_box": welcome_data,
@@ -624,6 +722,8 @@ class DashboardView(APIView):
 
         if continue_watching_data:
             dashboard_response["continue_watching"] = continue_watching_data
+
+        dashboard_response["recent_discussions"] = discussion_serializer.data
 
         return Response(dashboard_response)
 

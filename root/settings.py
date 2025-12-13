@@ -78,8 +78,13 @@ INSTALLED_APPS = [
     'lessons',
     'quizes',
     'gramafication',
-    'discussion'
+    'discussion',
+    'notifications.apps.NotificationsConfig',
 ]
+
+
+
+
 
 
 

@@ -8,7 +8,8 @@ from .views import (
     VerifyEmailView,
     UserRoleViewSet,
     AdminUserCreateView,
-    UserUpdateAPIView
+    UserUpdateAPIView,
+    logout_view
 )
 
 router = DefaultRouter()
@@ -22,6 +23,8 @@ urlpatterns = [
     path("user/update/<int:user_id>/", UserUpdateAPIView.as_view(), name="user-update"),
     path("verify-email/", VerifyEmailView.as_view(), name="verify-email"),
     path('admin/create-user/', AdminUserCreateView.as_view(), name='admin-create-user'),
+    path("logout/", logout_view, name="logout"),
+
     
     path("", include(router.urls)),
 ]
